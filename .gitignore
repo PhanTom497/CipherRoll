@@ -1,0 +1,27 @@
+# Hardhat and TypeScript build artifacts
+artifacts/
+cache/
+coverage/
+dist/
+typechain-types/
+
+# Environment and secrets
+.env
+.env.local
+*.pem
+*private_key*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+
+account.txt
