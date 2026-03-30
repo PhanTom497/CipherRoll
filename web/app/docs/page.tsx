@@ -247,7 +247,7 @@ export default function DocsPage() {
                           </div>
                           <div>
                              <h4 className="text-white font-bold mb-1">Mathematically Guaranteed Privacy</h4>
-                             <p className="leading-relaxed">{`Because CipherRoll operates over encrypted integers (`}<span className="font-bold text-white">euints</span>{`), the network nodes performing the math (addition, subtraction, selection) never witness the actual dollars. This `}<span className="font-bold text-white">"Blind Computation"</span> {`ensures that even a malicious validator cannot see your organization's financial strength.`}</p>
+                             <p className="leading-relaxed">{`Because CipherRoll operates over encrypted integers (`}<span className="font-bold text-white">euints</span>{`), the network nodes performing the math (addition, subtraction, selection) never witness the actual dollars. This `}<span className="font-bold text-white">{`"Blind Computation"`}</span> {`ensures that even a malicious validator cannot see your organization's financial strength.`}</p>
                           </div>
                        </div>
                     </div>
