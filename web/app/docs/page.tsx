@@ -125,7 +125,7 @@ export default function DocsPage() {
                       <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
                         <h3 className="text-white font-bold text-lg mb-3">Enterprise-Grade Confidentiality via CoFHE</h3>
                         <p className="text-[#c9c9d0] mb-4">
-                          CipherRoll operates on a paradigm shift in on-chain privacy. Instead of tracking balances in plaintext or relying on disjointed off-chain provers dictating Zero-Knowledge Snark payloads, CipherRoll utilizes Fhenix's latest <span className="font-bold text-white">CoFHE (Coprocessor for Fully Homomorphic Encryption)</span> architecture directly on the public <span className="font-bold text-white">Ethereum Sepolia</span> network.
+                          CipherRoll operates on a paradigm shift in on-chain privacy. Instead of tracking balances in plaintext or relying on disjointed off-chain provers dictating Zero-Knowledge Snark payloads, CipherRoll utilizes Fhenix&apos;s latest <span className="font-bold text-white">CoFHE (Coprocessor for Fully Homomorphic Encryption)</span> architecture directly on the public <span className="font-bold text-white">Ethereum Sepolia</span> network.
                         </p>
                         <p className="text-[#c9c9d0]">
                           Administrators provision workspaces and execute highly sensitive payroll disbursements encrypted entirely client-side using a browser <span className="font-bold text-white">WASM payload (cofhejs)</span>. The Sepolia EVM network nodes compute additions and subtractions natively over these ciphertexts but never gain the ability to decrypt the underlying integer amounts.
