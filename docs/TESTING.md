@@ -1,122 +1,60 @@
-# CipherRoll Testing Guide
+# CipherRoll Testing & Verification Guide
 
-This guide covers the Wave 1 testing surface for the Fhenix-native CipherRoll product.
+This guide outlines the proper procedures for testing the Fhenix-native CipherRoll contracts and frontend integration.
 
-## Recommended Order
+## 1. Smart Contract Compilation
 
-1. Compile the contracts.
-2. Deploy the Wave 1 module.
-3. Run the frontend.
-4. Test the admin-to-employee flow.
-5. Review the docs route for buildathon readiness.
-6. Walk through `docs/FRONTEND_MANUAL_QA.md`.
-
-## 1. Contract Compile
+Navigate to the repository root and compile the contracts using Hardhat/Foundry wrappers.
 
 ```bash
 npm run compile
 ```
 
-Expected:
+**Expected Output:**
+- `CipherRollPayroll.sol` compiles successfully.
+- Treasury adapter mocks build securely without warnings.
+- Typechain artifacts are generated for the frontend.
 
-- Foundry loads the Wave 1 workspace
-- `CipherRollPayroll.sol` compiles
-- the treasury adapter mock compiles
+## 2. Protocol Deployment
 
-## 2. Deployment
-
-Before deploying, install the root dependencies:
+Deploy the core protocol to the Sepolia Fhenix Testnet.
 
 ```bash
 npm install
-```
-
-If you previously saw an error for `@fhenixprotocol/cofhe-hardhat-plugin`, pull the latest `package.json` changes first. CipherRoll now uses the published `cofhe-hardhat-plugin` package instead.
-
-```bash
 npm run deploy:sepolia
 ```
 
-Expected:
+**Expected Output:**
+- An instance of the `CipherRollPayroll` contract is deployed.
+- A treasury adapter boundary proxy is deployed.
+- `outputs/sepolia-deployment.json` is accurately seeded with new addresses.
 
-- a Wave 1 payroll contract address is produced
-- a Wave 1 treasury adapter address is produced
-- `outputs/sepolia-deployment.json` is written
-- the frontend env can be updated with the deployment address
-
-## 3. Frontend Run
+## 3. Local Development Server
 
 ```bash
 cd web
 npm run dev
 ```
 
-Expected:
+**Expected Output:**
+- The frontend loads seamlessly at `http://localhost:3000`.
+- All sub-routes (`/admin`, `/employee`, `/docs`) properly resolve and maintain state.
 
-- `/`, `/admin`, `/employee`, and `/docs` render
-- `/auditor` and `/tax-authority` render as future-wave previews
-- the existing visual design remains intact
+## 4. End-to-End Functional Flow
 
-## 4. Wave 1 Functional Validation
+1. **Workspace Genesis:** Connect an admin wallet and create a new organizational workspace. Confirm the Keccak256 `orgId` deterministic label resolves properly.
+2. **Homomorphic Funding:** Deposit an encrypted budget amount. Ensure the transaction succeeds and the on-chain handle mapping updates without revealing the integer.
+3. **Confidential Issuance:** Issue a payroll allocation to a designated employee wallet address. Add a specific memo.
+4. **Client-Side Decryption:** 
+   - Switch your Web3 provider to the employee's wallet address.
+   - Access the `/employee` portal.
+   - Generate an EIP-712 security permit.
+   - Validate that the browser WASM worker (`cofhejs`) successfully unseals the ciphertext into plaintext in the browser memory only.
 
-### Admin setup
+## 5. Automated Unit Tests
 
-Validate:
+Execute the standardized test suite to verify homomorphic logic, budget boundaries, and role-based access controllers.
 
-- admin wallet connects
-- workspace can be created
-- treasury adapter config saves
-- reserved quorum metadata is visible
-
-### Encrypted budget
-
-Validate:
-
-- budget deposit transaction succeeds
-- admin summary handles update
-- permit flow attempts to unseal budget, committed, and available values
-
-### Confidential payroll issuance
-
-Validate:
-
-- admin can issue a standard payroll allocation
-- admin can issue a vesting payroll allocation with future timestamps
-- payment id and memo hash are created
-- allocation respects available budget in encrypted logic
-
-### Employee permit view and claim
-
-Validate:
-
-- employee wallet connects
-- employee creates a permit
-- employee can fetch only their own handles
-- employee can execute `claimPayroll` on an available allocation
-- employee unseal path succeeds when standard tooling is present
-
-### Docs route
-
-Validate:
-
-- docs explain Wave 1 clearly
-- docs explain Wave 2 and Wave 3 deferrals clearly
-- local setup instructions are accurate
-- architecture text matches the implemented contract/frontend shape
-
-## 5. Manual Demo Path
-
-1. Create the organization in `/admin`.
-2. Configure a treasury adapter address and route id.
-3. Deposit budget.
-4. Issue a confidential payroll allocation.
-5. Switch to the employee wallet.
-6. Generate a permit.
-7. Refresh `/employee`.
-8. Confirm the employee sees only their own handle and, where supported, the unsealed amount.
-
-## 6. Wave 1 Constraints To Remember
-
-- single-admin execution is intentional
-- later-wave role portals are previews, not full production flows
-- compliance flows are out of scope for this milestone
+```bash
+npm run test
+```

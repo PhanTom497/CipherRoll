@@ -1,59 +1,52 @@
-# CipherRoll Wave 1 QA Checklist
+# CipherRoll Production QA Checklist
 
-Use this checklist before treating the Wave 1 buildathon submission as demo-ready.
+Use this checklist before authorizing a stable production or testnet deployment of the CipherRoll protocol.
 
 Detailed browser QA lives in `docs/FRONTEND_MANUAL_QA.md`.
 
-## Pre-flight
+## Pre-flight Engine Check
 
-- root dependencies install
-- web dependencies install
-- `.env` exists
-- `NEXT_PUBLIC_CIPHERROLL_CONTRACT_ADDRESS` is set after deploy
-- admin wallet available
-- employee wallet available
+- root dependencies installed securely
+- web dependencies installed securely
+- `.env` configured properly
+- `NEXT_PUBLIC_CIPHERROLL_CONTRACT_ADDRESS` is accurately mapped after deployment
+- admin operational multisig/wallet provisioned
+- employee test wallets available
 
-## Landing Page
+## Landing Page & Global Routing
 
-- branding says CipherRoll everywhere
-- FHE/Fhenix copy is consistent
-- existing premium design still feels intact
-- links to admin, employee, docs, and future-wave previews all work
+- branding reads as purely `CipherRoll`
+- FHE/CoFHE copy is consistent and accurate
+- premium glassmorphism design renders at all breakpoints
+- links to admin, employee, docs, and feature-preview routes resolve correctly
 
-## Admin Portal
+## Admin Workspace
 
-- wallet connects on Ethereum Sepolia
-- workspace creation works
-- treasury adapter configuration works
-- budget deposit works
-- payroll issuance works
-- admin summary handles appear
-- permit button works
+- wallet binds to EVM successfully via injected provider
+- organizational workspace mints on-chain
+- treasury adapter routing parameters save accurately
+- encrypted budget injection operations commit successfully
+- confidential payroll push allocations execute without revert
+- encrypted admin summary handles appear dynamically via data polling
+- EIP-712 security permit generation operates seamlessly
 
-## Employee Portal
+## Employee Workspace
 
-- wallet connects
-- permit generation works
-- employee handle refresh works
-- only employee-owned allocations are visible
-- no transparent record language remains in the UI
+- employee wallet binds to EVM securely
+- local cache EIP-712 permit generation succeeds
+- employee handle refresh sequence pulls directly from contract state
+- rigid visibility limits remain in place (only employee-owned allocations load)
+- WASM decryption via `cofhejs` drops ciphertexts to plaintext seamlessly
 
-## Docs
+## Documentation
 
-- Wave 1 scope is explicit
-- Wave 2 and Wave 3 are clearly staged
-- local setup commands are accurate
-- architecture notes reflect the implemented code
-- docs read like part of the buildathon submission, not leftover engineering notes
-
-## Preview Portals
-
-- auditor page reads as a polished Wave 2 preview
-- treasury page reads as a polished Wave 3 preview
-- neither page pretends unfinished functionality already exists
+- architectural documentation is entirely up-to-date
+- roadmap accurately details current deployment vs. future compliance flows
+- local setup and build commands are tested
+- all technical notes reflect the `InEuint128` data structure currently implemented
 
 ## Final Sign-Off
 
-- no transparent-chain-specific terminology remains in user-facing copy
-- no transparent wallet records or local claim queues remain in functional paths
-- the repo tells one coherent CipherRoll Wave 1 story
+- no legacy transparent-chain terminology remains in user-facing copy
+- no unencrypted local tracking logic remains functional
+- the repository delivers a single, frictionless privacy-first payroll experience

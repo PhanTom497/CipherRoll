@@ -1,69 +1,37 @@
-# CipherRoll Roadmap
+# CipherRoll Product Roadmap
 
-This roadmap is structured for the Fhenix buildathon rather than a one-shot feature dump.
+CipherRoll is continuously evolving to support comprehensive enterprise payroll, auditing, and tax compliance needs.
 
-## Wave 1: FHE-Native MVP
+## Phase 1: Core Privacy Protocol (Current)
+- [x] Pure Fhenix/EVM project architecture
+- [x] `CipherRollPayroll.sol` secure execution contract
+- [x] Seamless EVM Wallet authentication
+- [x] Homomorphic budgeting and deposit flows
+- [x] Confidential payroll issuance (Push, Pull, and Vesting mechanics)
+- [x] True Client-Side WASM decryption via `cofhejs`
+- [x] High-conversion UI/UX utilizing premium glassmorphism 
 
-Status: Implemented in this repo
+## Phase 2: Decentralized Governance & Auditing
+- **True M-of-N Execution:** Transforming reserved governance fields into strict multisig logic for large-scale treasury actions.
+- **Auditor Selective Disclosure:** Allowing administrators to cryptographically issue temporary decryption permits to external auditors for quarterly analysis.
+- **Deep Treasury Adapters:** Native integration with Privara-backed stablecoin settlement depth across Ethereum L2s.
 
-Delivered:
+## Phase 3: Total Compliance Integration
+- **Tax Authority Workflows:** Automated, FHE-encrypted tax withholding and provisioning paths that grant visibility strictly to mapped government addresses.
+- **Advanced Treasury Analytics:** Expanding the dashboard to include cross-chain flow analysis while preserving specific PII privacy.
+- **Automated Fiat On-Ramps:** Frictionless payroll settlement where organizations deposit fiat, auto-convert to encrypted stablecoins, and distribute on-chain.
 
-- pure Fhenix/EVM project scaffolding
-- Wave 1 confidential payroll contract
-- EVM wallet integration for the frontend
-- admin workspace setup and encrypted budget flow
-- employee permit-based allocation reads
-- employee pull claims and vesting schedules
-- docs-first buildathon framing
-- preserved frontend design language with rewritten FHE copy
-
-Not in Wave 1 on purpose:
-
-- true multi-admin execution
-- auditor permit sharing
-- tax authority workflow
-- advanced analytics
-
-## Wave 2: Operational Controls
-
-Status: Planned
-
-Focus:
-
-- turn reserved governance fields into real configurable `M-of-N`
-- add approval proposals for payroll operations
-- activate auditor selective disclosure with permits
-- deepen treasury adapter integration
-
-Target outcomes:
-
-- `/auditor` becomes a functional workspace
-- admin operations no longer rely on single-executor assumptions
-- docs gain approval lifecycle diagrams and role matrix detail
-
-## Wave 3: Full CipherRoll Goal
-
-Status: Planned
-
-Focus:
-
-- expand from Wave 1 issuance to broader payroll coverage
-- add treasury/compliance workspaces
-- move toward the full ambition of the original payroll product, but in Fhenix-native form
-
-Target outcomes:
-
-- stronger compliance frameworks
-- stronger Privara-backed settlement depth
-- treasury and tax authority workspaces
-- richer analytics and reporting surfaces
-
-## Product Positioning Notes
-
-Wave 1 is optimized for Akindo judging:
-
-- small enough to be believable
-- polished enough to demo cleanly
-- documented enough for reviewers to understand the architecture quickly
-
-Wave 2 and Wave 3 are where the deeper enterprise payroll surface should land.
+```mermaid
+gantt
+    title CipherRoll Implementation Timeline
+    dateFormat YYYY-MM
+    section Phase 1
+    Core FHE Protocol :done, p1, 2026-01, 2026-03
+    WASM Decryption :done, p2, 2026-02, 2026-03
+    section Phase 2
+    Quorum & Governance :active, p3, 2026-04, 2026-06
+    Auditor Disclosure : p4, 2026-05, 2026-07
+    section Phase 3
+    Tax Authority Flows : p5, 2026-08, 2026-11
+    Fiat-to-FHE Routing : p6, 2026-10, 2026-12
+```

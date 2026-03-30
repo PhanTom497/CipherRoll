@@ -1,142 +1,52 @@
 # CipherRoll Architecture
 
-## System Overview
+## 🌐 System Overview
 
-CipherRoll Wave 1 is a confidential payroll MVP built on Fhenix-compatible EVM infrastructure.
+CipherRoll is built to provide maximum operational privacy for payroll and treasury management using the **Fhenix CoFHE (Coprocessor for Fully Homomorphic Encryption)** architecture. 
 
-CipherRoll uses:
+Unlike traditional blockchain applications where state is plaintext, or early privacy protocols relying on isolated ZK-SNARK provers, CipherRoll processes all financial logic directly on the EVM using encrypted variables (`euint128`).
 
-- encrypted contract state for budget and payroll aggregates
-- permit-based reads for admin and employee views
-- an EVM wallet flow for interaction
-- a treasury adapter boundary that can grow into deeper stablecoin settlement later
+```mermaid
+graph TD
+    A[Admin Web UI] -->|Encrypted Deposits & Allocations| B(CipherRollPayroll.sol)
+    C[Employee Web UI] -->|EIP-712 View Permits| B
+    B <-->|Homomorphic Math| D{Fhenix CoFHE Coprocessor}
+    C -->|Encrypted Handles| E[Browser WASM]
+    E -->|Plaintext Decryption| F((Employee Dashboard))
+```
 
-## Wave 1 Components
+## 🧩 Core Components
 
-### Contract Layer
+### 1. Smart Contract Layer (`CipherRollPayroll.sol`)
+The fundamental backend orchestrator deployed on Ethereum Sepolia.
+- **State Management:** Manages organizational metadata and encrypted variables (`_encryptedBudget`, `_encryptedAvailable`, `_encryptedCommitted`).
+- **Encrypted Math:** Uses `FHE.add`, `FHE.sub`, and `FHE.select` to update balances without revealing values.
+- **Access Control:** Implements explicit visibility logic using `FHE.allowThis()` and `FHE.allow()`.
 
-File: `contracts/CipherRollPayroll.sol`
+### 2. Client-Side WASM Integration (`cofhejs`)
+CipherRoll utilizes standard `ethers.js` connected to an internal WebAssembly worker via `cofhejs.initializeWithEthers(...)`.
+- **Decryption:** Encrypted handles pulled from the contract are unsealed directly in the browser cache. No backend proxy ever sees the raw numbers.
+- **Zero-Sync:** Replaces the legacy privacy UX where users had to sync thousands of node blocks to retrieve UTXOs.
 
-Responsibilities:
+### 3. Treasury Adapter Layer
+- Orchestrates the boundary logic for stablecoin bridging and external liquidation routing.
+- Keeps the core payroll logic agnostic of the underlying settlement token.
 
-- create payroll organizations
-- reserve storage for future multi-admin quorum expansion
-- configure a treasury adapter boundary
-- accept Wave 1 budget deposits
-- issue confidential push payroll allocations
-- expose encrypted admin summary handles
-- expose employee-scoped encrypted allocation handles
+## 🗄️ Data Model
 
-### Frontend Layer
+### Organization State
+- `admin`: The operational multisig or wallet.
+- `metadataHash`: IPFS or deterministic hash referencing off-chain organization mapping.
+- `treasuryRouteId`: The identifier for external settlement adapters.
+- **Encrypted State:** `_encryptedBudget`, `_encryptedCommitted`, `_encryptedAvailable`.
 
-Directory: `web/`
+### Payroll Allocation State
+- `employee`: The recipient wallet address.
+- `paymentId`: A deterministic Keccak256 hash preventing duplicate processing.
+- `encryptedAmount`: The exact salary disbursement, encrypted globally and allowed only to the recipient.
+- `isVesting`: Boolean determining if the allocation unlocks linearly or instantly.
 
-Wave 1 functional routes:
+## 🔐 Advanced Privacy Handling
 
-- `/`
-- `/admin`
-- `/employee`
-- `/docs`
-
-Wave 1 preview routes:
-
-- `/auditor`
-- `/tax-authority`
-
-Responsibilities:
-
-- EVM wallet connection
-- organization setup and budget ops
-- permit generation
-- encrypted handle display
-- employee-side allocation reads
-- buildathon-ready docs presentation
-
-### Treasury Adapter Layer
-
-Files:
-
-- `contracts/interfaces/ITreasuryAdapter.sol`
-- `contracts/mocks/Wave1TreasuryAdapter.sol`
-
-Purpose:
-
-- establish the boundary where Privara-backed confidential settlement can plug in later
-- keep Wave 1 architecture extensible without pretending full settlement depth already exists
-
-## Data Model
-
-### Organization
-
-Public organization metadata:
-
-- admin address
-- treasury adapter address
-- treasury route id
-- metadata hash
-- reserved admin slot count
-- reserved quorum count
-
-Encrypted organization state:
-
-- payroll budget
-- committed payroll total
-- remaining available budget
-
-### Payroll Allocation
-
-Each allocation stores:
-
-- employee wallet
-- payment id
-- memo hash
-- creation timestamp
-- encrypted allocation amount
-
-Wave 1 supports admin-issued push allocations only.
-
-## Privacy Model
-
-### Admin
-
-Wave 1 admin can:
-
-- create the workspace
-- deposit encrypted budget
-- configure treasury routing
-- issue payroll allocations
-- unseal aggregate budget summary handles with a local permit
-
-### Employee
-
-Wave 1 employee can:
-
-- connect an EVM wallet
-- generate a local permit
-- fetch only their own encrypted payroll handles
-- attempt to unseal only those handles
-
-### Auditor And Treasury Roles
-
-Wave 1 keeps these as product previews.
-
-Reason:
-
-- the buildathon MVP is intentionally scoped to a trustworthy single admin-to-employee flow
-- selective disclosure and compliance surfaces are more credible in Wave 2 and Wave 3 than as half-built MVP features
-
-## Why FHE Changes The Product Shape
-
-CipherRoll utilizes encrypted shared state:
-
-- sensitive amounts live in encrypted contract state
-- participants read through handles, rather than transparent records
-- permits become the interface for selective disclosure
-- the UI computes operational truth completely from on-chain FHE execution
-
-## Known Wave 1 Constraints
-
-- execution is single-admin even though storage reserves space for later quorum support
-- budget inputs are plain integers for simpler MVP ergonomics, then encrypted on-chain
-- treasury settlement is represented as an adapter boundary rather than full Privara workflow depth
-- pull claims, vesting, tax flows, and auditor disclosure are deferred intentionally
+Access to encrypted state is strictly protected by cryptographically secure permits. 
+In public blockchains, anyone can scrape open RPCs. In CipherRoll, an explicitly signed EIP-712 permit is required, which is then verified by the **Fhenix TaskManager**. This ensures absolute metadata and state privacy.

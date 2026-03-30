@@ -131,7 +131,7 @@ export default function Home() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.5, duration: 0.8, ease: "easeOut" }}
               >
-                <Link href="#" className="flex items-center gap-2.5 bg-transparent text-[#e4e4e5] px-6 py-2.5 rounded-full font-medium border border-white/20 hover:bg-white/10 transition-colors text-sm">
+                <Link href="https://youtu.be/HryZFOa2eUY" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 bg-transparent text-[#e4e4e5] px-6 py-2.5 rounded-full font-medium border border-white/20 hover:bg-white/10 transition-colors text-sm">
                   <Play className="w-4 h-4 text-[#e4e4e5] flex-shrink-0" />
                   Watch Demo
                 </Link>
