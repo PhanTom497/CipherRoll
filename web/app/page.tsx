@@ -156,7 +156,7 @@ export default function Home() {
                 CipherRoll Workspaces
               </h2>
               <p className="text-[18px] md:text-[20px] text-[#b4b4bc] mt-6 max-w-2xl font-normal leading-[1.65]">
-                CipherRoll utilizes the Fhenix CoFHE Coprocessor to keep confidential data encrypted on L1s, meaning the host chain network operators never see your organization's financial state.
+                CipherRoll utilizes the Fhenix CoFHE Coprocessor to keep confidential data encrypted on L1s, meaning the host chain network operators never see your organization&apos;s financial state.
               </p>
             </div>
           </div>

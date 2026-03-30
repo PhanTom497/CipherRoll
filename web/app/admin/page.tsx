@@ -500,7 +500,7 @@ export default function AdminPage() {
                 </div>
 
                 <div className="mt-6 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm text-cyan-50">
-                  CipherRoll is live on the Sepolia Network using Fhenix's CoFHE Coprocessor. Organizational state remains perfectly encrypted on the L1 host.
+                  CipherRoll is live on the Sepolia Network using Fhenix&apos;s CoFHE Coprocessor. Organizational state remains perfectly encrypted on the L1 host.
                 </div>
 
                 <Link href="/docs" className="inline-flex items-center gap-2 text-sm font-semibold text-white mt-6 underline underline-offset-4">

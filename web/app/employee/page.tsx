@@ -135,7 +135,7 @@ export default function EmployeePage() {
                 <Wallet className="w-5 h-5 text-cyan-300" />
                 <div>
                   <h2 className="text-xl font-bold text-white">Access</h2>
-                  <p className="text-sm text-[#a1a1aa]">Your payroll is encrypted mathematically. Only your wallet's signature can trigger decryption.</p>
+                  <p className="text-sm text-[#a1a1aa]">Your payroll is encrypted mathematically. Only your wallet&apos;s signature can trigger decryption.</p>
                 </div>
               </div>
               <div className="space-y-3">
@@ -170,7 +170,7 @@ export default function EmployeePage() {
               </div>
               <div className="space-y-3 text-sm text-[#c9c9d0] leading-relaxed">
                 <p>Employees can view confidential payroll allocations issued by the admin perfectly hidden from the public execution layer.</p>
-                <p>The CoFHE Coprocessor executes the decryption logic directly within the user's browser via a WASM module.</p>
+                <p>The CoFHE Coprocessor executes the decryption logic directly within the user&apos;s browser via a WASM module.</p>
                 <p>This ensures no centralized backend or node operator ever intercepts your plaintext salary values.</p>
               </div>
             </GlassCard>
