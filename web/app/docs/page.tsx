@@ -16,46 +16,46 @@ const tabs = [
 const timelinePhases = [
   {
     id: "wave1",
-    wave: "Wave 1: Buildathon Submission (Live)",
-    description: "Our comprehensive submission featuring the complete <span className=\"font-bold text-white\">Fhenix CoFHE Coprocessor</span> architecture live on <span className=\"font-bold text-white\">Ethereum Sepolia</span>.",
-    status: "SUBMITTED",
-    tags: ["CoFHE Coprocessor", "Ethereum Sepolia", "WASM Client Decryption", "EIP-712 Permits"],
+    wave: "Phase 1: Core Privacy Protocol",
+    description: <>Our official Phase 1 release featuring the complete <span className="font-bold text-white">Fhenix CoFHE Coprocessor</span> architecture live on <span className="font-bold text-white">Ethereum Sepolia</span>.</>,
+    status: "LIVE",
+    tags: ["CoFHE Coprocessor", "Ethereum Sepolia", "WASM Decryption", "EIP-712 Permits"],
     milestones: [
-      "Complete migration to `@fhenixprotocol/cofhe-contracts` (v0.1.3+) replacing legacy permissioned bases.",
-      "Transition from Nitrogen-native FHE precompiles to the <span className=\"font-bold text-white\">CoFHE Coprocessor</span> pattern for public L1 (Sepolia) compatibility.",
-      "Implemented <span className=\"font-bold text-white\">client-side unsealing</span> via `cofhejs.unseal()` to ensure plaintext never leaves the browser.",
-      "Resolved critical ABI tuple mismatches for `InEuint128` to align with the official Fhenix <span className=\"font-bold text-white\">TaskManager</span> specification.",
-      "Successfully deployed verified logic at 0x8227...8046 on Ethereum Sepolia."
+      <>Complete deployment of <span className="font-bold text-white">@fhenixprotocol/cofhe-contracts</span> (v0.1.3+) replacing legacy transparent states.</>,
+      <>Transition from basic network operations to the <span className="font-bold text-white">CoFHE Coprocessor</span> pattern for perfect L1 (Sepolia) compatibility.</>,
+      <>Implemented <span className="font-bold text-white">client-side unsealing</span> via `cofhejs.unseal()` to ensure plaintext never leaves the browser.</>,
+      <>Resolved cryptographic mappings for <span className="font-bold text-white">InEuint128</span> to align with the official Fhenix <span className="font-bold text-white">TaskManager</span> specification.</>,
+      <>Successfully deployed verified EVM-equivalent logic on Ethereum Sepolia.</>
     ],
-    callout: "The current buildathon submission: Modernized for seamless <span className=\"font-bold text-white\">EVM equivalence</span> and true E2E privacy.",
+    callout: <>The foundation of CipherRoll: Modernized for seamless <span className="font-bold text-white">EVM equivalence</span> and true E2E privacy.</>,
     isCurrent: true
   },
   {
     id: "wave2",
-    wave: "Wave 2: Governance & Compliance",
-    description: "Hardening access control and introducing multi-sig organizational management for enterprise-scale payroll.",
+    wave: "Phase 2: Governance & Auditing",
+    description: <>Hardening access control and introducing multi-sig organizational management for enterprise-scale payroll.</>,
     status: "PLANNED",
-    tags: ["M-of-N Admins", "Selective Disclosure", "Auditor Sharing", "Real Permits"],
+    tags: ["M-of-N Admins", "Selective Disclosure", "Auditor Sharing", "Multi-Sig"],
     milestones: [
-      "Introduce <span className=\"font-bold text-white\">M-of-N threshold admin approvals</span> for critical workspace mutations.",
-      "Add admin-gated <span className=\"font-bold text-white\">auditor permit sharing</span> for regulatory compliance without PII exposure.",
-      "Hardened workspace metadata encryption with client-side salt derivation."
+      <>Introduce <span className="font-bold text-white">M-of-N threshold admin approvals</span> for critical workspace mutations.</>,
+      <>Add admin-gated <span className="font-bold text-white">auditor permit sharing</span> for regulatory compliance without PII exposure.</>,
+      <>Deep Treasury Adapters for native integration with <span className="font-bold text-white">Privara-backed stablecoin settlement</span> across Ethereum L2s.</>
     ],
-    callout: "Enhancing the core protocol with institutional-grade security controls.",
+    callout: <>Enhancing the core protocol with institutional-grade security controls.</>,
     isCurrent: false
   },
   {
     id: "wave3",
-    wave: "Wave 3: Settlement & Recurring Flows",
-    description: "Broadening CipherRoll into a cross-chain settlement engine with recurring encrypted payroll streams.",
+    wave: "Phase 3: Total Compliance Integration",
+    description: <>Broadening CipherRoll into a cross-chain settlement engine with recurring encrypted payroll streams and fiat bridges.</>,
     status: "FUTURE",
-    tags: ["Pull Claims", "Vesting", "Privara Settlement", "Tax Vaults"],
+    tags: ["Tax Authority Flows", "Advanced Analytics", "Fiat On-Ramps", "Compliance"],
     milestones: [
-      "Launch pull-based payroll claims and <span className=\"font-bold text-white\">recurring encrypted vesting streams</span>.",
-      "Automated tax provisioning via designated route identifiers.",
-      "Connect the treasury adapter directly to <span className=\"font-bold text-white\">Privara / ReineiraOS</span> settlement layers."
+      <>Automated <span className="font-bold text-white">tax provisioning</span> via designated route identifiers granting read visibility strictly to mapped government addresses.</>,
+      <>Expanding <span className="font-bold text-white">Advanced Treasury Analytics</span> to include cross-chain flow analysis while preserving PII privacy.</>,
+      <>Automated <span className="font-bold text-white">Fiat On-Ramps</span> allowing organizations to seamlessly convert corporate fiat into encrypted stablecoins.</>
     ],
-    callout: "Driving the final vision for autonomous, private treasury operations.",
+    callout: <>Driving the final vision for autonomous, private corporate operations.</>,
     isCurrent: false
   }
 ];
@@ -307,8 +307,8 @@ export default function DocsPage() {
                             </div>
 
                             <div className="grid gap-2 w-full max-w-md">
-                              {phase.milestones.map((milestone) => (
-                                <div key={milestone} className="rounded-2xl border border-white/10 bg-white/5 p-3.5 text-sm text-[#d0d0d6] leading-relaxed">
+                              {phase.milestones.map((milestone, idx) => (
+                                <div key={idx} className="rounded-2xl border border-white/10 bg-white/5 p-3.5 text-sm text-[#d0d0d6] leading-relaxed">
                                   {milestone}
                                 </div>
                               ))}
