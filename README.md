@@ -82,4 +82,4 @@ sequenceDiagram
 CipherRoll leverages `@fhenixprotocol/cofhe-contracts` to handle operational lifecycles. We ensure that **"Blind Computation"** protects your organization's financial strength from malicious validators, metadata leakage, and unauthorized handle scraping via open RPCs.
 
 ---
-*Built from scratch to redefine on-chain privacy.*
+*Built for Fhenix Buildathon to redefine on-chain privacy.*
