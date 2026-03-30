@@ -11,9 +11,12 @@ import {
   FolderCog,
   KeyRound,
   ShieldCheck,
-  Wallet
+  Wallet,
+  X,
+  Zap
 } from 'lucide-react'
 import GlassCard from '@/components/GlassCard'
+import { motion, AnimatePresence } from 'framer-motion'
 import NetworkStatus from '@/components/NetworkStatus'
 import { useCipherRollWallet } from '@/components/EvmWalletProvider'
 import { getCipherRollContract, formatHandle } from '@/lib/cipherroll-client'
@@ -67,6 +70,19 @@ export default function AdminPage() {
   const [isBusy, setIsBusy] = useState(false)
   const [cofheReady, setCofheReady] = useState(false)
   const [organization, setOrganization] = useState<OrganizationView>(defaultOrganization)
+  const [showGuide, setShowGuide] = useState(false)
+
+  useEffect(() => {
+    const hasSeenGuide = localStorage.getItem('cipherroll-admin-guide-seen')
+    if (!hasSeenGuide) {
+      setShowGuide(true)
+    }
+  }, [])
+
+  const closeGuide = () => {
+    localStorage.setItem('cipherroll-admin-guide-seen', 'true')
+    setShowGuide(false)
+  }
 
   const [summaryHandles, setSummaryHandles] = useState<{
     budget: string
@@ -793,6 +809,69 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {showGuide && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6 bg-black/70 backdrop-blur-md overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-[#0a0a0a] border border-white/10 rounded-[2rem] shadow-2xl overflow-hidden mt-20"
+            >
+              <div className="p-8">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-cyan-400/10 border border-cyan-400/20">
+                      <Zap className="w-5 h-5 text-cyan-400" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-white leading-tight">Admin Flow</h2>
+                      <p className="text-white/45 text-[10px] uppercase tracking-widest font-bold mt-0.5">Quick Start Guide</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={closeGuide}
+                    className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-white transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-5">
+                  {[
+                    { step: "01", title: "Initialize CoFHE", desc: "First, activate the browser privacy worker in the top header.", icon: KeyRound },
+                    { step: "02", title: "Setup Workspace", desc: "Define your Organization ID and Treasury Route in the Workspace tab.", icon: Building2 },
+                    { step: "03", title: "Add Budget", desc: "Deposit funds into the encrypted treasury. All amounts are hidden locally.", icon: FolderCog },
+                    { step: "04", title: "Execute Payroll", desc: "Issue confidential salary payouts to individual employee addresses.", icon: ShieldCheck },
+                    { step: "05", title: "View Insights", desc: "Safely decrypt and view your budget health via the reveal button.", icon: Wallet }
+                  ].map((item) => (
+                    <div key={item.step} className="flex gap-4 group">
+                      <div className="shrink-0 w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[10px] font-black text-cyan-400/60 transition-all duration-300">
+                        {item.step}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-0.5">
+                           <item.icon className="w-3.5 h-3.5 text-cyan-400/40" />
+                           <h4 className="text-white font-bold text-sm">{item.title}</h4>
+                        </div>
+                        <p className="text-xs text-[#a1a1aa] leading-relaxed">{item.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  onClick={closeGuide}
+                  className="w-full mt-8 py-4 rounded-xl bg-white text-black font-bold text-sm hover:bg-white/90 active:scale-[0.98] transition-all"
+                >
+                  Ok, I understand
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </main>
   )
 }

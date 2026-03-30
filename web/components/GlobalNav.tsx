@@ -8,7 +8,7 @@ export default function GlobalNav() {
     const pathname = usePathname();
 
     return (
-        <nav className="fixed top-4 left-0 right-0 z-[100] px-6 flex justify-center pointer-events-none">
+        <nav className="fixed top-4 left-0 right-0 z-[50] px-6 flex justify-center pointer-events-none">
             <div className="flex items-center justify-between bg-[#0a0a0a]/80 border border-white/10 rounded-full px-3 py-3 backdrop-blur-xl pointer-events-auto w-full max-w-5xl gap-6 shadow-2xl">
                 {/* Logo */}
                 <Link href="/" className="text-[17px] font-bold tracking-tight text-white flex-shrink-0 pl-5">

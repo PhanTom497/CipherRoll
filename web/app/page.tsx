@@ -8,9 +8,9 @@ import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 import FeaturesScroll from "@/components/FeaturesScroll";
 
 const title = "CipherRoll";
-const tagline = "Confidential HR & Payroll on Public Blockchains";
+const tagline = "Private Payroll. Blind Execution.";
 const description =
-  "Run payroll with mathematically encrypted on-chain state using Fhenix's CoFHE Coprocessor architecture. Enable true zero-knowledge privacy on Ethereum Sepolia without compromising verifiability or decentralization.";
+  "Experience the world&apos;s first FHE-native HR protocol. Run payroll with mathematically encrypted state using Fhenix&apos;s CoFHE Coprocessor architecture.";
 
 const portals = [
   {
@@ -98,9 +98,9 @@ export default function Home() {
               transition={{ delay: 0.6, duration: 1, ease: "easeOut" }}
               className="max-w-4xl text-[40px] leading-[0.98] md:text-[56px] lg:text-[68px] font-semibold tracking-[-0.04em] mb-6 text-white"
             >
-              Confidential Payroll.
+              Private Payroll.
               <br />
-              Permit-Scoped Oversight.
+              Blind Execution.
             </motion.h1>
 
             <motion.p
@@ -131,9 +131,9 @@ export default function Home() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.5, duration: 0.8, ease: "easeOut" }}
               >
-                <Link href="/docs" className="flex items-center gap-2.5 bg-transparent text-[#E4E4E5] px-6 py-2.5 rounded-full font-medium border border-white/20 hover:bg-white/10 transition-colors text-sm">
-                  <Play className="w-4 h-4 text-[#E4E4E5] flex-shrink-0" />
-                  Read Our Documentation
+                <Link href="#" className="flex items-center gap-2.5 bg-transparent text-[#e4e4e5] px-6 py-2.5 rounded-full font-medium border border-white/20 hover:bg-white/10 transition-colors text-sm">
+                  <Play className="w-4 h-4 text-[#e4e4e5] flex-shrink-0" />
+                  Watch Demo
                 </Link>
               </motion.div>
             </div>
