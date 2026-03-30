@@ -270,6 +270,7 @@ export default function AdminPage() {
       const tx = await contract.depositBudget(orgId, encryptedAmount)
       await tx.wait()
       toast.success('Encrypted payroll budget increased.')
+      await loadOrganization()
     })
   }
 
@@ -309,6 +310,7 @@ export default function AdminPage() {
       )
       await tx.wait()
       toast.success('Confidential payroll allocation issued.')
+      await loadOrganization()
     })
   }
 

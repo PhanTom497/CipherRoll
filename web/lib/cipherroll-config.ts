@@ -1,3 +1,5 @@
+import { keccak256, toUtf8Bytes } from "ethers";
+
 export const CONTRACT_ADDRESS =
   process.env.NEXT_PUBLIC_CIPHERROLL_CONTRACT_ADDRESS || "";
 
@@ -10,22 +12,10 @@ export const FHENIX_ENVIRONMENT =
 export const TARGET_CHAIN_NAME = "Ethereum Sepolia";
 export const TARGET_CHAIN_ID = 11155111;
 
-function utf8Bytes(input: string) {
-  return new TextEncoder().encode(input);
-}
-
-function bytesToHex(bytes: Uint8Array) {
-  return Array.from(bytes)
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 export function toBytes32Label(input: string): string {
   const value = input.trim();
-  const bytes = utf8Bytes(value || "wave1");
-  const next = new Uint8Array(32);
-  next.set(bytes.slice(0, 32));
-  return `0x${bytesToHex(next)}`;
+  if (!value) return keccak256(toUtf8Bytes("wave1"));
+  return keccak256(toUtf8Bytes(value));
 }
 
 export function makeDeterministicLabel(prefix: string, suffix?: string) {
