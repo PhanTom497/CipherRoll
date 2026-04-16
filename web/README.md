@@ -2,14 +2,16 @@
 
 This directory contains the Next.js frontend for CipherRoll.
 
-## Wave 1 Functional Routes
+The active frontend is designed only for Arbitrum Sepolia and Base Sepolia deployments.
+
+## Current Functional Routes
 
 - `/`
 - `/admin`
 - `/employee`
 - `/docs`
 
-## Preview Routes
+## Status Routes
 
 - `/auditor`
 - `/tax-authority`
@@ -20,10 +22,10 @@ The web app is responsible for:
 
 - connecting an injected EVM wallet
 - creating local view permits
-- calling the Wave 1 payroll contract
+- calling the current payroll contract
 - showing encrypted handle references
-- attempting permit-based unseals for admin and employee views
-- presenting the buildathon documentation experience
+- executing permit-backed `decryptForView()` reads for admin and employee views
+- presenting the current product and documentation experience
 
 ## Development
 
@@ -34,6 +36,7 @@ npm run dev
 
 ## Notes
 
-- Wave 1 preserves the existing visual style while replacing the underlying trust model.
+- The shipped product surface is admin, employee, and docs.
 - Permit-based reads replace the old record-scan mindset.
-- Later-wave roles are intentionally presented as polished previews instead of fake functionality.
+- Future selective-disclosure work will extend the same SDK flow with `decryptForTx()`.
+- `/auditor` and `/tax-authority` are explicit status pages, not functional portals.

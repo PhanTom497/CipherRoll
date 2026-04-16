@@ -5,14 +5,14 @@ import CipherRollComingSoon from "@/components/CipherRollComingSoon";
 export default function AuditorPage() {
   return (
     <CipherRollComingSoon
-      badge="Future Compliance Integration"
-      title="Auditor Selective Disclosure"
-      description="The auditor workspace is actively being staged for the next protocol release. It builds upon our CoFHE foundation to enable verifiable regulatory checks without violating on-chain zero-knowledge constraints."
-      wave="Scheduled for V2"
+      badge="Status Only"
+      title="Auditor Access Is Not Shipped Yet"
+      description="CipherRoll does not currently ship a live auditor workspace. This page exists to state that clearly and to outline the next compliance-focused work without implying active disclosure tooling."
+      wave="Roadmap Target: Phase 2 Priority 4+"
       focus={[
-        "FHE permit sharing from admin multi-sigs to designated auditors.",
-        "Organization-level encrypted settlement summaries without exposing exact PII.",
-        "More complete approval and reporting lifecycle documentation."
+        "Add contract-side auditor read paths instead of reusing admin-only getters.",
+        "Expose aggregate-only summaries rather than employee-level salary history.",
+        "Back disclosures with scoped permits and verifiable policy checks."
       ]}
     />
   );

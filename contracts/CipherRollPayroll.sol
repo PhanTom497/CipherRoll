@@ -5,9 +5,9 @@ import {FHE, InEuint128, euint128, ebool} from "@fhenixprotocol/cofhe-contracts/
 import {ITreasuryAdapter} from "./interfaces/ITreasuryAdapter.sol";
 
 /// @title CipherRollPayroll
-/// @notice Confidential payroll management using Fhenix CoFHE coprocessor.
+/// @notice Confidential payroll management using the CoFHE coprocessor stack.
 ///         All salary amounts are FHE-encrypted on-chain; only authorized
-///         callers can decrypt via cofhejs.unseal() on the client side.
+///         callers can decrypt via the CoFHE SDK client-side decryptForView() flow.
 contract CipherRollPayroll {
     struct Organization {
         address admin;
@@ -337,7 +337,7 @@ contract CipherRollPayroll {
     }
 
     /// @notice Returns encrypted budget handles for the admin.
-    ///         The caller must use cofhejs.unseal() client-side to decrypt.
+    ///         The caller must use the CoFHE SDK client-side decryptForView() flow.
     function getAdminBudgetHandles(
         bytes32 orgId
     )
@@ -355,7 +355,7 @@ contract CipherRollPayroll {
     }
 
     /// @notice Returns encrypted allocation handles for an employee.
-    ///         The caller must use cofhejs.unseal() client-side to decrypt.
+    ///         The caller must use the CoFHE SDK client-side decryptForView() flow.
     function getEmployeeAllocations(
         bytes32 orgId,
         address employee

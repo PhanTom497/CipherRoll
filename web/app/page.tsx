@@ -6,17 +6,18 @@ import { motion } from "framer-motion";
 import { Shield, Users, Eye, Wallet, Lock, ArrowRight, ArrowUpRight, Play, Landmark } from "lucide-react";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 import FeaturesScroll from "@/components/FeaturesScroll";
+import { SUPPORTED_CHAIN_NAMES, TARGET_CHAIN_NAME } from "@/lib/cipherroll-config";
 
 const title = "CipherRoll";
 const tagline = "Private Payroll. Blind Execution.";
 const description =
-  "Experience the world's first FHE-native HR protocol. Run payroll with mathematically encrypted state using Fhenix's CoFHE Coprocessor architecture.";
+  `Experience the world's first FHE-native HR protocol. Run payroll with mathematically encrypted state on ${SUPPORTED_CHAIN_NAMES} using the official CoFHE coprocessor stack.`;
 
 const portals = [
   {
     title: "Admin Portal",
     description:
-      "Create a payroll workspace, configure treasury routing, issue confidential payouts, and inspect encrypted budget summaries.",
+      "Create a payroll workspace, fund encrypted budget balances, issue confidential payouts, and inspect encrypted budget summaries.",
     icon: Shield,
     url: "/admin"
   },
@@ -28,16 +29,16 @@ const portals = [
     url: "/employee"
   },
   {
-    title: "Auditor Preview",
+    title: "Auditor Status",
     description:
-      "Preview how designated auditors can be granted permit-based read access to an organization's encrypted ledger for compliance.",
+      "See the current product boundary for auditor access. This route explains what is not shipped yet and what selective-disclosure work remains.",
     icon: Eye,
     url: "/auditor"
   },
   {
-    title: "Treasury Preview",
+    title: "Tax Status",
     description:
-      "Explore the roadmap for treasury settlement adapters, confidential stablecoin infrastructure, and on-chain oversight rails.",
+      "Review the roadmap status for tax authority and treasury settlement work without implying a live compliance portal.",
     icon: Landmark,
     url: "/tax-authority"
   }
@@ -156,7 +157,7 @@ export default function Home() {
                 CipherRoll Workspaces
               </h2>
               <p className="text-[18px] md:text-[20px] text-[#b4b4bc] mt-6 max-w-2xl font-normal leading-[1.65]">
-                {`CipherRoll utilizes the Fhenix CoFHE Coprocessor to keep confidential data encrypted on L1s, meaning the host chain network operators never see your organization's financial state.`}
+                {`CipherRoll utilizes the CoFHE coprocessor stack to keep confidential data encrypted on ${SUPPORTED_CHAIN_NAMES}, meaning host chain operators never see your organization's financial state.`}
               </p>
             </div>
           </div>
@@ -197,7 +198,7 @@ export default function Home() {
             <p className="text-[#A1A1AA] text-lg font-medium leading-relaxed mb-8">
               {tagline}
               <br />
-              Deployed on Ethereum Sepolia.
+              Configured for {TARGET_CHAIN_NAME}.
             </p>
             <Link href="/docs" className="inline-flex items-center gap-2.5 bg-white text-black px-5 py-2.5 rounded-full text-sm font-semibold hover:bg-white/90 transition-colors mb-20 md:mb-28">
               Explore docs <ArrowRight className="w-4 h-4" />

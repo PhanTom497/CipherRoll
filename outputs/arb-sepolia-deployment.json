@@ -1,0 +1,28 @@
+{
+  "network": "arb-sepolia",
+  "chainId": "421614",
+  "deployer": "0x35E94A5Ad13FDCe9EEb9274742745EdC4f4CC562",
+  "startNonce": 0,
+  "payroll": "0xcBfcc13e67AE42A8C7F9266715FdacbE55Ba77F6",
+  "treasuryAdapter": "0x68FB42E0D712Cf1927Baa207D5FD8649B78D0AF1",
+  "artifacts": {
+    "payroll": "artifacts/contracts/CipherRollPayroll.sol/CipherRollPayroll.json",
+    "treasuryAdapter": "artifacts/contracts/mocks/Wave1TreasuryAdapter.sol/Wave1TreasuryAdapter.json",
+    "typechain": "typechain-types/contracts/CipherRollPayroll.ts"
+  },
+  "ciphertextHandleModel": {
+    "euint128": "bytes32",
+    "adminBudgetHandles": [
+      "bytes32",
+      "bytes32",
+      "bytes32"
+    ],
+    "employeeAllocationHandles": "bytes32[]",
+    "encryptedInputTuple": {
+      "ctHash": "uint256",
+      "securityZone": "uint8",
+      "utype": "uint8",
+      "signature": "bytes"
+    }
+  }
+}

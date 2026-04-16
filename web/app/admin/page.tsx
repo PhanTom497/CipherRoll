@@ -4,13 +4,16 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import {
+  AlertTriangle,
   ArrowLeft,
   Building2,
-  Cable,
   CheckCircle2,
   FolderCog,
   KeyRound,
+  Loader2,
+  RefreshCw,
   ShieldCheck,
+  Sparkles,
   Wallet,
   X,
   Zap
@@ -26,9 +29,17 @@ import {
   formatBytes32Preview,
   makeDeterministicLabel,
   safeAddress,
+  SUPPORTED_CHAIN_NAMES,
+  TARGET_CHAIN_ID,
+  TARGET_CHAIN_NAME,
   toBytes32Label
 } from '@/lib/cipherroll-config'
-import { initCofhe, encryptUint128, unsealUint128 } from '@/lib/fhenix-permits'
+import {
+  extractCipherRollErrorMessage,
+  parseDecimalAmountToWei,
+  shortHash
+} from '@/lib/admin-portal-utils'
+import { decryptUint128ForView, encryptUint128, initCofhe } from '@/lib/fhenix-permits'
 
 type OrganizationView = {
   admin: string
@@ -42,7 +53,16 @@ type OrganizationView = {
   exists: boolean
 }
 
-type AdminPortal = 'overview' | 'setup' | 'budget' | 'payroll' | 'treasury'
+type AdminPortal = 'overview' | 'setup' | 'budget' | 'payroll'
+
+type SurfaceStatusTone = 'neutral' | 'info' | 'success' | 'error'
+
+type SurfaceStatus = {
+  tone: SurfaceStatusTone
+  title: string
+  detail: string
+  txHash?: string | null
+}
 
 const defaultOrganization: OrganizationView = {
   admin: '',
@@ -57,12 +77,10 @@ const defaultOrganization: OrganizationView = {
 }
 
 export default function AdminPage() {
-  const { address, signer, provider } = useCipherRollWallet()
+  const { address, signer, provider, chainId, isInstalled, switchToTargetChain } = useCipherRollWallet()
   const [activePortal, setActivePortal] = useState<AdminPortal>('overview')
   const [orgIdInput, setOrgIdInput] = useState(DEFAULT_ORG_ID)
   const [workspaceName, setWorkspaceName] = useState('CipherRoll Core')
-  const [adapterAddress, setAdapterAddress] = useState('')
-  const [treasuryRoute, setTreasuryRoute] = useState('wave1-privara-route')
   const [budgetAmount, setBudgetAmount] = useState('25.5')
   const [employeeAddress, setEmployeeAddress] = useState('')
   const [paymentAmount, setPaymentAmount] = useState('3.5')
@@ -70,6 +88,14 @@ export default function AdminPage() {
   const [isBusy, setIsBusy] = useState(false)
   const [cofheReady, setCofheReady] = useState(false)
   const [organization, setOrganization] = useState<OrganizationView>(defaultOrganization)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<number | null>(null)
+  const [refreshError, setRefreshError] = useState<string | null>(null)
+  const [surfaceStatus, setSurfaceStatus] = useState<SurfaceStatus>({
+    tone: 'neutral',
+    title: 'Awaiting operator input',
+    detail: 'Connect the admin wallet, confirm the target network, and refresh the workspace state.'
+  })
   const [showGuide, setShowGuide] = useState(false)
 
   useEffect(() => {
@@ -78,6 +104,10 @@ export default function AdminPage() {
       setShowGuide(true)
     }
   }, [])
+
+  useEffect(() => {
+    setCofheReady(false)
+  }, [address, chainId])
 
   const closeGuide = () => {
     localStorage.setItem('cipherroll-admin-guide-seen', 'true')
@@ -101,26 +131,72 @@ export default function AdminPage() {
 
   const orgId = useMemo(() => toBytes32Label(orgIdInput), [orgIdInput])
   const isConfigured = Boolean(CONTRACT_ADDRESS)
+  const isTargetChain = chainId === TARGET_CHAIN_ID
   const isAdmin = address && organization.admin
     ? address.toLowerCase() === organization.admin.toLowerCase()
     : false
+  const budgetAmountInWei = useMemo(() => parseDecimalAmountToWei(budgetAmount), [budgetAmount])
+  const paymentAmountInWei = useMemo(() => parseDecimalAmountToWei(paymentAmount), [paymentAmount])
+  const availableBudgetInWei = useMemo(
+    () => parseDecimalAmountToWei(summaryValues.available ?? ''),
+    [summaryValues.available]
+  )
+  const canReadState = Boolean(provider && isConfigured && isTargetChain)
+  const canSubmitTransactions = Boolean(signer && isConfigured && isTargetChain)
+  const canEncryptInputs = Boolean(canSubmitTransactions && cofheReady)
+  const workspaceOwnedByAnotherAdmin = Boolean(organization.exists && address && !isAdmin)
+  const payrollWouldZeroOut = Boolean(
+    paymentAmountInWei !== null &&
+    availableBudgetInWei !== null &&
+    paymentAmountInWei > availableBudgetInWei
+  )
 
   const portalTabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'setup', label: 'Workspace' },
     { id: 'budget', label: 'Add Budget' },
-    { id: 'payroll', label: 'Pay One Employee' },
-    { id: 'treasury', label: 'Treasury' }
+    { id: 'payroll', label: 'Pay One Employee' }
   ] as const satisfies ReadonlyArray<{
     id: AdminPortal
     label: string
   }>
 
-  const loadOrganization = useCallback(async () => {
-    if (!provider || !isConfigured) return
+  const clearSummaries = useCallback(() => {
+    setSummaryHandles(null)
+    setSummaryValues({
+      budget: null,
+      committed: null,
+      available: null
+    })
+  }, [])
+
+  const loadOrganization = useCallback(async (reason: 'auto' | 'manual' | 'post-action' = 'manual') => {
+    if (!provider) {
+      clearSummaries()
+      setOrganization(defaultOrganization)
+      setRefreshError('Connect an injected wallet to load the organization state.')
+      return
+    }
+
+    if (!isConfigured) {
+      clearSummaries()
+      setOrganization(defaultOrganization)
+      setRefreshError('Set NEXT_PUBLIC_CIPHERROLL_CONTRACT_ADDRESS before using the admin portal.')
+      return
+    }
+
+    if (!isTargetChain) {
+      clearSummaries()
+      setOrganization(defaultOrganization)
+      setRefreshError(`Switch the wallet to ${TARGET_CHAIN_NAME} before refreshing organization state.`)
+      return
+    }
+
+    setIsRefreshing(true)
+    setRefreshError(null)
 
     try {
-      const contract = getCipherRollContract(signer ?? provider!)
+      const contract = getCipherRollContract(signer ?? provider)
       const org = await contract.getOrganization(orgId)
 
       const nextOrg: OrganizationView = {
@@ -136,43 +212,81 @@ export default function AdminPage() {
       }
 
       setOrganization(nextOrg)
+      clearSummaries()
 
-      if (address && nextOrg.exists && nextOrg.admin.toLowerCase() === address.toLowerCase()) {
-        if (signer && cofheReady) {
-          const nextHandles = await contract.getAdminBudgetHandles(orgId)
-          setSummaryHandles(nextHandles)
+      if (!nextOrg.exists) {
+        const detail = 'No workspace exists for the current organization id yet. Create it first, then refresh again.'
+        setSurfaceStatus({
+          tone: reason === 'post-action' ? 'success' : 'info',
+          title: 'Workspace not created yet',
+          detail
+        })
+      } else if (address && nextOrg.admin.toLowerCase() === address.toLowerCase() && signer && cofheReady) {
+        const nextHandles = await contract.getAdminBudgetHandles(orgId)
+        setSummaryHandles(nextHandles)
 
-          const [budgetValue, committedValue, availableValue] = await Promise.all([
-            unsealUint128(nextHandles.budget),
-            unsealUint128(nextHandles.committed),
-            unsealUint128(nextHandles.available)
-          ])
+        const [budgetValue, committedValue, availableValue] = await Promise.all([
+          decryptUint128ForView(nextHandles.budget),
+          decryptUint128ForView(nextHandles.committed),
+          decryptUint128ForView(nextHandles.available)
+        ])
 
-          setSummaryValues({
-            budget: budgetValue,
-            committed: committedValue,
-            available: availableValue
-          })
-        }
+        setSummaryValues({
+          budget: budgetValue,
+          committed: committedValue,
+          available: availableValue
+        })
+
+        setSurfaceStatus({
+          tone: 'success',
+          title: 'Organization state refreshed',
+          detail: 'Workspace metadata and admin budget handles were loaded successfully.'
+        })
+      } else if (address && nextOrg.exists && nextOrg.admin.toLowerCase() !== address.toLowerCase()) {
+        setSurfaceStatus({
+          tone: 'error',
+          title: 'Connected wallet is not the workspace admin',
+          detail: 'Refresh succeeded, but admin-only budget handles remain unavailable for this wallet.'
+        })
+      } else if (nextOrg.exists && !cofheReady) {
+        setSurfaceStatus({
+          tone: 'info',
+          title: 'Workspace loaded without decrypted summaries',
+          detail: 'Initialize CoFHE to decrypt the admin-only budget handles after refresh.'
+        })
       }
+
+      setLastRefreshedAt(Date.now())
     } catch (error) {
-      console.warn('Unable to load organization state yet', error)
+      const message = extractCipherRollErrorMessage(error)
+      clearSummaries()
+      setRefreshError(message)
+      setSurfaceStatus({
+        tone: 'error',
+        title: 'Organization refresh failed',
+        detail: message
+      })
+
+      if (reason !== 'auto') {
+        toast.error(message)
+      }
+    } finally {
+      setIsRefreshing(false)
     }
-  }, [address, isConfigured, orgId, cofheReady, provider, signer])
+  }, [
+    address,
+    clearSummaries,
+    cofheReady,
+    isConfigured,
+    isTargetChain,
+    orgId,
+    provider,
+    signer
+  ])
 
   useEffect(() => {
-    void loadOrganization()
+    void loadOrganization('auto')
   }, [loadOrganization])
-
-  useEffect(() => {
-    if (organization.treasuryAdapter && !adapterAddress) {
-      setAdapterAddress(organization.treasuryAdapter)
-    }
-
-    if (organization.treasuryRouteId && organization.treasuryRouteId !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
-      setTreasuryRoute(organization.treasuryRouteId)
-    }
-  }, [adapterAddress, organization.treasuryAdapter, organization.treasuryRouteId])
 
   const initializeCofhe = async () => {
     if (!signer) {
@@ -180,138 +294,205 @@ export default function AdminPage() {
       return
     }
 
+    if (!isTargetChain) {
+      toast.error(`Switch the wallet to ${TARGET_CHAIN_NAME} before initializing CoFHE.`)
+      return
+    }
+
+    setSurfaceStatus({
+      tone: 'info',
+      title: 'Initializing CoFHE',
+      detail: 'Approve the wallet prompts so CipherRoll can prepare local encryption and permit-backed reads.'
+    })
+
     try {
       const provider = (window as any).ethereum || signer.provider
       await initCofhe(provider)
       setCofheReady(true)
+      setSurfaceStatus({
+        tone: 'success',
+        title: 'CoFHE ready',
+        detail: 'Admin encryption and decryptForView reads are now available for this wallet.'
+      })
       toast.success('CoFHE encryption initialized for this admin wallet.')
-      await loadOrganization()
+      await loadOrganization('post-action')
     } catch (error: any) {
-      toast.error(error?.message || 'Unable to initialize CoFHE.')
+      const message = extractCipherRollErrorMessage(error)
+      setSurfaceStatus({
+        tone: 'error',
+        title: 'CoFHE initialization failed',
+        detail: message
+      })
+      toast.error(message)
     }
   }
 
-  const withTransaction = async (work: () => Promise<void>) => {
+  const withTransaction = async (
+    actionTitle: string,
+    awaitingMessage: string,
+    successMessage: string,
+    work: () => Promise<{ hash?: string | null; wait: () => Promise<unknown> }>
+  ) => {
     setIsBusy(true)
 
     try {
-      await work()
-      await loadOrganization()
+      setSurfaceStatus({
+        tone: 'info',
+        title: actionTitle,
+        detail: awaitingMessage
+      })
+
+      const tx = await work()
+
+      setSurfaceStatus({
+        tone: 'info',
+        title: `${actionTitle} submitted`,
+        detail: 'Transaction broadcast to the network. Waiting for confirmation...',
+        txHash: tx.hash ?? null
+      })
+
+      await tx.wait()
+      await loadOrganization('post-action')
+      setSurfaceStatus({
+        tone: 'success',
+        title: actionTitle,
+        detail: successMessage,
+        txHash: tx.hash ?? null
+      })
+      toast.success(successMessage)
     } catch (error: any) {
+      const message = extractCipherRollErrorMessage(error)
       console.error(error)
-      toast.error(error?.reason || error?.message || 'Transaction failed.')
+      setSurfaceStatus({
+        tone: 'error',
+        title: `${actionTitle} failed`,
+        detail: message
+      })
+      toast.error(message)
     } finally {
       setIsBusy(false)
     }
   }
 
   const createOrganization = async () => {
-    if (!signer || !isConfigured) {
-      toast.error('Connect a wallet and confirm the deployed contract address first.')
+    if (!canSubmitTransactions) {
+      toast.error(`Connect the admin wallet and switch to ${TARGET_CHAIN_NAME} before creating a workspace.`)
       return
     }
 
-    await withTransaction(async () => {
-      const contract = getCipherRollContract(signer)
-      const tx = await contract.createOrganization(
+    if (organization.exists) {
+      toast.error('This workspace already exists on-chain for the current organization id.')
+      return
+    }
+
+    if (!workspaceName.trim()) {
+      toast.error('Enter a workspace name before creating the organization.')
+      return
+    }
+
+    await withTransaction(
+      'Workspace creation',
+      'Approve the wallet transaction to create the on-chain organization workspace.',
+      'CipherRoll workspace created on-chain.',
+      async () => {
+      const contract = getCipherRollContract(signer!)
+      return contract.createOrganization(
         orgId,
         makeDeterministicLabel('workspace', workspaceName.trim() || 'CipherRoll Core'),
         3,
         2
       )
-      await tx.wait()
-      toast.success('CipherRoll workspace created on-chain.')
-    })
-  }
-
-  const configureTreasury = async () => {
-    if (!signer || !isConfigured) {
-      toast.error('Connect a wallet and confirm the deployed contract address first.')
-      return
-    }
-
-    const nextAdapter = safeAddress(adapterAddress)
-
-    if (!nextAdapter) {
-      toast.error('Enter a valid treasury adapter address.')
-      return
-    }
-
-    await withTransaction(async () => {
-      const contract = getCipherRollContract(signer)
-      const tx = await contract.configureTreasury(
-        orgId,
-        nextAdapter,
-        toBytes32Label(treasuryRoute)
-      )
-      await tx.wait()
-      toast.success('Treasury adapter configured.')
-    })
+      }
+    )
   }
 
   const depositBudget = async () => {
-    if (!signer || !isConfigured) {
-      toast.error('Connect a wallet and confirm the deployed contract address first.')
+    if (!canEncryptInputs) {
+      toast.error(`Connect the admin wallet, switch to ${TARGET_CHAIN_NAME}, and initialize CoFHE before adding budget.`)
       return
     }
 
-    const amount = Number.parseFloat(budgetAmount)
-    if (!Number.isFinite(amount) || amount <= 0) {
-      toast.error('Enter a positive number for the budget.')
+    if (!organization.exists) {
+      toast.error('Create the workspace first before adding budget.')
       return
     }
 
-    const amountInWei = BigInt(Math.floor(amount * 1e18))
+    if (!isAdmin) {
+      toast.error('Only the workspace admin can add encrypted budget.')
+      return
+    }
 
-    await withTransaction(async () => {
-      const contract = getCipherRollContract(signer)
-      const encryptedAmount = await encryptUint128(amountInWei)
+    if (budgetAmountInWei === null) {
+      toast.error('Enter a positive budget amount with up to 18 decimal places.')
+      return
+    }
 
-      const tx = await contract.depositBudget(orgId, encryptedAmount)
-      await tx.wait()
-      toast.success('Encrypted payroll budget increased.')
-      await loadOrganization()
-    })
+    await withTransaction(
+      'Budget funding',
+      'Approve the wallet transaction to encrypt and deposit the budget amount.',
+      'Encrypted payroll budget increased.',
+      async () => {
+      const contract = getCipherRollContract(signer!)
+      const encryptedAmount = await encryptUint128(budgetAmountInWei)
+
+      return contract.depositBudget(orgId, encryptedAmount)
+      }
+    )
   }
 
   const issuePayroll = async () => {
-    if (!signer || !isConfigured) {
-      toast.error('Connect a wallet and confirm the deployed contract address first.')
+    if (!canEncryptInputs) {
+      toast.error(`Connect the admin wallet, switch to ${TARGET_CHAIN_NAME}, and initialize CoFHE before issuing payroll.`)
+      return
+    }
+
+    if (!organization.exists) {
+      toast.error('Create the workspace first before issuing payroll.')
+      return
+    }
+
+    if (!isAdmin) {
+      toast.error('Only the workspace admin can issue payroll for this organization.')
       return
     }
 
     const employee = safeAddress(employeeAddress)
-    const amount = Number.parseFloat(paymentAmount)
 
     if (!employee) {
       toast.error('Enter a valid employee wallet address.')
       return
     }
 
-    if (!Number.isFinite(amount) || amount <= 0) {
-      toast.error('Enter a positive payroll amount in Sepolia ETH.')
+    if (paymentAmountInWei === null) {
+      toast.error(`Enter a positive payroll amount for ${TARGET_CHAIN_NAME} with up to 18 decimal places.`)
       return
     }
 
-    const amountInWei = BigInt(Math.floor(amount * 1e18))
+    if (payrollWouldZeroOut) {
+      toast.error('Requested payroll exceeds the decrypted available budget. CipherRoll would zero the allocation, so this action is blocked until the budget is increased.')
+      return
+    }
+
     const paymentId = makeDeterministicLabel('payment', `${employee}:${Date.now()}`)
-    const memoHash = makeDeterministicLabel('memo', paymentMemo.trim() || 'cipherroll-wave1')
+    const memoHash = makeDeterministicLabel('memo', paymentMemo.trim() || 'cipherroll-payroll')
 
-    await withTransaction(async () => {
-      const contract = getCipherRollContract(signer)
-      const encryptedAmount = await encryptUint128(amountInWei)
+    await withTransaction(
+      'Payroll issuance',
+      'Approve the wallet transaction to encrypt and issue this employee allocation.',
+      'Confidential payroll allocation issued.',
+      async () => {
+      const contract = getCipherRollContract(signer!)
+      const encryptedAmount = await encryptUint128(paymentAmountInWei)
 
-      const tx = await contract.issueConfidentialPayroll(
+      return contract.issueConfidentialPayroll(
         orgId,
         employee,
         encryptedAmount,
         paymentId,
         memoHash
       )
-      await tx.wait()
-      toast.success('Confidential payroll allocation issued.')
-      await loadOrganization()
-    })
+      }
+    )
   }
 
   const summaryCards = [
@@ -336,8 +517,75 @@ export default function AdminPage() {
     {
       label: 'CoFHE initialized',
       complete: cofheReady
+    },
+    {
+      label: `${TARGET_CHAIN_NAME} selected`,
+      complete: Boolean(isTargetChain)
     }
   ]
+
+  const operatorAlerts = [
+    !isInstalled
+      ? {
+          tone: 'error' as const,
+          title: 'No injected wallet detected',
+          detail: 'Install MetaMask, Rabby, or another EVM wallet to operate CipherRoll.'
+        }
+      : null,
+    address && !isTargetChain
+      ? {
+          tone: 'error' as const,
+          title: `Wallet is on the wrong network`,
+          detail: `This deployment is configured for ${TARGET_CHAIN_NAME}. Switch networks before creating, funding, or issuing payroll.`
+        }
+      : null,
+    !isConfigured
+      ? {
+          tone: 'error' as const,
+          title: 'Frontend contract address missing',
+          detail: 'Set NEXT_PUBLIC_CIPHERROLL_CONTRACT_ADDRESS so the admin portal can read and write on-chain state.'
+        }
+      : null,
+    workspaceOwnedByAnotherAdmin
+      ? {
+          tone: 'error' as const,
+          title: 'Workspace belongs to another admin',
+          detail: `The current org id resolves to ${formatBytes32Preview(orgId)} and is owned by ${organization.admin}. Switch to the correct admin wallet or use a different org id.`
+        }
+      : null,
+    organization.exists && isAdmin && !cofheReady
+      ? {
+          tone: 'info' as const,
+          title: 'CoFHE still needs initialization',
+          detail: 'Reads can load organization metadata already, but encrypted budget funding and decrypted summary checks require CoFHE initialization.'
+        }
+      : null,
+    payrollWouldZeroOut
+      ? {
+          tone: 'error' as const,
+          title: 'Payroll amount exceeds decrypted available budget',
+          detail: 'The contract would silently zero this allocation. Increase the budget or lower the amount before submitting.'
+        }
+      : null,
+    refreshError
+      ? {
+          tone: 'error' as const,
+          title: 'Most recent refresh failed',
+          detail: refreshError
+        }
+      : null
+  ].filter(Boolean) as Array<{
+    tone: 'info' | 'error'
+    title: string
+    detail: string
+  }>
+
+  const surfaceStatusStyles: Record<SurfaceStatusTone, string> = {
+    neutral: 'border-white/10 bg-white/5 text-white',
+    info: 'border-cyan-400/20 bg-cyan-400/10 text-cyan-50',
+    success: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-50',
+    error: 'border-rose-400/20 bg-rose-400/10 text-rose-50'
+  }
 
   return (
     <main className="min-h-screen relative z-10 font-sans text-gray-100 bg-black selection:bg-white/20 pt-32">
@@ -356,7 +604,7 @@ export default function AdminPage() {
             Admin Portal
           </h1>
           <p className="text-[#a1a1aa] text-lg md:text-xl max-w-3xl mx-auto leading-relaxed">
-            Run the core protocol lifecycle with a streamlined operator surface: create workspaces, allocate budgets, and securely issue encrypted employee salaries manually over Fhenix.
+            Run the core protocol lifecycle with a streamlined operator surface: create workspaces, allocate budgets, and securely issue encrypted employee salaries on {SUPPORTED_CHAIN_NAMES}.
           </p>
         </section>
 
@@ -387,6 +635,91 @@ export default function AdminPage() {
         </div>
 
         <NetworkStatus />
+
+        <div className="mt-8 grid gap-4">
+          <GlassCard className="p-6 border-white/5 bg-[#0a0a0a] rounded-3xl">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white/60">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Operator Status
+                </div>
+                <h2 className="mt-4 text-2xl font-bold text-white">{surfaceStatus.title}</h2>
+                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[#c9c9d0]">{surfaceStatus.detail}</p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {address && !isTargetChain && (
+                  <button
+                    onClick={() => {
+                      void switchToTargetChain()
+                        .then(() => {
+                          setSurfaceStatus({
+                            tone: 'success',
+                            title: `Wallet switched to ${TARGET_CHAIN_NAME}`,
+                            detail: 'Refresh the organization state or continue with the next admin action.'
+                          })
+                        })
+                        .catch((error) => {
+                          const message = extractCipherRollErrorMessage(error)
+                          setSurfaceStatus({
+                            tone: 'error',
+                            title: 'Network switch failed',
+                            detail: message
+                          })
+                          toast.error(message)
+                        })
+                    }}
+                    className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-50 hover:bg-cyan-400/15"
+                  >
+                    Switch To {TARGET_CHAIN_NAME}
+                  </button>
+                )}
+                <button
+                  onClick={() => void loadOrganization('manual')}
+                  disabled={!canReadState || isRefreshing}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                >
+                  {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                  {isRefreshing ? 'Refreshing...' : 'Refresh Organization'}
+                </button>
+              </div>
+            </div>
+
+            <div className={`mt-4 rounded-2xl border p-4 text-sm ${surfaceStatusStyles[surfaceStatus.tone]}`}>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <span>
+                  {lastRefreshedAt
+                    ? `Last successful refresh: ${new Date(lastRefreshedAt).toLocaleString()}`
+                    : 'No successful refresh recorded in this session yet.'}
+                </span>
+                {surfaceStatus.txHash && (
+                  <span className="font-mono text-xs uppercase tracking-[0.14em] opacity-90">
+                    Tx {shortHash(surfaceStatus.txHash)}
+                  </span>
+                )}
+              </div>
+            </div>
+          </GlassCard>
+
+          {operatorAlerts.length > 0 && (
+            <div className="grid gap-4">
+              {operatorAlerts.map((alert) => (
+                <div
+                  key={`${alert.title}-${alert.detail}`}
+                  className={`rounded-3xl border p-5 ${alert.tone === 'error' ? 'border-rose-400/20 bg-rose-400/10' : 'border-cyan-400/20 bg-cyan-400/10'}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className={`mt-0.5 h-5 w-5 shrink-0 ${alert.tone === 'error' ? 'text-rose-200' : 'text-cyan-200'}`} />
+                    <div>
+                      <h3 className={`text-sm font-semibold ${alert.tone === 'error' ? 'text-rose-50' : 'text-cyan-50'}`}>{alert.title}</h3>
+                      <p className={`mt-1 text-sm leading-relaxed ${alert.tone === 'error' ? 'text-rose-100/90' : 'text-cyan-100/90'}`}>{alert.detail}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {activePortal === 'overview' && (
           <div className="grid lg:grid-cols-[0.92fr,1.08fr] gap-8 mt-8">
@@ -422,29 +755,29 @@ export default function AdminPage() {
                 <div className="mt-6 flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={initializeCofhe}
-                    disabled={!signer || isBusy}
+                    disabled={!canSubmitTransactions || isBusy}
                     className="rounded-2xl bg-white text-black px-5 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
                   >
                     Initialize CoFHE
                   </button>
                   <button
-                    onClick={() => void loadOrganization()}
-                    disabled={!provider}
+                    onClick={() => void loadOrganization('manual')}
+                    disabled={!canReadState || isRefreshing}
                     className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
                   >
-                    Refresh State
+                    {isRefreshing ? 'Refreshing...' : 'Refresh State'}
                   </button>
                 </div>
 
                 <div className="mt-6 rounded-2xl border border-cyan-400/15 bg-cyan-400/10 p-4 text-sm text-cyan-50">
-                  Live Sepolia payroll contract: <span className="font-mono break-all">{CONTRACT_ADDRESS || 'Not configured'}</span>
+                  Configured {TARGET_CHAIN_NAME} payroll contract: <span className="font-mono break-all">{CONTRACT_ADDRESS || 'Not configured'}</span>
                 </div>
               </GlassCard>
 
               <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
                 <div className="flex items-center gap-3 mb-4">
                   <CheckCircle2 className="w-5 h-5 text-emerald-300" />
-                  <h2 className="text-xl font-bold text-white">Ethereum Sepolia Readiness</h2>
+                  <h2 className="text-xl font-bold text-white">{TARGET_CHAIN_NAME} Readiness</h2>
                 </div>
                 <div className="space-y-3">
                   {readinessChecklist.map((item) => (
@@ -466,7 +799,7 @@ export default function AdminPage() {
                   <div>
                     <h2 className="text-2xl font-bold text-white">Encrypted Budget Summary</h2>
                     <p className="text-sm text-[#a1a1aa] mt-2">
-                      Admin-only aggregate state with optional permit-based unsealing.
+                      Admin-only aggregate state with optional permit-backed decryption.
                     </p>
                   </div>
                 </div>
@@ -477,7 +810,7 @@ export default function AdminPage() {
                       <div className="flex justify-between items-center mb-4">
                         <p className="text-xs uppercase tracking-[0.2em] text-white/55 font-bold">{item.label}</p>
                         {item.value ? (
-                          <div className="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Unsealed</div>
+                          <div className="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Decrypted</div>
                         ) : (
                           <div className="bg-white/10 text-white/50 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Locked</div>
                         )}
@@ -486,7 +819,7 @@ export default function AdminPage() {
                         <p className="text-4xl font-black text-white">{item.value ?? '***'}</p>
                         {item.value && <span className="text-sm text-white/50 font-semibold">ETH</span>}
                       </div>
-                      <p className="text-[10px] text-[#8e8e95] mt-4 font-mono truncate" title={String(item.handle)}>Handle: {item.handle ? "Sealed (Hidden)" : "Not Created"}</p>
+                      <p className="text-[10px] text-[#8e8e95] mt-4 font-mono truncate" title={String(item.handle)}>Handle: {item.handle ? "Encrypted (Hidden)" : "Not Created"}</p>
                     </div>
                   ))}
                 </div>
@@ -498,7 +831,7 @@ export default function AdminPage() {
                   <h2 className="text-xl font-bold text-white">Workspace snapshot</h2>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4 text-sm">
+                <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 text-sm">
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">Org id</p>
                     <p className="font-mono text-white">{formatBytes32Preview(orgId)}</p>
@@ -512,13 +845,17 @@ export default function AdminPage() {
                     <p className="text-white">{organization.reservedQuorum} of {organization.reservedAdminSlots}</p>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">Treasury route</p>
-                    <p className="font-mono text-white">{formatBytes32Preview(organization.treasuryRouteId)}</p>
+                    <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">Updated</p>
+                    <p className="text-white">
+                      {organization.updatedAt
+                        ? new Date(organization.updatedAt * 1000).toLocaleString()
+                        : 'No on-chain updates yet'}
+                    </p>
                   </div>
                 </div>
 
                 <div className="mt-6 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm text-cyan-50">
-                  {`CipherRoll is live on the Sepolia Network using Fhenix's CoFHE Coprocessor. Organizational state remains perfectly encrypted on the L1 host.`}
+                  {`CipherRoll is configured for ${TARGET_CHAIN_NAME} within the supported ${SUPPORTED_CHAIN_NAMES} rollout. Organizational state remains encrypted on the host chain.`}
                 </div>
 
                 <Link href="/docs" className="inline-flex items-center gap-2 text-sm font-semibold text-white mt-6 underline underline-offset-4">
@@ -558,7 +895,7 @@ export default function AdminPage() {
                 />
                 <button
                   onClick={createOrganization}
-                  disabled={!signer || isBusy}
+                  disabled={!canSubmitTransactions || isBusy || organization.exists || !workspaceName.trim()}
                   className="w-full rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
                 >
                   Create CipherRoll Workspace
@@ -570,40 +907,12 @@ export default function AdminPage() {
                   Workspace already exists for this org id. You can move straight to budget or payroll.
                 </div>
               )}
-            </GlassCard>
 
-            <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
-              <div className="flex items-center gap-3 mb-6">
-                <Cable className="w-5 h-5 text-cyan-300" />
-                <div>
-                  <h2 className="text-2xl font-bold text-white">Treasury adapter</h2>
-                  <p className="text-sm text-[#a1a1aa] mt-2">
-                    Optional bridge integration. Keep it available without blocking the main confidental payroll flow.
-                  </p>
+              {!organization.exists && !canSubmitTransactions && (
+                <div className="mt-6 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-50">
+                  Connect the admin wallet and switch to {TARGET_CHAIN_NAME} before creating the workspace.
                 </div>
-              </div>
-
-              <div className="space-y-4">
-                <input
-                  value={adapterAddress}
-                  onChange={(event) => setAdapterAddress(event.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                  placeholder="0xTreasuryAdapter"
-                />
-                <input
-                  value={treasuryRoute}
-                  onChange={(event) => setTreasuryRoute(event.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                  placeholder="wave1-privara-route"
-                />
-                <button
-                  onClick={configureTreasury}
-                  disabled={!signer || !organization.exists || isBusy}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
-                >
-                  Configure Adapter
-                </button>
-              </div>
+              )}
             </GlassCard>
           </div>
         )}
@@ -616,7 +925,7 @@ export default function AdminPage() {
                 <div>
                   <h2 className="text-2xl font-bold text-white">Add budget</h2>
                   <p className="text-sm text-[#a1a1aa] mt-2">
-                    Budget amounts are accepted as plain integers, then encrypted client-side by cofhejs before touching the blockchain.
+                    Budget amounts are accepted as plain integers, then encrypted client-side by the @cofhe/sdk encryptInputs flow before touching the blockchain.
                   </p>
                 </div>
               </div>
@@ -630,7 +939,7 @@ export default function AdminPage() {
                 />
                 <button
                   onClick={depositBudget}
-                  disabled={!signer || !organization.exists || isBusy}
+                  disabled={!canEncryptInputs || !organization.exists || !isAdmin || isBusy || budgetAmountInWei === null}
                   className="rounded-2xl bg-white text-black px-5 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
                 >
                   Deposit Budget
@@ -640,6 +949,18 @@ export default function AdminPage() {
               {!organization.exists && (
                 <div className="mt-6 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-50">
                   Create the workspace first from the Workspace portal before funding it.
+                </div>
+              )}
+
+              {organization.exists && !cofheReady && (
+                <div className="mt-6 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm text-cyan-50">
+                  Initialize CoFHE before budget funding so the amount can be encrypted client-side.
+                </div>
+              )}
+
+              {budgetAmount.trim() && budgetAmountInWei === null && (
+                <div className="mt-6 rounded-2xl border border-rose-400/20 bg-rose-400/10 p-4 text-sm text-rose-50">
+                  Budget input must be a positive decimal number with up to 18 decimal places.
                 </div>
               )}
             </GlassCard>
@@ -661,7 +982,7 @@ export default function AdminPage() {
                       <div className="flex justify-between items-center mb-4">
                         <p className="text-xs uppercase tracking-[0.2em] text-white/55 font-bold">{item.label}</p>
                         {item.value ? (
-                          <div className="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Unsealed</div>
+                          <div className="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Decrypted</div>
                         ) : (
                           <div className="bg-white/10 text-white/50 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Locked</div>
                         )}
@@ -670,7 +991,7 @@ export default function AdminPage() {
                         <p className="text-4xl font-black text-white">{item.value ?? '***'}</p>
                         {item.value && <span className="text-sm text-white/50 font-semibold">ETH</span>}
                       </div>
-                      <p className="text-[10px] text-[#8e8e95] mt-4 font-mono truncate" title={String(item.handle)}>Handle: {item.handle ? "Sealed (Hidden)" : "Not Created"}</p>
+                      <p className="text-[10px] text-[#8e8e95] mt-4 font-mono truncate" title={String(item.handle)}>Handle: {item.handle ? "Encrypted (Hidden)" : "Not Created"}</p>
                     </div>
                   ))}
               </div>
@@ -702,7 +1023,7 @@ export default function AdminPage() {
                   value={paymentAmount}
                   onChange={(event) => setPaymentAmount(event.target.value)}
                   className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                  placeholder="3.5 (Sepolia ETH)"
+                  placeholder={`3.5 (${TARGET_CHAIN_NAME})`}
                 />
                 <input
                   value={paymentMemo}
@@ -712,12 +1033,38 @@ export default function AdminPage() {
                 />
                 <button
                   onClick={issuePayroll}
-                  disabled={!signer || !organization.exists || isBusy}
+                  disabled={
+                    !canEncryptInputs ||
+                    !organization.exists ||
+                    !isAdmin ||
+                    isBusy ||
+                    paymentAmountInWei === null ||
+                    !safeAddress(employeeAddress) ||
+                    payrollWouldZeroOut
+                  }
                   className="w-full rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
                 >
                   Issue Confidential Payroll
                 </button>
               </div>
+
+              {paymentAmount.trim() && paymentAmountInWei === null && (
+                <div className="mt-6 rounded-2xl border border-rose-400/20 bg-rose-400/10 p-4 text-sm text-rose-50">
+                  Payroll amount must be a positive decimal number with up to 18 decimal places.
+                </div>
+              )}
+
+              {payrollWouldZeroOut && (
+                <div className="mt-6 rounded-2xl border border-rose-400/20 bg-rose-400/10 p-4 text-sm text-rose-50">
+                  The decrypted available budget is lower than this request. To avoid the contract&apos;s zero-allocation fallback, the portal blocks submission until the budget is increased or the amount is reduced.
+                </div>
+              )}
+
+              {organization.exists && !cofheReady && (
+                <div className="mt-6 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm text-cyan-50">
+                  Initialize CoFHE before issuing payroll so the amount can be encrypted client-side.
+                </div>
+              )}
             </GlassCard>
 
             <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
@@ -731,7 +1078,8 @@ export default function AdminPage() {
                   { label: 'Workspace is already created', complete: organization.exists },
                   { label: 'Connected wallet matches the admin', complete: Boolean(isAdmin) },
                   { label: 'Budget has been funded', complete: Boolean(summaryHandles) },
-                  { label: 'Employee wallet address is valid', complete: Boolean(safeAddress(employeeAddress)) }
+                  { label: 'Employee wallet address is valid', complete: Boolean(safeAddress(employeeAddress)) },
+                  { label: 'Requested amount fits decrypted budget', complete: !payrollWouldZeroOut }
                 ].map((item) => (
                   <div key={item.label} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
                     <span className="text-white">{item.label}</span>
@@ -743,73 +1091,13 @@ export default function AdminPage() {
               </div>
 
               <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-[#a1a1aa] leading-relaxed">
-                The employee must later connect the same wallet on the employee portal and generate a permit to inspect the confidential allocation handle.
+                The employee must later connect the same wallet on the employee portal and generate a permit to decrypt the confidential allocation handle.
               </div>
             </GlassCard>
           </div>
         )}
 
-        {activePortal === 'treasury' && (
-          <div className="grid lg:grid-cols-[0.95fr,1.05fr] gap-8 mt-8">
-            <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
-              <div className="flex items-center gap-3 mb-6">
-                <Cable className="w-5 h-5 text-cyan-300" />
-                <div>
-                  <h2 className="text-2xl font-bold text-white">Treasury boundary</h2>
-                  <p className="text-sm text-[#a1a1aa] mt-2">
-                    CipherRoll secures the adapter boundary on-chain permanently, staging for full autonomous Privara-powered settlement capabilities.
-                  </p>
-                </div>
-              </div>
 
-              <div className="space-y-4">
-                <input
-                  value={adapterAddress}
-                  onChange={(event) => setAdapterAddress(event.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                  placeholder="0xTreasuryAdapter"
-                />
-                <input
-                  value={treasuryRoute}
-                  onChange={(event) => setTreasuryRoute(event.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                  placeholder="wave1-privara-route"
-                />
-                <button
-                  onClick={configureTreasury}
-                  disabled={!signer || !organization.exists || isBusy}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
-                >
-                  Configure Adapter
-                </button>
-              </div>
-            </GlassCard>
-
-            <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
-              <div className="flex items-center gap-3 mb-4">
-                <ShieldCheck className="w-5 h-5 text-emerald-300" />
-                <h2 className="text-xl font-bold text-white">Treasury state</h2>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4 text-sm">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">Configured adapter</p>
-                  <p className="font-mono text-white break-all">
-                    {organization.treasuryAdapter || 'Not configured'}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">Treasury route</p>
-                  <p className="font-mono text-white">{formatBytes32Preview(organization.treasuryRouteId)}</p>
-                </div>
-              </div>
-
-              <div className="mt-6 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm text-cyan-50">
-                Keep this portal available as a reference. The main execution path remains Workspace → Add Budget → Issue Employee Payroll.
-              </div>
-            </GlassCard>
-          </div>
-        )}
       </div>
 
       <AnimatePresence>
@@ -843,10 +1131,10 @@ export default function AdminPage() {
                 <div className="space-y-5">
                   {[
                     { step: "01", title: "Initialize CoFHE", desc: "First, activate the browser privacy worker in the top header.", icon: KeyRound },
-                    { step: "02", title: "Setup Workspace", desc: "Define your Organization ID and Treasury Route in the Workspace tab.", icon: Building2 },
-                    { step: "03", title: "Add Budget", desc: "Deposit funds into the encrypted treasury. All amounts are hidden locally.", icon: FolderCog },
+                    { step: "02", title: "Setup Workspace", desc: "Define your organization id and create the on-chain workspace in the Workspace tab.", icon: Building2 },
+                    { step: "03", title: "Add Budget", desc: "Deposit budget into the encrypted payroll pool. Amounts are encrypted before submission.", icon: FolderCog },
                     { step: "04", title: "Execute Payroll", desc: "Issue confidential salary payouts to individual employee addresses.", icon: ShieldCheck },
-                    { step: "05", title: "View Insights", desc: "Safely decrypt and view your budget health via the reveal button.", icon: Wallet }
+                    { step: "05", title: "Refresh Summaries", desc: "Reload admin-only budget handles and decrypt them once the admin wallet has initialized CoFHE.", icon: Wallet }
                   ].map((item) => (
                     <div key={item.step} className="flex gap-4 group">
                       <div className="shrink-0 w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[10px] font-black text-cyan-400/60 transition-all duration-300">

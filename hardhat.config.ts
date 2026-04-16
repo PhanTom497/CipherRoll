@@ -1,5 +1,5 @@
+import "@cofhe/hardhat-plugin";
 import "@nomicfoundation/hardhat-toolbox";
-import "cofhe-hardhat-plugin";
 import { config as loadEnv } from "dotenv";
 import { HardhatUserConfig } from "hardhat/config";
 
@@ -23,13 +23,25 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {},
-    "eth-sepolia": {
-      url: process.env.ETHEREUM_SEPOLIA_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com",
+    "arb-sepolia": {
+      url: process.env.ARBITRUM_SEPOLIA_RPC_URL || "https://sepolia-rollup.arbitrum.io/rpc",
       accounts,
-      chainId: 11155111,
+      chainId: 421614,
+      gasMultiplier: 1.2,
+      timeout: 90000
+    },
+    "base-sepolia": {
+      url: process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
+      accounts,
+      chainId: 84532,
       gasMultiplier: 1.2,
       timeout: 90000
     }
+  },
+  cofhe: {
+    logMocks: false,
+    gasWarning: false,
+    mocksDeployVerbosity: "v"
   },
   mocha: {
     timeout: 120000

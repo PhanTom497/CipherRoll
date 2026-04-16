@@ -5,14 +5,14 @@ import CipherRollComingSoon from "@/components/CipherRollComingSoon";
 export default function TreasuryPreviewPage() {
   return (
     <CipherRollComingSoon
-      badge="Future Protocol Scaling"
-      title="Treasury And Compliance Expansion"
-      description="CipherRoll establishes the treasury adapter boundary structurally today, but defers larger stablecoin settlement pipelines, tax provisioning, and oversight tooling for future protocol iterations."
-      wave="Scheduled for V3 Roadmap"
+      badge="Status Only"
+      title="Tax And Treasury Flows Are Roadmap Work"
+      description="CipherRoll does not currently ship tax authority routing, automated withholding, or treasury settlement adapters in the web product. This page now reflects roadmap status rather than presenting a pseudo-portal."
+      wave="Roadmap Target: Phase 3"
       focus={[
-        "Fhenix-native confidential stablecoin automated settlement flows.",
-        "Tax authority visibility routing and automated compliance receipt generation.",
-        "Broader treasury analytics and multi-step payroll settlement paths."
+        "Confidential settlement rails once the core payroll path is stable.",
+        "Tax authority visibility and withholding flows with explicit role boundaries.",
+        "Broader treasury analytics and compliance evidence generation."
       ]}
     />
   );

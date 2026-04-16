@@ -1,3 +1,5 @@
+import type { CiphertextHandle } from "./generated/cipherroll-abi";
+
 export type PermitBundle = {
   issuer: string;
   contractAddress: string;
@@ -15,16 +17,16 @@ export type TreasuryAdapterConfig = {
 };
 
 export type AdminBudgetSummaryHandle = {
-  budget: string;
-  committed: string;
-  available: string;
+  budget: CiphertextHandle;
+  committed: CiphertextHandle;
+  available: CiphertextHandle;
 };
 
 export type PayrollAllocationHandle = {
   paymentId: string;
   memoHash: string;
   createdAt: number;
-  handle: string;
+  handle: CiphertextHandle;
 };
 
 export type EmployeePayrollView = {
@@ -32,5 +34,5 @@ export type EmployeePayrollView = {
   memoHash: string;
   createdAt: number;
   amount: string | null;
-  handle: string;
+  handle: CiphertextHandle;
 };

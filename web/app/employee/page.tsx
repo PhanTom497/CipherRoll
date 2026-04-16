@@ -9,18 +9,27 @@ import NetworkStatus from '@/components/NetworkStatus'
 import { WalletConnectButton } from '@/components/WalletConnectButton'
 import { useCipherRollWallet } from '@/components/EvmWalletProvider'
 import { getCipherRollContract, formatHandle } from '@/lib/cipherroll-client'
-import { DEFAULT_ORG_ID, toBytes32Label } from '@/lib/cipherroll-config'
-import { initCofhe, unsealUint128 } from '@/lib/fhenix-permits'
+import {
+  DEFAULT_ORG_ID,
+  SUPPORTED_CHAIN_NAMES,
+  TARGET_CHAIN_NAME,
+  toBytes32Label
+} from '@/lib/cipherroll-config'
+import { decryptUint128ForView, initCofhe } from '@/lib/fhenix-permits'
 import type { EmployeePayrollView } from '@/lib/cipherroll-types'
 
 export default function EmployeePage() {
-  const { address, provider, signer } = useCipherRollWallet()
+  const { address, provider, signer, chainId } = useCipherRollWallet()
   const [orgIdInput, setOrgIdInput] = useState(DEFAULT_ORG_ID)
   const [cofheReady, setCofheReady] = useState(false)
   const [allocations, setAllocations] = useState<EmployeePayrollView[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
   const orgId = useMemo(() => toBytes32Label(orgIdInput), [orgIdInput])
+
+  useEffect(() => {
+    setCofheReady(false)
+  }, [address, chainId])
 
   const initializeCofhe = async () => {
     if (!signer) {
@@ -58,7 +67,7 @@ export default function EmployeePage() {
       const nextAllocations = await Promise.all(
         result.paymentIds.map(async (paymentId: string, index: number) => {
           const handle = result.amounts[index]
-          const amount = await unsealUint128(handle)
+          const amount = await decryptUint128ForView(handle)
 
           return {
             paymentId,
@@ -85,26 +94,6 @@ export default function EmployeePage() {
     }
   }, [address, cofheReady, loadAllocations])
 
-  const downloadConfig = () => {
-    if (!cofheReady) {
-      toast.error('Initialize CoFHE first.')
-      return
-    }
-
-    const blob = new Blob([JSON.stringify({ initialized: true, network: 'eth-sepolia' }, null, 2)], {
-      type: 'application/json'
-    })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = 'cipherroll-cofhe-config.json'
-    document.body.appendChild(anchor)
-    anchor.click()
-    document.body.removeChild(anchor)
-    URL.revokeObjectURL(url)
-    toast.success('Config bundle downloaded.')
-  }
-
   return (
     <main className="min-h-screen relative z-10 font-sans text-gray-100 bg-black selection:bg-white/20 pt-32">
       <div
@@ -122,7 +111,7 @@ export default function EmployeePage() {
             Confidential Employee View
           </h1>
           <p className="text-[#a1a1aa] text-lg max-w-3xl">
-            Connect an EVM wallet to fetch your payroll ciphertext handles from Ethereum Sepolia and seamlessly decrypt them locally inside your browser using CoFHE.
+            Connect an EVM wallet to fetch your payroll ciphertext handles from {TARGET_CHAIN_NAME} and decrypt them locally inside your browser via the @cofhe/sdk client.
           </p>
         </div>
 
@@ -135,7 +124,7 @@ export default function EmployeePage() {
                 <Wallet className="w-5 h-5 text-cyan-300" />
                 <div>
                   <h2 className="text-xl font-bold text-white">Access</h2>
-                  <p className="text-sm text-[#a1a1aa]">{`Your payroll is encrypted mathematically. Only your wallet's signature can trigger decryption.`}</p>
+                  <p className="text-sm text-[#a1a1aa]">{`Your payroll is encrypted mathematically across ${SUPPORTED_CHAIN_NAMES}. Only your wallet's signature and active permit can trigger local decryption.`}</p>
                 </div>
               </div>
               <div className="space-y-3">
@@ -153,13 +142,7 @@ export default function EmployeePage() {
                 >
                   Initialize CoFHE
                 </button>
-                <button
-                  onClick={downloadConfig}
-                  disabled={!cofheReady}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
-                >
-                  Download Config Bundle
-                </button>
+
               </div>
             </GlassCard>
 
@@ -170,7 +153,7 @@ export default function EmployeePage() {
               </div>
               <div className="space-y-3 text-sm text-[#c9c9d0] leading-relaxed">
                 <p>Employees can view confidential payroll allocations issued by the admin perfectly hidden from the public execution layer.</p>
-                <p>{`The CoFHE Coprocessor executes the decryption logic directly within the user's browser via a WASM module.`}</p>
+                <p>{`The @cofhe/sdk client coordinates permit-backed decryptForView requests while keeping plaintext handling local to the user's browser session.`}</p>
                 <p>This ensures no centralized backend or node operator ever intercepts your plaintext salary values.</p>
               </div>
             </GlassCard>
@@ -181,7 +164,7 @@ export default function EmployeePage() {
               <div className="flex items-center justify-between gap-4 mb-6">
                 <div>
                   <h2 className="text-xl font-bold text-white">Your payroll allocations</h2>
-                  <p className="text-sm text-[#a1a1aa] mt-2">Make sure to initialize CoFHE first. The handles will be fetched from Sepolia and decrypted locally automatically.</p>
+                  <p className="text-sm text-[#a1a1aa] mt-2">Make sure to initialize CoFHE first. The handles will be fetched from {TARGET_CHAIN_NAME} and decrypted locally automatically.</p>
                 </div>
                 <button
                   onClick={() => loadAllocations()}
@@ -214,7 +197,7 @@ export default function EmployeePage() {
                         <div className="text-right">
                           <div className="flex items-center justify-end gap-2 mb-1">
                             {allocation.amount ? (
-                               <div className="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1"><Eye className="w-3 h-3"/> Unsealed</div>
+                               <div className="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1"><Eye className="w-3 h-3"/> Decrypted</div>
                             ) : (
                                <div className="bg-white/10 text-white/50 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1"><FileLock2 className="w-3 h-3"/> Encrypted</div>
                             )}
@@ -227,7 +210,7 @@ export default function EmployeePage() {
                       </div>
                       <div className="pt-4 border-t border-white/5 grid grid-cols-2 gap-4 text-xs text-white/40 font-mono">
                         <div><span className="text-white/30 mr-2">MEMO:</span>{allocation.memoHash.slice(0, 10)}...</div>
-                        <div className="text-right"><span className="text-white/30 mr-2">HANDLE:</span>{allocation.handle ? formatHandle(BigInt(1)) : 'Not Created'}</div>
+                        <div className="text-right"><span className="text-white/30 mr-2">HANDLE:</span>{allocation.handle ? formatHandle(allocation.handle) : 'Not Created'}</div>
                       </div>
                     </div>
                   ))}
@@ -246,7 +229,7 @@ export default function EmployeePage() {
               </div>
               <Link href="/docs" className="inline-flex items-center gap-2 text-sm font-semibold text-white mt-6 underline underline-offset-4">
                 Read the architecture notes
-                <Download className="w-4 h-4" />
+                <Download className="w-4 h-4" aria-hidden="true" />
               </Link>
             </GlassCard>
           </div>

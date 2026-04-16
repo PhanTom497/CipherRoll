@@ -1,0 +1,55 @@
+{
+  "network": "arb-sepolia",
+  "chainId": "421614",
+  "contractAddress": "0xcBfcc13e67AE42A8C7F9266715FdacbE55Ba77F6",
+  "adminAddress": "0x35E94A5Ad13FDCe9EEb9274742745EdC4f4CC562",
+  "employeeAddress": "0xE8DC221ca947cba2039C5151fa7E868e6dc09B63",
+  "orgId": "0xc2b8842586ff97b9fd42e85c2001d4992a23cf62d6e4213b268f5eda40945a46",
+  "paymentId": "0x65c89722c96699dc3482f5ec5c8f039bc36cbfd3e69b53bd28cd9cccb6e56b28",
+  "transactions": {
+    "createOrganization": "0x6935ff4bef98f377221d188fde6b07c8ab79a91979b018f6964fa19ff250c248",
+    "depositBudget": "0x548d14f1d9943d22ae527bee5ca84a8d2ed6125cec36dca2f8e3bff7d72528e2",
+    "issuePayroll": "0x090c142f9fa8fec7498193b02fe5f926acf2566be46aef948b2dabf8e964ae56"
+  },
+  "gasPriceWei": "50000000",
+  "refreshChecks": {
+    "organizationExists": true,
+    "organizationAdmin": "0x35E94A5Ad13FDCe9EEb9274742745EdC4f4CC562",
+    "createdAt": 1776301397,
+    "updatedAtAfterIssue": 1776301441
+  },
+  "decryptedSummaries": {
+    "afterDeposit": {
+      "budget": "1500000000000000000",
+      "committed": "0",
+      "available": "1500000000000000000"
+    },
+    "afterIssue": {
+      "budget": "1500000000000000000",
+      "committed": "400000000000000000",
+      "available": "1100000000000000000"
+    }
+  },
+  "expectedFailures": [
+    {
+      "label": "duplicate org create",
+      "ok": true,
+      "message": "execution reverted: CipherRoll: org exists"
+    },
+    {
+      "label": "unknown org deposit",
+      "ok": true,
+      "message": "execution reverted: CipherRoll: unknown org"
+    },
+    {
+      "label": "invalid employee issuance",
+      "ok": true,
+      "message": "execution reverted: CipherRoll: employee required"
+    },
+    {
+      "label": "duplicate payment id",
+      "ok": true,
+      "message": "execution reverted: CipherRoll: payment exists"
+    }
+  ]
+}

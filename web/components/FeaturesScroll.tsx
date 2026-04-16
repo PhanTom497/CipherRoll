@@ -4,12 +4,13 @@ import Image from 'next/image';
 import { useRef, useState } from 'react';
 import { motion, useMotionValueEvent, useScroll } from 'framer-motion';
 import { Lock, Shield, Zap } from "lucide-react";
+import { SUPPORTED_CHAIN_NAMES } from '@/lib/cipherroll-config';
 
 const features = [
   {
     icon: Lock,
     title: "Encrypted State",
-    desc: "Budgets, commitments, and employee allocations are stored as FHE-protected values on Ethereum Sepolia, completely hiding the underlying integers from host operators.",
+    desc: `Budgets, commitments, and employee allocations are stored as FHE-protected values on ${SUPPORTED_CHAIN_NAMES}, completely hiding the underlying integers from host operators.`,
     bg: "linear-gradient(135deg, #e4e4e7 0%, #a1a1aa 100%)",
     textColor: "text-[#18181b]",
     descColor: "text-[#3f3f46]",
@@ -18,7 +19,7 @@ const features = [
   {
     icon: Zap,
     title: "CoFHE Coprocessor",
-    desc: "By utilizing the new Fhenix FHE Coprocessor, CipherRoll runs heavy zero-knowledge payroll logic completely off-chain while maintaining verifiability on Layer 1.",
+    desc: `By utilizing the official CoFHE coprocessor stack, CipherRoll runs encrypted payroll logic across ${SUPPORTED_CHAIN_NAMES} without introducing network ambiguity.`,
     bg: "linear-gradient(135deg, #0f766e 0%, #083344 100%)",
     textColor: "text-white",
     descColor: "text-white/80",
@@ -27,7 +28,7 @@ const features = [
   {
     icon: Shield,
     title: "E2E Privacy",
-    desc: "The WASM cofhejs client guarantees that payroll ciphertexts are unsealed directly inside your browser so neither RPCs nor the dApp server can see your salary.",
+    desc: "The WASM @cofhe/sdk client guarantees that payroll ciphertexts are decrypted directly inside your browser so neither RPCs nor the dApp server can see your salary.",
     bg: "linear-gradient(135deg, #27272a 0%, #000000 100%)",
     textColor: "text-white",
     descColor: "text-[#a1a1aa]",

@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   webpack: (config, { isServer }) => {
-    // cofhejs uses WASM for TFHE operations
+    // @cofhe/sdk uses WASM for TFHE operations
     config.experiments = Object.assign(config.experiments || {}, {
       asyncWebAssembly: true,
       layers: true,
@@ -21,7 +21,7 @@ const nextConfig = {
       config.output.webassemblyModuleFilename = 'static/wasm/tfhe_bg.wasm';
     }
 
-    // Polyfill buffer for cofhejs in browser
+    // Polyfill buffer for @cofhe/sdk in browser
     if (!isServer) {
       config.resolve.fallback = {
         ...(config.resolve.fallback || {}),

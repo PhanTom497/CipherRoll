@@ -10,6 +10,7 @@ import {
 } from "react";
 import { createBrowserProvider, hasEthereumProvider } from "@/lib/cipherroll-client";
 import { BrowserProvider, JsonRpcSigner } from "@/lib/cipherroll-client";
+import { TARGET_CHAIN_HEX, TARGET_CHAIN_ID, TARGET_CHAIN_PARAMS } from "@/lib/cipherroll-config";
 
 type WalletContextValue = {
   address: string | null;
@@ -19,6 +20,7 @@ type WalletContextValue = {
   isConnecting: boolean;
   isInstalled: boolean;
   connect: () => Promise<void>;
+  switchToTargetChain: () => Promise<void>;
   disconnect: () => void;
 };
 
@@ -128,6 +130,43 @@ export default function EvmWalletProvider({
         } finally {
           setIsConnecting(false);
         }
+      },
+      switchToTargetChain: async () => {
+        if (!window.ethereum) {
+          throw new Error("No injected EVM wallet was found in this browser.");
+        }
+
+        try {
+          await window.ethereum.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: TARGET_CHAIN_HEX }]
+          });
+        } catch (error: any) {
+          const code = error?.code;
+          const message = typeof error?.message === "string" ? error.message : "";
+          const shouldAddChain =
+            code === 4902 || /wallet_addEthereumChain|unrecognized chain id/i.test(message);
+
+          if (!shouldAddChain) {
+            throw error;
+          }
+
+          await window.ethereum.request({
+            method: "wallet_addEthereumChain",
+            params: [TARGET_CHAIN_PARAMS]
+          });
+
+          await window.ethereum.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: TARGET_CHAIN_HEX }]
+          });
+        }
+
+        const state = await hydrateWalletState();
+        setAddress(state.address);
+        setChainId(state.chainId);
+        setProvider(state.provider);
+        setSigner(state.signer);
       },
       disconnect: () => {
         setAddress(null);

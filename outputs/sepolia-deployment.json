@@ -1,8 +1,0 @@
-{
-  "network": "eth-sepolia",
-  "chainId": "11155111",
-  "deployer": "0x35E94A5Ad13FDCe9EEb9274742745EdC4f4CC562",
-  "startNonce": 29,
-  "payroll": "0x82272F0b76144215E567A3EE3377f9d59a5e8046",
-  "treasuryAdapter": "0x01AE385404e38D9487276Df2C2F879C93505b7D7"
-}

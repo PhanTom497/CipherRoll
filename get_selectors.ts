@@ -1,22 +1,24 @@
-import { ethers } from "hardhat";
-import fs from "fs";
+import { Interface } from "ethers";
+import { readFileSync } from "node:fs";
 
 async function main() {
-  const artifact = JSON.parse(fs.readFileSync("artifacts/contracts/CipherRollPayroll.sol/CipherRollPayroll.json", "utf8"));
-  const iface = new ethers.Interface(artifact.abi);
+  const artifact = JSON.parse(
+    readFileSync("artifacts/contracts/CipherRollPayroll.sol/CipherRollPayroll.json", "utf8")
+  );
+  const iface = new Interface(artifact.abi);
   
   const methods = [
     "depositBudget",
     "issueConfidentialPayroll",
-    "getAdminSummaryHandles",
+    "getAdminBudgetHandles",
     "issueVestingAllocation",
-    "getEmployeeHandles"
+    "getEmployeeAllocations"
   ];
   
-  methods.forEach(m => {
-    const fns = iface.fragments.filter(f => f.type === "function" && f.name === m);
-    if(fns.length > 0) {
-      console.log(m, fns[0].format("sighash"));
+  methods.forEach((m) => {
+    const fn = iface.getFunction(m);
+    if (fn) {
+      console.log(m, fn.format("sighash"));
     }
   });
 }

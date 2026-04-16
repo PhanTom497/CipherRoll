@@ -1,5 +1,6 @@
 'use client';
 
+import Link from "next/link";
 import { ArrowRight, CalendarDays, Sparkles } from "lucide-react";
 import GlassCard from "./GlassCard";
 import NetworkStatus from "./NetworkStatus";
@@ -60,12 +61,12 @@ export default function CipherRollComingSoon({
           </GlassCard>
 
           <GlassCard className="p-8 bg-[#0a0a0a] border-white/5 rounded-3xl">
-            <h2 className="text-2xl font-bold text-white mb-4">Wave 1 status</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">Current shipped scope</h2>
             <p className="text-[#a1a1aa] leading-relaxed mb-6">
-              CipherRoll Wave 1 prioritizes confidential budget management,
-              single-admin payroll issuance, employee permit-based reads, and a
-              buildathon-ready documentation experience. This portal is being
-              staged for a later wave so the MVP stays focused and credible.
+              This route is intentionally a status page, not a working portal.
+              Today&apos;s shipped product covers on-chain workspace creation,
+              encrypted budget funding, single-admin payroll issuance, employee
+              permit-based reads, and the accompanying docs.
             </p>
             <div className="grid gap-3">
               <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
@@ -73,19 +74,40 @@ export default function CipherRollComingSoon({
                   Live now
                 </p>
                 <p className="text-sm text-emerald-50">
-                  Admin and employee confidential payroll flow, EVM wallet
-                  connection, and Wave 1 docs.
+                  Admin workspace, employee allocations, wallet connection, and
+                  deployment/docs flows that can be verified today.
                 </p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-white/70 font-bold mb-2">
-                  Next up
+                  Not shipped yet
                 </p>
                 <p className="text-sm text-[#d9d9de]">
-                  Selective disclosure, multi-admin approvals, and treasury
-                  settlement expansion.
+                  Selective disclosure, multi-admin approvals, and broader
+                  compliance settlement flows remain roadmap work.
                 </p>
               </div>
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                href="/admin"
+                className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-white/90"
+              >
+                Open Admin Flow
+              </Link>
+              <Link
+                href="/employee"
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10"
+              >
+                Open Employee Flow
+              </Link>
+              <Link
+                href="/docs"
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10"
+              >
+                Read Current Scope
+              </Link>
             </div>
           </GlassCard>
         </div>

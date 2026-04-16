@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, Cpu, Lock, Map as MapIcon, Shield, Rocket, Terminal } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
-import { CONTRACT_ADDRESS, DEFAULT_ORG_ID } from "@/lib/cipherroll-config";
+import {
+  CONTRACT_ADDRESS,
+  DEFAULT_ORG_ID,
+  SUPPORTED_CHAIN_NAMES,
+  TARGET_CHAIN_NAME
+} from "@/lib/cipherroll-config";
 
 const tabs = [
   { id: "overview", label: "Overview", icon: BookOpen },
@@ -17,31 +22,32 @@ const timelinePhases = [
   {
     id: "wave1",
     wave: "Phase 1: Core Privacy Protocol",
-    description: <>Our official Phase 1 release featuring the complete <span className="font-bold text-white">Fhenix CoFHE Coprocessor</span> architecture live on <span className="font-bold text-white">Ethereum Sepolia</span>.</>,
+    description: <>The currently shipped admin and employee payroll flow running on the <span className="font-bold text-white">CoFHE coprocessor</span> stack for <span className="font-bold text-white">{TARGET_CHAIN_NAME}</span>.</>,
     status: "LIVE",
-    tags: ["CoFHE Coprocessor", "Ethereum Sepolia", "WASM Decryption", "EIP-712 Permits"],
+    tags: ["CoFHE Coprocessor", TARGET_CHAIN_NAME, "WASM Decryption", "EIP-712 Permits"],
     milestones: [
-      <>Complete deployment of <span className="font-bold text-white">@fhenixprotocol/cofhe-contracts</span> (v0.1.3+) replacing legacy transparent states.</>,
-      <>Transition from basic network operations to the <span className="font-bold text-white">CoFHE Coprocessor</span> pattern for perfect L1 (Sepolia) compatibility.</>,
-      <>Implemented <span className="font-bold text-white">client-side unsealing</span> via `cofhejs.unseal()` to ensure plaintext never leaves the browser.</>,
-      <>Resolved cryptographic mappings for <span className="font-bold text-white">InEuint128</span> to align with the official Fhenix <span className="font-bold text-white">TaskManager</span> specification.</>,
-      <>Successfully deployed verified EVM-equivalent logic on Ethereum Sepolia.</>
+      <>Workspace creation, encrypted budget funding, and single-admin payroll issuance are implemented in the current contract and frontend.</>,
+      <>CipherRoll now runs on the <span className="font-bold text-white">CoFHE Coprocessor</span> pattern for compatibility with <span className="font-bold text-white">{SUPPORTED_CHAIN_NAMES}</span>.</>,
+      <>Implemented <span className="font-bold text-white">client-side decryptForView()</span> via `@cofhe/sdk` so employee and admin plaintext stays in the browser.</>,
+      <>Current encrypted state, handles, and tests align with the official CoFHE <span className="font-bold text-white">TaskManager</span> workflow.</>,
+      <>The production build, compile step, and automated contract tests all pass from the root baseline command.</>
     ],
-    callout: <>The foundation of CipherRoll: Modernized for seamless <span className="font-bold text-white">EVM equivalence</span> and true E2E privacy.</>,
+    callout: <>This is the verified product surface today: admin operations, employee reads, and the docs needed to run the flow end to end.</>,
     isCurrent: true
   },
   {
     id: "wave2",
-    wave: "Phase 2: Governance & Auditing",
-    description: <>Hardening access control and introducing multi-sig organizational management for enterprise-scale payroll.</>,
-    status: "PLANNED",
-    tags: ["M-of-N Admins", "Selective Disclosure", "Auditor Sharing", "Multi-Sig"],
+    wave: "Phase 2: Technical Execution & Governance Overhaul",
+    description: <>Aggressive upgrade maximizing CoFHE alignment, privacy execution, and governance decentralization across <span className="font-bold text-white">{SUPPORTED_CHAIN_NAMES}</span>.</>,
+    status: "ACTIVE",
+    tags: ["SDK Migration", "M-of-N Admins", "Shared Permits", "ReineiraOS"],
     milestones: [
-      <>Introduce <span className="font-bold text-white">M-of-N threshold admin approvals</span> for critical workspace mutations.</>,
-      <>Add admin-gated <span className="font-bold text-white">auditor permit sharing</span> for regulatory compliance without PII exposure.</>,
-      <>Deep Treasury Adapters for native integration with <span className="font-bold text-white">Privara-backed stablecoin settlement</span> across Ethereum L2s.</>
+      <>Standardize explicitly on <span className="font-bold text-white">@cofhe/sdk</span> builder APIs: `encryptInputs`, `decryptForView`, and `decryptForTx`.</>,
+      <>Queue encrypted budget allocations via <span className="font-bold text-white">M-of-N threshold approval</span> payloads.</>,
+      <>Design auditor disclosure flows around explicit aggregate reads rather than claiming a live auditor portal too early.</>,
+      <>Integrate <span className="font-bold text-white">@reineira-os/sdk</span> resolving on-chain verifications using the FHE Auditor findings.</>
     ],
-    callout: <>Enhancing the core protocol with institutional-grade security controls.</>,
+    callout: <>Uncompromising focus on technical execution and true zero-leakage privacy.</>,
     isCurrent: false
   },
   {
@@ -81,7 +87,7 @@ export default function DocsPage() {
           CipherRoll <span className="text-[#06b6d4]">Documentation</span>
         </h1>
         <p className="text-[#a1a1aa] text-lg max-w-3xl mx-auto text-center leading-relaxed">
-          Explore the product, architecture, and roadmap behind CipherRoll—the industry standard for encrypted, FHE-native payroll management on Fhenix.
+          Explore the current CipherRoll product, architecture, and roadmap. The shipped app today centers on encrypted payroll operations for admins and employees on {SUPPORTED_CHAIN_NAMES}.
         </p>
 
         <div className="flex justify-center w-full mb-16">
@@ -119,25 +125,25 @@ export default function DocsPage() {
                       The Platform
                     </div>
                     <h2 className="text-4xl md:text-5xl font-black tracking-tight text-white mb-6">
-                      Pioneering On-Chain Data Privacy
+                      Current Product Scope
                     </h2>
                     <div className="grid md:grid-cols-2 gap-6 text-sm leading-relaxed">
                       <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
-                        <h3 className="text-white font-bold text-lg mb-3">Enterprise-Grade Confidentiality via CoFHE</h3>
+                        <h3 className="text-white font-bold text-lg mb-3">What ships today</h3>
                         <p className="text-[#c9c9d0] mb-4">
-                          {`CipherRoll operates on a paradigm shift in on-chain privacy. Instead of tracking balances in plaintext or relying on disjointed off-chain provers dictating Zero-Knowledge Snark payloads, CipherRoll utilizes Fhenix's latest `}<span className="font-bold text-white">CoFHE (Coprocessor for Fully Homomorphic Encryption)</span> architecture directly on the public <span className="font-bold text-white">Ethereum Sepolia</span> network.
+                          CipherRoll currently ships a focused payroll flow rather than a full compliance suite. Admins can create workspaces, fund encrypted budget state, and issue payroll allocations. Employees can fetch allocation handles and decrypt them locally after signing a permit.
                         </p>
                         <p className="text-[#c9c9d0]">
-                          Administrators provision workspaces and execute highly sensitive payroll disbursements encrypted entirely client-side using a browser <span className="font-bold text-white">WASM payload (cofhejs)</span>. The Sepolia EVM network nodes compute additions and subtractions natively over these ciphertexts but never gain the ability to decrypt the underlying integer amounts.
+                          The current runtime uses the official <span className="font-bold text-white">CoFHE (Coprocessor for Fully Homomorphic Encryption)</span> stack on <span className="font-bold text-white">{TARGET_CHAIN_NAME}</span>. Contract arithmetic runs over ciphertext handles while plaintext stays local to authorized wallets.
                         </p>
                       </div>
                       <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
-                        <h3 className="text-white font-bold text-lg mb-3">Eliminating the Wallet Sync Dilemma</h3>
+                        <h3 className="text-white font-bold text-lg mb-3">What does not ship yet</h3>
                         <p className="text-[#c9c9d0] mb-4">
-                          {`Legacy privacy networks forced users to "sync" their wallets, downloading thousands of cryptographic nodes essentially to maintain private UTXOs. CipherRoll fundamentally replaces this obsolete UX.`}
+                          Auditor selective-disclosure, tax authority routing, automated withholding, multi-admin execution gating, and broader treasury settlement rails are still roadmap work.
                         </p>
                         <p className="text-[#c9c9d0]">
-                          Because we run on an EVM, the protocol utilizes <span className="font-bold text-white">synchronized global FHE state</span> managed safely in Smart Contract storage slots. The Employee simply connects their standard EVM wallet (e.g., MetaMask), hits a standard view function mapping to an <span className="font-bold text-white">euint128</span> state variable, and runs <span className="font-bold text-white">cofhejs.unseal()</span> to locally decrypt exactly what they are legally permitted to view. No syncing required.
+                          Those future roles have status pages in the app so the current boundary stays explicit. The live product surface is admin, employee, and docs only.
                         </p>
                       </div>
                     </div>
@@ -148,17 +154,17 @@ export default function DocsPage() {
                       {
                         icon: Shield,
                         title: "Homomorphic Budgeting",
-                        text: "Core treasury metrics (total budget, encumbrances) endure arithmetic state updates (e.g., FHE.add) natively. No secondary ZK verifier contract is required to mutate state."
+                        text: "Budget, committed payroll, and available runway stay encrypted while the contract performs native arithmetic over ciphertext handles."
                       },
                       {
                         icon: Rocket,
-                        title: "EVM Composability",
-                        text: "By adhering to standard Solidity interfaces (IERC20 modifiers, structured events), CipherRoll seamlessly pipelines into broader DeFi settlement tools and cross-chain messaging formats."
+                        title: "EVM Wallet Flow",
+                        text: "The current app works with standard injected wallets for admin actions, employee reads, and permit-backed local decryption."
                       },
                       {
                         icon: Terminal,
-                        title: "WASM SDK E2E Integration",
-                        text: "Through the use of the new cofhe-contracts plugin, developers bind cryptographic sealing directly to Web UI click events for zero friction."
+                        title: "SDK E2E Integration",
+                        text: "The current @cofhe/sdk plus cofhe-contracts stack binds encrypted inputs and local decrypt flows directly to the web interface."
                       }
                     ].map((item) => (
                       <GlassCard key={item.title} className="p-6 border-white/5 bg-[#0a0a0a] rounded-3xl">
@@ -195,21 +201,21 @@ export default function DocsPage() {
                         </p>
                       </div>
                       <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:col-span-2">
-                        <h3 className="text-white font-bold text-lg mb-3">Client-Side WASM Decryption (cofhejs)</h3>
+                        <h3 className="text-white font-bold text-lg mb-3">Client-Side WASM Decryption (@cofhe/sdk)</h3>
                         <p className="text-[#c9c9d0] mb-4">
-                          Previous attempts at confidentially processing zero-knowledge functions suffered severely because off-chain proxies routed decrypted outputs. CipherRoll utilizes standard `ethers.js` connected to an internal WebAssembly worker `cofhejs.initializeWithEthers(...)`. 
+                          Previous attempts at confidentially processing zero-knowledge functions suffered severely because off-chain proxies routed decrypted outputs. CipherRoll utilizes standard `ethers.js` connected to the current `@cofhe/sdk` client via `createCofheClient(...)`. 
                         </p>
                         <p className="text-[#c9c9d0]">
-                          Our frontend prompts the wallet to uniquely sign an `EIP-712` view permit. The encrypted handle is downloaded and fully unsealed directly inside your browser cache.
+                          Our frontend prompts the wallet to uniquely sign an `EIP-712` view permit, then runs `client.decryptForView(...)` for local reads. Phase 2 selective disclosures will extend the same flow with `client.decryptForTx(...)`.
                         </p>
                       </div>
                       <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:col-span-2">
-                        <h3 className="text-white font-bold text-lg mb-3">Treasury Component Bridge</h3>
+                        <h3 className="text-white font-bold text-lg mb-3">Current Contract Boundary</h3>
                         <p className="text-[#c9c9d0] mb-4">
-                          CipherRoll constructs robust adapter boundaries mapped via explicit on-chain route identifiers. This allows the payroll logic to remain agnostic of the underlying settlement token or bridge provider. 
+                          The current contract and frontend focus on workspace metadata, encrypted budget summaries, and direct payroll issuance. They do not yet include live stablecoin adapters, cross-chain bridges, or government-role routing.
                         </p>
                         <p className="text-[#c9c9d0]">
-                          In our latest iteration, the `Wave1TreasuryAdapter` (0x01AE...b7D7) serves as the secure interface for eventual Privara-based stablecoin liquidations, ensuring that even as funds move to L2s, the entitlement records remain homomorphically protected.
+                          That narrower boundary is intentional for now: it keeps the shipped behavior aligned with what can be demonstrated, tested, and verified in the current repository.
                         </p>
                       </div>
                     </div>
@@ -219,7 +225,7 @@ export default function DocsPage() {
                     <h3 className="text-2xl font-bold text-white mb-4">Current Network Parameters</h3>
                     <div className="space-y-4 text-sm">
                       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-xs uppercase tracking-[0.2em] text-white/55 font-bold mb-2">Sepolia Hub Address</p>
+                        <p className="text-xs uppercase tracking-[0.2em] text-white/55 font-bold mb-2">{TARGET_CHAIN_NAME} Contract</p>
                         <p className="font-mono text-white break-all">{CONTRACT_ADDRESS || "NEXT_PUBLIC_CIPHERROLL_CONTRACT_ADDRESS"}</p>
                       </div>
                       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -238,7 +244,7 @@ export default function DocsPage() {
                           </div>
                           <div>
                              <h4 className="text-white font-bold mb-1">EIP-712 Permit Scoping</h4>
-                             <p className="leading-relaxed">{`Access to encrypted state is protected by cryptographically secure permits. Unlike public blockchains where 'anyone can read', our FHE variables require a signature that is verified inside the `}<span className="font-bold text-white">Fhenix TaskManager</span>. This prevents metadata leakage and unauthorized handle scraping via open RPCs.</p>
+                             <p className="leading-relaxed">{`Access to encrypted state is protected by cryptographically secure permits. Unlike public blockchains where 'anyone can read', our FHE variables require a signature that is verified inside the `}<span className="font-bold text-white">CoFHE TaskManager</span>. This prevents metadata leakage and unauthorized handle scraping via open RPCs.</p>
                           </div>
                        </div>
                        <div className="flex gap-4">
@@ -266,7 +272,7 @@ export default function DocsPage() {
                       <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Timeline</span>
                     </h2>
                     <p className="text-[#a1a1aa] text-lg max-w-2xl md:mx-auto">
-                      The buildathon submission is Wave 1. This timeline shows what is live now, what we will harden in Wave 2, and where CipherRoll grows into a broader payroll and treasury product in Wave 3.
+                      This timeline separates the currently shipped payroll flow from the later compliance and settlement work so the product boundary stays explicit.
                     </p>
                   </div>
 
@@ -339,16 +345,15 @@ cd web && npm install</pre>
                         <p className="text-xs uppercase tracking-[0.2em] text-white/55 font-bold mb-3">2. Configure Environment</p>
                         <pre className="overflow-x-auto text-white font-mono text-xs">cp .env.example .env
 # Essential for CoFHE interactions:
-ETHEREUM_SEPOLIA_RPC_URL=your_rpc_here
+ARBITRUM_SEPOLIA_RPC_URL=your_rpc_here
 DEPLOYER_PRIVATE_KEY=your_key_here
-# Frontend needs these to handle encryption/unsealing:
-NEXT_PUBLIC_CIPHERROLL_CONTRACT_ADDRESS=0x8227...
-NEXT_PUBLIC_FHENIX_ENVIRONMENT=TESTNET</pre>
+# Frontend uses @cofhe/sdk for local encryption and decryptForView():
+NEXT_PUBLIC_CIPHERROLL_CONTRACT_ADDRESS=0x8227...</pre>
                       </div>
                       <div className="rounded-3xl border border-white/10 bg-black/40 p-6">
                         <p className="text-xs uppercase tracking-[0.2em] text-white/55 font-bold mb-3">3. Deploy and run</p>
-                        <pre className="overflow-x-auto text-white font-mono text-xs">npm run compile
-npm run deploy:sepolia
+                        <pre className="overflow-x-auto text-white font-mono text-xs">npm run baseline
+npm run deploy:arb-sepolia
 cd web && npm run dev</pre>
                       </div>
                     </div>
@@ -359,11 +364,10 @@ cd web && npm run dev</pre>
                     <div className="grid gap-3 text-sm">
                       {[
                         "Provision the organization configuration in /admin.",
-                        "Initialize the secure treasury adapter boundary.",
-                        "Fund the encrypted budget vault.",
+                        "Fund the encrypted budget state.",
                         "Allocate one confidential payroll issuance.",
                         "Authenticate the employee wallet and execute native permits.",
-                        "Refresh /employee to reliably verify accurate, homomorphically unsealed values."
+                        "Refresh /employee to reliably verify accurate, homomorphically decrypted values."
                       ].map((step) => (
                         <div key={step} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-[#d0d0d6]">
                           {step}

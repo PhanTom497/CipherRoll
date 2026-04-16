@@ -7,7 +7,7 @@ import GlobalNav from '@/components/GlobalNav'
 
 export const metadata: Metadata = {
     title: 'CipherRoll',
-    description: 'Confidential payroll and treasury operations on Fhenix',
+    description: 'Confidential payroll and treasury operations on Arbitrum Sepolia and Base Sepolia',
 }
 
 const EvmWalletProvider = dynamic(
