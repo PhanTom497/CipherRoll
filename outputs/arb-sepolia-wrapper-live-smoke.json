@@ -1,0 +1,48 @@
+{
+  "network": "arb-sepolia",
+  "chainId": "421614",
+  "payroll": "0x387E9B1c6464A68243CaeB498d58C1dc4Bc096d2",
+  "settlementToken": "0xdFaa338653731E8b55f2Bf02584B7e1762256512",
+  "wrapperSettlementAdapter": "0x808B62EEEa65611B39DB1614A389b2796680ea3e",
+  "confidentialPayrollToken": "0x87b2C4C8d33e08B16ee6fAE06d4b0625d8E76EE4",
+  "adminAddress": "0x35E94A5Ad13FDCe9EEb9274742745EdC4f4CC562",
+  "orgId": "0x365c816bb7d9b34ca6caf558a2cdcc3f6aebd9e2c5f0a2812e79a212936bf0be",
+  "payrollRunId": "0x0cac308da53c8b2a3de83bda31c4367ec6a507ed0bb9fc5569c7ade864a5f37a",
+  "paymentId": "0x5c5727586d0c4642134cea888df7697f97437d8fc79b9bdb7528e8aa24c1ad73",
+  "transactions": {
+    "createOrganization": "0x7d60a22766c71e836d23c9b78feb8ec8368b7f3b0272135adfc02a64d865aa84",
+    "configureTreasury": "0x14491b0be4e351744fa09cfc0456cb317474be75c33c81bc1ee5b3016fa701dd",
+    "depositBudget": "0x6291a752ad73fbb78cb30ccd39d4f720d954594bebb5e4db17af8d402aeb9d0b",
+    "createPayrollRun": "0xa9e2b42a61873faa074244f84c2488221a52f77854716632d71367fdfa230a4f",
+    "issuePayroll": "0xbd9783ecb35551f1758eef3f93da04614f5c1fa985eb38d510a75e811af6ea59",
+    "approveTreasuryInventory": "0xccd2da1072034c06aae1536b245819dacd28c28d5eaf8e233f62031c038cf1ee",
+    "depositTreasuryInventory": "0xa5caac706f8745a37c5733a80eb834dcc40ddaafd377cab9834613bfbf53b01b",
+    "fundPayrollRunFromTreasury": "0xc1ebe31eda857804117339af4e8da92c7eb27e8f2ace48e244f99260e6a5753e",
+    "activatePayrollRun": "0x99fe65ff2a405e327a4ed025a841ce15001ed87907211ff255116c985cce2ad8",
+    "requestPayrollSettlement": "0xb19f887a2084be2cd244a07fa243a896f04d615f9ee552cc9a724b9eadc34616",
+    "finalizePayrollSettlement": "0x86b0214cb7b034f74a39f5f514a7879ea970d9d03ce0ebe3a8e6d4da75f37b75"
+  },
+  "balances": {
+    "beforeFinalize": "9999999600000000000000000",
+    "afterFinalize": "10000000000000000000000000",
+    "delta": "400000000000000000"
+  },
+  "treasury": {
+    "settlementAsset": "0xdFaa338653731E8b55f2Bf02584B7e1762256512",
+    "confidentialSettlementAsset": "0x87b2C4C8d33e08B16ee6fAE06d4b0625d8E76EE4",
+    "availablePayrollFunds": "0",
+    "reservedPayrollFunds": "0"
+  },
+  "settlementRequest": {
+    "requestId": "0x1e246690edb1172779e0f119c8ceaa1bfc8f708132021ae28b28ee013ca10500",
+    "payoutAsset": "0xdFaa338653731E8b55f2Bf02584B7e1762256512",
+    "confidentialAsset": "0x87b2C4C8d33e08B16ee6fAE06d4b0625d8E76EE4",
+    "requestedAt": 1776524918,
+    "existsAfterFinalize": false
+  },
+  "payrollRun": {
+    "statusAfterFinalize": 3,
+    "claimedCount": 1,
+    "finalizedAt": 1776524921
+  }
+}

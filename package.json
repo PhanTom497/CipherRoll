@@ -10,6 +10,7 @@
     "sync:interfaces": "ts-node ./scripts/sync-interfaces.ts",
     "deploy:arb-sepolia": "npx hardhat run ./scripts/deploy.ts --network arb-sepolia",
     "deploy:base-sepolia": "npx hardhat run ./scripts/deploy.ts --network base-sepolia",
+    "smoke:arb-sepolia:wrapper": "npx hardhat run ./scripts/live-smoke-wrapper-arb-sepolia.ts --network arb-sepolia",
     "lint:web": "npm --prefix web run lint",
     "build:web": "npm --prefix web run build"
   },
@@ -39,6 +40,7 @@
   },
   "dependencies": {
     "@fhenixprotocol/cofhe-contracts": "0.1.3",
-    "@openzeppelin/contracts": "^5.4.0"
+    "@openzeppelin/contracts": "^5.4.0",
+    "fhenix-confidential-contracts": "github:FhenixProtocol/fhenix-confidential-contracts"
   }
 }

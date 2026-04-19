@@ -23,12 +23,12 @@ describe("admin portal utils", function () {
 
   it("maps known contract and wallet failures to operator-friendly messages", function () {
     expect(extractCipherRollErrorMessage(new Error("CipherRoll: not admin"))).to.equal(
-      "The connected wallet is not the admin for this organization."
+      "This wallet is not allowed to manage this workspace."
     );
 
     expect(
       extractCipherRollErrorMessage(new Error("user rejected action"))
-    ).to.equal("The wallet request was rejected before submission.");
+    ).to.equal("The wallet approval was canceled, so nothing was submitted.");
   });
 
   it("formats transaction hashes for compact status displays", function () {

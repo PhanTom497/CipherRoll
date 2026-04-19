@@ -8,12 +8,15 @@ import {
   ArrowLeft,
   Building2,
   CheckCircle2,
+  Copy,
+  FileKey2,
   FolderCog,
   KeyRound,
   Loader2,
   RefreshCw,
   ShieldCheck,
   Sparkles,
+  Trash2,
   Wallet,
   X,
   Zap
@@ -26,12 +29,14 @@ import { getCipherRollContract, formatHandle } from '@/lib/cipherroll-client'
 import {
   CONTRACT_ADDRESS,
   DEFAULT_ORG_ID,
+  DIRECT_SETTLEMENT_ADAPTER_ADDRESS,
   formatBytes32Preview,
   makeDeterministicLabel,
   safeAddress,
   SUPPORTED_CHAIN_NAMES,
   TARGET_CHAIN_ID,
   TARGET_CHAIN_NAME,
+  WRAPPER_SETTLEMENT_ADAPTER_ADDRESS,
   toBytes32Label
 } from '@/lib/cipherroll-config'
 import {
@@ -39,7 +44,20 @@ import {
   parseDecimalAmountToWei,
   shortHash
 } from '@/lib/admin-portal-utils'
-import { decryptUint128ForView, encryptUint128, initCofhe } from '@/lib/fhenix-permits'
+import {
+  createAuditorSharingPermit,
+  decryptUint128ForView,
+  encryptUint128,
+  getAuditorSharingPermits,
+  initCofhe,
+  removeAuditorSharingPermit
+} from '@/lib/fhenix-permits'
+import type {
+  AuditorSharingPermitView,
+  OrganizationInsightsView,
+  PayrollRunView,
+  TreasuryAdapterConfig
+} from '@/lib/cipherroll-types'
 
 type OrganizationView = {
   admin: string
@@ -53,7 +71,7 @@ type OrganizationView = {
   exists: boolean
 }
 
-type AdminPortal = 'overview' | 'setup' | 'budget' | 'payroll'
+type AdminPortal = 'overview' | 'setup' | 'budget' | 'payroll' | 'auditor'
 
 type SurfaceStatusTone = 'neutral' | 'info' | 'success' | 'error'
 
@@ -76,6 +94,73 @@ const defaultOrganization: OrganizationView = {
   exists: false
 }
 
+const defaultOrganizationInsights: OrganizationInsightsView = {
+  totalPayrollItems: 0,
+  activePayrollItems: 0,
+  claimedPayrollItems: 0,
+  vestingPayrollItems: 0,
+  employeeRecipients: 0,
+  lastIssuedAt: 0,
+  lastClaimedAt: 0
+}
+
+const defaultPayrollRun: PayrollRunView = {
+  orgId: '',
+  settlementAssetId: '',
+  fundingDeadline: 0,
+  plannedHeadcount: 0,
+  allocationCount: 0,
+  claimedCount: 0,
+  createdAt: 0,
+  fundedAt: 0,
+  activatedAt: 0,
+  finalizedAt: 0,
+  status: 0,
+  exists: false
+}
+
+const defaultTreasuryAdapter: TreasuryAdapterConfig = {
+  adapter: '',
+  routeId: '',
+  adapterId: '',
+  adapterName: '',
+  supportsConfidentialSettlement: false,
+  settlementAsset: '',
+  confidentialSettlementAsset: '',
+  availablePayrollFunds: '0',
+  reservedPayrollFunds: '0'
+}
+
+function formatTreasuryTokenAmount(value?: string | null): string {
+  if (!value) return '0'
+
+  try {
+    const normalized = BigInt(value)
+    const whole = normalized / 10n ** 18n
+    const fraction = normalized % 10n ** 18n
+    if (fraction === 0n) return whole.toString()
+
+    const fractionText = fraction
+      .toString()
+      .padStart(18, '0')
+      .replace(/0+$/, '')
+      .slice(0, 4)
+
+    return fractionText ? `${whole.toString()}.${fractionText}` : whole.toString()
+  } catch {
+    return value
+  }
+}
+
+function formatDateTimeLocalInput(date: Date): string {
+  const year = date.getFullYear()
+  const month = `${date.getMonth() + 1}`.padStart(2, '0')
+  const day = `${date.getDate()}`.padStart(2, '0')
+  const hours = `${date.getHours()}`.padStart(2, '0')
+  const minutes = `${date.getMinutes()}`.padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+}
+
 export default function AdminPage() {
   const { address, signer, provider, chainId, isInstalled, switchToTargetChain } = useCipherRollWallet()
   const [activePortal, setActivePortal] = useState<AdminPortal>('overview')
@@ -83,8 +168,11 @@ export default function AdminPage() {
   const [workspaceName, setWorkspaceName] = useState('CipherRoll Core')
   const [budgetAmount, setBudgetAmount] = useState('25.5')
   const [employeeAddress, setEmployeeAddress] = useState('')
+  const [payrollMode, setPayrollMode] = useState<'instant' | 'vesting'>('instant')
   const [paymentAmount, setPaymentAmount] = useState('3.5')
-  const [paymentMemo, setPaymentMemo] = useState('March payroll')
+  const [paymentMemo, setPaymentMemo] = useState('')
+  const [vestingStartInput, setVestingStartInput] = useState('')
+  const [vestingEndInput, setVestingEndInput] = useState('')
   const [isBusy, setIsBusy] = useState(false)
   const [cofheReady, setCofheReady] = useState(false)
   const [organization, setOrganization] = useState<OrganizationView>(defaultOrganization)
@@ -128,6 +216,29 @@ export default function AdminPage() {
     committed: null,
     available: null
   })
+  const [organizationInsights, setOrganizationInsights] = useState<OrganizationInsightsView>(defaultOrganizationInsights)
+  const [treasuryAdapterDetails, setTreasuryAdapterDetails] = useState<TreasuryAdapterConfig>(defaultTreasuryAdapter)
+  const [treasuryRouteMode, setTreasuryRouteMode] = useState<'wrapper' | 'direct'>('wrapper')
+  const [treasuryRouteLabel, setTreasuryRouteLabel] = useState('cipherroll-wrapper-route')
+  const [payrollFundingDeadlineInput, setPayrollFundingDeadlineInput] = useState('')
+  const [payrollFundingAmount, setPayrollFundingAmount] = useState('8')
+  const [treasuryDepositAmount, setTreasuryDepositAmount] = useState('8')
+  const [selectedPayrollRunInput, setSelectedPayrollRunInput] = useState('may-2026-payroll')
+  const [payrollRun, setPayrollRun] = useState<PayrollRunView>(defaultPayrollRun)
+  const [auditorName, setAuditorName] = useState('Independent auditor')
+  const [auditorRecipientAddress, setAuditorRecipientAddress] = useState('')
+  const [auditorPermitName, setAuditorPermitName] = useState('CipherRoll auditor aggregate summary')
+  const [auditorPermitExpirationInput, setAuditorPermitExpirationInput] = useState('')
+  const [auditorSharingPermits, setAuditorSharingPermits] = useState<AuditorSharingPermitView[]>([])
+  const [auditorExportPayload, setAuditorExportPayload] = useState('')
+
+  useEffect(() => {
+    if (auditorPermitExpirationInput) return
+
+    const date = new Date()
+    date.setDate(date.getDate() + 7)
+    setAuditorPermitExpirationInput(formatDateTimeLocalInput(date))
+  }, [auditorPermitExpirationInput])
 
   const orgId = useMemo(() => toBytes32Label(orgIdInput), [orgIdInput])
   const isConfigured = Boolean(CONTRACT_ADDRESS)
@@ -137,6 +248,39 @@ export default function AdminPage() {
     : false
   const budgetAmountInWei = useMemo(() => parseDecimalAmountToWei(budgetAmount), [budgetAmount])
   const paymentAmountInWei = useMemo(() => parseDecimalAmountToWei(paymentAmount), [paymentAmount])
+  const payrollFundingAmountInWei = useMemo(() => parseDecimalAmountToWei(payrollFundingAmount), [payrollFundingAmount])
+  const treasuryDepositAmountInWei = useMemo(() => parseDecimalAmountToWei(treasuryDepositAmount), [treasuryDepositAmount])
+  const selectedPayrollRunId = useMemo(() => toBytes32Label(selectedPayrollRunInput), [selectedPayrollRunInput])
+  const treasuryRouteId = useMemo(() => toBytes32Label(treasuryRouteLabel), [treasuryRouteLabel])
+  const auditorRecipientSafeAddress = useMemo(() => safeAddress(auditorRecipientAddress) ?? '', [auditorRecipientAddress])
+  const selectedTreasuryAdapterAddress = useMemo(
+    () => treasuryRouteMode === 'wrapper' ? WRAPPER_SETTLEMENT_ADAPTER_ADDRESS : DIRECT_SETTLEMENT_ADAPTER_ADDRESS,
+    [treasuryRouteMode]
+  )
+  const payrollFundingDeadlineTimestamp = useMemo(() => {
+    if (!payrollFundingDeadlineInput) return null
+    const value = Math.floor(new Date(payrollFundingDeadlineInput).getTime() / 1000)
+    return Number.isFinite(value) && value > 0 ? value : null
+  }, [payrollFundingDeadlineInput])
+  const vestingStartTimestamp = useMemo(() => {
+    if (!vestingStartInput) return null
+    const value = Math.floor(new Date(vestingStartInput).getTime() / 1000)
+    return Number.isFinite(value) && value > 0 ? value : null
+  }, [vestingStartInput])
+  const vestingEndTimestamp = useMemo(() => {
+    if (!vestingEndInput) return null
+    const value = Math.floor(new Date(vestingEndInput).getTime() / 1000)
+    return Number.isFinite(value) && value > 0 ? value : null
+  }, [vestingEndInput])
+  const auditorPermitExpirationTimestamp = useMemo(() => {
+    if (!auditorPermitExpirationInput) return null
+    const value = Math.floor(new Date(auditorPermitExpirationInput).getTime() / 1000)
+    return Number.isFinite(value) && value > 0 ? value : null
+  }, [auditorPermitExpirationInput])
+  const vestingWindowInvalid = Boolean(
+    payrollMode === 'vesting' &&
+    (!vestingStartTimestamp || !vestingEndTimestamp || vestingEndTimestamp <= vestingStartTimestamp)
+  )
   const availableBudgetInWei = useMemo(
     () => parseDecimalAmountToWei(summaryValues.available ?? ''),
     [summaryValues.available]
@@ -145,6 +289,39 @@ export default function AdminPage() {
   const canSubmitTransactions = Boolean(signer && isConfigured && isTargetChain)
   const canEncryptInputs = Boolean(canSubmitTransactions && cofheReady)
   const workspaceOwnedByAnotherAdmin = Boolean(organization.exists && address && !isAdmin)
+  const payrollRunExists = payrollRun.exists && payrollRun.orgId === orgId
+  const payrollRunStatusLabel = payrollRunExists
+    ? ['Draft', 'Funded', 'Active', 'Finalized'][payrollRun.status] ?? 'Unknown'
+    : 'Not created'
+  const payrollRunOpenForAllocations = payrollRunExists && payrollRun.status < 2
+  const payrollRunClaimable = payrollRunExists && payrollRun.status === 2
+  const treasuryAvailableFunds = useMemo(
+    () => parseDecimalAmountToWei(treasuryAdapterDetails.availablePayrollFunds ?? ''),
+    [treasuryAdapterDetails.availablePayrollFunds]
+  )
+  const treasuryAvailableFundsDisplay = useMemo(
+    () => formatTreasuryTokenAmount(treasuryAdapterDetails.availablePayrollFunds),
+    [treasuryAdapterDetails.availablePayrollFunds]
+  )
+  const treasuryReservedFundsDisplay = useMemo(
+    () => formatTreasuryTokenAmount(treasuryAdapterDetails.reservedPayrollFunds),
+    [treasuryAdapterDetails.reservedPayrollFunds]
+  )
+  const auditorPermitExpiresSoon = Boolean(
+    auditorPermitExpirationTimestamp && auditorPermitExpirationTimestamp <= Math.floor(Date.now() / 1000) + 3600
+  )
+  const hasTreasuryRoute = Boolean(
+    treasuryAdapterDetails.adapter &&
+    treasuryAdapterDetails.adapter !== '0x0000000000000000000000000000000000000000'
+  )
+  const canConfigureTreasuryRoute = Boolean(
+    selectedTreasuryAdapterAddress &&
+    selectedTreasuryAdapterAddress !== '0x0000000000000000000000000000000000000000'
+  )
+  const payrollSettlementAssetId = useMemo(
+    () => makeDeterministicLabel('settlement-asset', hasTreasuryRoute ? treasuryRouteMode : 'cipherroll-payroll'),
+    [hasTreasuryRoute, treasuryRouteMode]
+  )
   const payrollWouldZeroOut = Boolean(
     paymentAmountInWei !== null &&
     availableBudgetInWei !== null &&
@@ -155,7 +332,8 @@ export default function AdminPage() {
     { id: 'overview', label: 'Overview' },
     { id: 'setup', label: 'Workspace' },
     { id: 'budget', label: 'Add Budget' },
-    { id: 'payroll', label: 'Pay One Employee' }
+    { id: 'payroll', label: 'Pay One Employee' },
+    { id: 'auditor', label: 'Auditor Sharing' }
   ] as const satisfies ReadonlyArray<{
     id: AdminPortal
     label: string
@@ -170,9 +348,48 @@ export default function AdminPage() {
     })
   }, [])
 
+  const clearInsights = useCallback(() => {
+    setOrganizationInsights(defaultOrganizationInsights)
+  }, [])
+
+  const clearTreasuryAdapter = useCallback(() => {
+    setTreasuryAdapterDetails(defaultTreasuryAdapter)
+  }, [])
+
+  const clearPayrollRun = useCallback(() => {
+    setPayrollRun(defaultPayrollRun)
+  }, [])
+
+  const loadPayrollRun = useCallback(async () => {
+    if (!provider || !organization.exists || !isConfigured || !isTargetChain || !selectedPayrollRunInput.trim()) {
+      clearPayrollRun()
+      return
+    }
+
+    try {
+      const contract = getCipherRollContract(signer ?? provider)
+      const nextPayrollRun = await contract.getPayrollRun(selectedPayrollRunId)
+      setPayrollRun(nextPayrollRun)
+    } catch {
+      clearPayrollRun()
+    }
+  }, [
+    clearPayrollRun,
+    isConfigured,
+    isTargetChain,
+    organization.exists,
+    provider,
+    selectedPayrollRunId,
+    selectedPayrollRunInput,
+    signer
+  ])
+
   const loadOrganization = useCallback(async (reason: 'auto' | 'manual' | 'post-action' = 'manual') => {
     if (!provider) {
       clearSummaries()
+      clearInsights()
+      clearTreasuryAdapter()
+      clearPayrollRun()
       setOrganization(defaultOrganization)
       setRefreshError('Connect an injected wallet to load the organization state.')
       return
@@ -180,6 +397,9 @@ export default function AdminPage() {
 
     if (!isConfigured) {
       clearSummaries()
+      clearInsights()
+      clearTreasuryAdapter()
+      clearPayrollRun()
       setOrganization(defaultOrganization)
       setRefreshError('Set NEXT_PUBLIC_CIPHERROLL_CONTRACT_ADDRESS before using the admin portal.')
       return
@@ -187,6 +407,9 @@ export default function AdminPage() {
 
     if (!isTargetChain) {
       clearSummaries()
+      clearInsights()
+      clearTreasuryAdapter()
+      clearPayrollRun()
       setOrganization(defaultOrganization)
       setRefreshError(`Switch the wallet to ${TARGET_CHAIN_NAME} before refreshing organization state.`)
       return
@@ -212,7 +435,33 @@ export default function AdminPage() {
       }
 
       setOrganization(nextOrg)
+      if (nextOrg.treasuryAdapter) {
+        const nextAdapterLower = nextOrg.treasuryAdapter.toLowerCase()
+        if (
+          WRAPPER_SETTLEMENT_ADAPTER_ADDRESS &&
+          nextAdapterLower === WRAPPER_SETTLEMENT_ADAPTER_ADDRESS.toLowerCase()
+        ) {
+          setTreasuryRouteMode('wrapper')
+        } else if (
+          DIRECT_SETTLEMENT_ADAPTER_ADDRESS &&
+          nextAdapterLower === DIRECT_SETTLEMENT_ADAPTER_ADDRESS.toLowerCase()
+        ) {
+          setTreasuryRouteMode('direct')
+        }
+      }
       clearSummaries()
+      clearInsights()
+      clearTreasuryAdapter()
+      clearPayrollRun()
+
+      if (nextOrg.exists && nextOrg.treasuryAdapter && nextOrg.treasuryAdapter !== '0x0000000000000000000000000000000000000000') {
+        try {
+          const nextTreasuryAdapter = await contract.getTreasuryAdapterDetails(orgId)
+          setTreasuryAdapterDetails(nextTreasuryAdapter)
+        } catch {
+          setTreasuryAdapterDetails(defaultTreasuryAdapter)
+        }
+      }
 
       if (!nextOrg.exists) {
         const detail = 'No workspace exists for the current organization id yet. Create it first, then refresh again.'
@@ -221,38 +470,47 @@ export default function AdminPage() {
           title: 'Workspace not created yet',
           detail
         })
-      } else if (address && nextOrg.admin.toLowerCase() === address.toLowerCase() && signer && cofheReady) {
-        const nextHandles = await contract.getAdminBudgetHandles(orgId)
-        setSummaryHandles(nextHandles)
+      } else if (address && nextOrg.admin.toLowerCase() === address.toLowerCase()) {
+        try {
+          const nextInsights = await contract.getOrganizationInsights(orgId)
+          setOrganizationInsights(nextInsights)
+        } catch {
+          setOrganizationInsights(defaultOrganizationInsights)
+        }
 
-        const [budgetValue, committedValue, availableValue] = await Promise.all([
-          decryptUint128ForView(nextHandles.budget),
-          decryptUint128ForView(nextHandles.committed),
-          decryptUint128ForView(nextHandles.available)
-        ])
+        if (signer && cofheReady) {
+          const nextHandles = await contract.getAdminBudgetHandles(orgId)
+          setSummaryHandles(nextHandles)
 
-        setSummaryValues({
-          budget: budgetValue,
-          committed: committedValue,
-          available: availableValue
-        })
+          const [budgetValue, committedValue, availableValue] = await Promise.all([
+            decryptUint128ForView(nextHandles.budget),
+            decryptUint128ForView(nextHandles.committed),
+            decryptUint128ForView(nextHandles.available)
+          ])
 
-        setSurfaceStatus({
-          tone: 'success',
-          title: 'Organization state refreshed',
-          detail: 'Workspace metadata and admin budget handles were loaded successfully.'
-        })
+          setSummaryValues({
+            budget: budgetValue,
+            committed: committedValue,
+            available: availableValue
+          })
+
+          setSurfaceStatus({
+            tone: 'success',
+            title: 'Organization state refreshed',
+            detail: 'Workspace metadata, payroll counters, and encrypted admin summaries were loaded successfully.'
+          })
+        } else {
+          setSurfaceStatus({
+            tone: 'info',
+            title: 'Workspace loaded with aggregate activity',
+            detail: 'Payroll counts are available now. Initialize CoFHE to unlock the encrypted budget summaries as well.'
+          })
+        }
       } else if (address && nextOrg.exists && nextOrg.admin.toLowerCase() !== address.toLowerCase()) {
         setSurfaceStatus({
           tone: 'error',
           title: 'Connected wallet is not the workspace admin',
           detail: 'Refresh succeeded, but admin-only budget handles remain unavailable for this wallet.'
-        })
-      } else if (nextOrg.exists && !cofheReady) {
-        setSurfaceStatus({
-          tone: 'info',
-          title: 'Workspace loaded without decrypted summaries',
-          detail: 'Initialize CoFHE to decrypt the admin-only budget handles after refresh.'
         })
       }
 
@@ -260,6 +518,9 @@ export default function AdminPage() {
     } catch (error) {
       const message = extractCipherRollErrorMessage(error)
       clearSummaries()
+      clearInsights()
+      clearTreasuryAdapter()
+      clearPayrollRun()
       setRefreshError(message)
       setSurfaceStatus({
         tone: 'error',
@@ -276,6 +537,9 @@ export default function AdminPage() {
   }, [
     address,
     clearSummaries,
+    clearInsights,
+    clearTreasuryAdapter,
+    clearPayrollRun,
     cofheReady,
     isConfigured,
     isTargetChain,
@@ -284,9 +548,31 @@ export default function AdminPage() {
     signer
   ])
 
+  const refreshWorkspaceState = useCallback(async (reason: 'auto' | 'manual' | 'post-action' = 'manual') => {
+    await loadOrganization(reason)
+    await loadPayrollRun()
+  }, [loadOrganization, loadPayrollRun])
+
+  const loadAuditorPermits = useCallback(() => {
+    if (!address || !chainId) {
+      setAuditorSharingPermits([])
+      return
+    }
+
+    const permits = getAuditorSharingPermits(chainId, address).filter(
+      (permit) => permit.issuer.toLowerCase() === address.toLowerCase()
+    )
+
+    setAuditorSharingPermits(permits)
+  }, [address, chainId])
+
   useEffect(() => {
-    void loadOrganization('auto')
-  }, [loadOrganization])
+    void refreshWorkspaceState('auto')
+  }, [refreshWorkspaceState])
+
+  useEffect(() => {
+    loadAuditorPermits()
+  }, [loadAuditorPermits])
 
   const initializeCofhe = async () => {
     if (!signer) {
@@ -315,7 +601,7 @@ export default function AdminPage() {
         detail: 'Admin encryption and decryptForView reads are now available for this wallet.'
       })
       toast.success('CoFHE encryption initialized for this admin wallet.')
-      await loadOrganization('post-action')
+      await refreshWorkspaceState('post-action')
     } catch (error: any) {
       const message = extractCipherRollErrorMessage(error)
       setSurfaceStatus({
@@ -352,7 +638,7 @@ export default function AdminPage() {
       })
 
       await tx.wait()
-      await loadOrganization('post-action')
+      await refreshWorkspaceState('post-action')
       setSurfaceStatus({
         tone: 'success',
         title: actionTitle,
@@ -372,6 +658,107 @@ export default function AdminPage() {
     } finally {
       setIsBusy(false)
     }
+  }
+
+  const createAuditorPermit = async () => {
+    if (!canSubmitTransactions) {
+      toast.error(`Connect the admin wallet and switch to ${TARGET_CHAIN_NAME} before creating an auditor sharing permit.`)
+      return
+    }
+
+    if (!cofheReady) {
+      toast.error('Initialize CoFHE first so the current @cofhe/sdk sharing-permit flow can sign and store the disclosure locally.')
+      return
+    }
+
+    if (!organization.exists) {
+      toast.error('Create the workspace first so the disclosure scope matches a real organization.')
+      return
+    }
+
+    if (!isAdmin) {
+      toast.error('Only the workspace admin can create auditor sharing permits for this organization.')
+      return
+    }
+
+    if (!auditorRecipientSafeAddress) {
+      toast.error('Enter a valid auditor wallet address before creating the sharing permit.')
+      return
+    }
+
+    if (!auditorPermitExpirationTimestamp || auditorPermitExpirationTimestamp <= Math.floor(Date.now() / 1000)) {
+      toast.error('Choose an expiration time in the future before sharing auditor access.')
+      return
+    }
+
+    setIsBusy(true)
+    try {
+      setSurfaceStatus({
+        tone: 'info',
+        title: 'Creating auditor sharing permit',
+        detail: 'Approve the wallet signature so CipherRoll can create a scoped sharing permit for aggregate auditor access.'
+      })
+
+      const { exportPayload, permitView } = await createAuditorSharingPermit({
+        issuer: address!,
+        recipient: auditorRecipientSafeAddress,
+        name: auditorPermitName.trim() || `CipherRoll auditor share for ${auditorName.trim() || 'auditor'}`,
+        expiration: auditorPermitExpirationTimestamp
+      })
+
+      setAuditorExportPayload(exportPayload)
+      setAuditorSharingPermits((current) =>
+        [permitView, ...current.filter((permit) => permit.hash !== permitView.hash)].sort(
+          (left, right) => right.expiration - left.expiration
+        )
+      )
+      setSurfaceStatus({
+        tone: 'success',
+        title: 'Auditor sharing permit created',
+        detail: 'The non-sensitive payload is ready to copy or hand off to the named auditor recipient.'
+      })
+      toast.success('Auditor sharing payload created. Copy it from the panel before handing it to the auditor.')
+    } catch (error) {
+      const message = extractCipherRollErrorMessage(error)
+      setSurfaceStatus({
+        tone: 'error',
+        title: 'Auditor sharing setup failed',
+        detail: message
+      })
+      toast.error(message)
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  const copyAuditorPayload = async (payload: string) => {
+    if (!payload) {
+      toast.error('Create or select an auditor sharing permit first.')
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(payload)
+      toast.success('Auditor sharing payload copied.')
+    } catch {
+      toast.error('Clipboard copy failed in this browser. You can still copy the payload manually.')
+    }
+  }
+
+  const deleteAuditorPermit = (hash: string) => {
+    if (!address || !chainId) {
+      return
+    }
+
+    removeAuditorSharingPermit(hash, chainId, address)
+    const nextPermits = getAuditorSharingPermits(chainId, address).filter(
+      (permit) => permit.issuer.toLowerCase() === address.toLowerCase()
+    )
+    setAuditorSharingPermits(nextPermits)
+    if (auditorExportPayload && !nextPermits.some((permit) => permit.exportPayload === auditorExportPayload)) {
+      setAuditorExportPayload('')
+    }
+    toast.success('Auditor sharing permit removed from this admin browser.')
   }
 
   const createOrganization = async () => {
@@ -402,6 +789,45 @@ export default function AdminPage() {
         3,
         2
       )
+      }
+    )
+  }
+
+  const configureTreasuryRoute = async () => {
+    if (!canSubmitTransactions) {
+      toast.error(`Connect the admin wallet and switch to ${TARGET_CHAIN_NAME} before configuring treasury settlement.`)
+      return
+    }
+
+    if (!organization.exists) {
+      toast.error('Create the workspace first before attaching a treasury route.')
+      return
+    }
+
+    if (!isAdmin) {
+      toast.error('Only the workspace admin can configure treasury settlement.')
+      return
+    }
+
+    if (!treasuryRouteLabel.trim()) {
+      toast.error('Enter a treasury route label before configuring settlement.')
+      return
+    }
+
+    if (!canConfigureTreasuryRoute) {
+      toast.error('This frontend does not have a settlement adapter address configured for the selected route.')
+      return
+    }
+
+    await withTransaction(
+      'Treasury route setup',
+      'Approve the wallet transaction to attach the selected settlement route to this workspace.',
+      treasuryRouteMode === 'wrapper'
+        ? 'Wrapper treasury route configured for this workspace.'
+        : 'Direct treasury route configured for this workspace.',
+      async () => {
+        const contract = getCipherRollContract(signer!)
+        return contract.configureTreasury(orgId, selectedTreasuryAdapterAddress, treasuryRouteId)
       }
     )
   }
@@ -440,6 +866,183 @@ export default function AdminPage() {
     )
   }
 
+  const createPayrollRun = async () => {
+    if (!canSubmitTransactions) {
+      toast.error(`Connect the admin wallet and switch to ${TARGET_CHAIN_NAME} before creating a payroll run.`)
+      return
+    }
+
+    if (!organization.exists) {
+      toast.error('Create the workspace first before opening a payroll run.')
+      return
+    }
+
+    if (!isAdmin) {
+      toast.error('Only the workspace admin can create payroll runs.')
+      return
+    }
+
+    if (!selectedPayrollRunInput.trim()) {
+      toast.error('Enter a payroll run label before creating the run.')
+      return
+    }
+
+    if (payrollRunExists) {
+      setSurfaceStatus({
+        tone: 'info',
+        title: 'Payroll run already exists',
+        detail: 'This run label is already active for the current workspace. Continue with funding or choose a new label.'
+      })
+      toast.info('This payroll run already exists. Continue with funding or choose a new label.')
+      await loadPayrollRun()
+      return
+    }
+
+    if (!payrollFundingDeadlineTimestamp) {
+      toast.error('Choose a funding deadline for this payroll run.')
+      return
+    }
+
+    await withTransaction(
+      'Payroll run creation',
+      'Approve the wallet transaction to create the payroll run shell before uploading allocations.',
+      'Payroll run created.',
+      async () => {
+        const contract = getCipherRollContract(signer!)
+        return contract.createPayrollRun(
+          orgId,
+          selectedPayrollRunId,
+          payrollSettlementAssetId,
+          payrollFundingDeadlineTimestamp,
+          1
+        )
+      }
+    )
+
+    await loadPayrollRun()
+  }
+
+  const fundPayrollRun = async () => {
+    if (!payrollRunExists) {
+      toast.error('Create or load a payroll run before funding it.')
+      return
+    }
+
+    if (payrollRun.allocationCount === 0) {
+      toast.error('Add the employee allocation to this payroll run before reserving treasury funds.')
+      return
+    }
+
+    if (payrollFundingAmountInWei === null) {
+      toast.error('Enter a positive funding amount with up to 18 decimal places.')
+      return
+    }
+
+    if (hasTreasuryRoute) {
+      if (!canSubmitTransactions) {
+        toast.error(`Connect the admin wallet and switch to ${TARGET_CHAIN_NAME} before funding a payroll run from treasury.`)
+        return
+      }
+
+      await withTransaction(
+        'Payroll run funding',
+        'Approve the wallet transaction to reserve actual treasury inventory for this payroll run.',
+        'Payroll run funded from treasury inventory and ready for activation.',
+        async () => {
+          const contract = getCipherRollContract(signer!)
+          return contract.fundPayrollRunFromTreasury(orgId, selectedPayrollRunId, payrollFundingAmountInWei)
+        }
+      )
+
+      await loadPayrollRun()
+      return
+    }
+
+    if (!canEncryptInputs) {
+      toast.error(`Connect the admin wallet, switch to ${TARGET_CHAIN_NAME}, and initialize CoFHE before funding a payroll run.`)
+      return
+    }
+
+    await withTransaction(
+      'Payroll run funding',
+      'Approve the wallet transaction to lock payroll funding from the encrypted organization budget.',
+      'Payroll run funded and ready for activation.',
+      async () => {
+        const contract = getCipherRollContract(signer!)
+        const encryptedAmount = await encryptUint128(payrollFundingAmountInWei)
+        return contract.fundPayrollRun(orgId, selectedPayrollRunId, encryptedAmount)
+      }
+    )
+
+    await loadPayrollRun()
+  }
+
+  const depositTreasuryFunds = async () => {
+    if (!canSubmitTransactions) {
+      toast.error(`Connect the admin wallet and switch to ${TARGET_CHAIN_NAME} before funding the payroll treasury.`)
+      return
+    }
+
+    if (!organization.exists || !isAdmin) {
+      toast.error('Only the workspace admin can fund the payroll treasury.')
+      return
+    }
+
+    if (!hasTreasuryRoute || !treasuryAdapterDetails.settlementAsset) {
+      toast.error('This workspace does not have a treasury settlement route configured yet.')
+      return
+    }
+
+    if (treasuryDepositAmountInWei === null) {
+      toast.error('Enter a positive treasury funding amount with up to 18 decimal places.')
+      return
+    }
+
+    await withTransaction(
+      'Treasury funding',
+      'Approve the token approval and treasury deposit transactions to move real inventory into the payroll treasury.',
+      'Payroll treasury funded from token inventory.',
+      async () => {
+        const contract = getCipherRollContract(signer!)
+        await (await contract.approveSettlementToken(
+          treasuryAdapterDetails.settlementAsset,
+          treasuryAdapterDetails.adapter,
+          treasuryDepositAmountInWei
+        )).wait()
+
+        return contract.depositPayrollFunds(
+          treasuryAdapterDetails.adapter,
+          orgId,
+          treasuryDepositAmountInWei
+        )
+      }
+    )
+  }
+
+  const activatePayrollRun = async () => {
+    if (!canSubmitTransactions) {
+      toast.error(`Connect the admin wallet and switch to ${TARGET_CHAIN_NAME} before activating a payroll run.`)
+      return
+    }
+
+    if (!payrollRunExists) {
+      toast.error('Create or load a payroll run before activating it.')
+      return
+    }
+
+    await withTransaction(
+      'Payroll activation',
+      'Approve the wallet transaction to open employee claimability for this payroll run.',
+      'Payroll run activated and claim window opened.',
+      async () => {
+        const contract = getCipherRollContract(signer!)
+        return contract.activatePayrollRun(orgId, selectedPayrollRunId)
+      }
+    )
+
+    await loadPayrollRun()
+  }
+
   const issuePayroll = async () => {
     if (!canEncryptInputs) {
       toast.error(`Connect the admin wallet, switch to ${TARGET_CHAIN_NAME}, and initialize CoFHE before issuing payroll.`)
@@ -468,6 +1071,21 @@ export default function AdminPage() {
       return
     }
 
+    if (payrollMode === 'vesting' && vestingWindowInvalid) {
+      toast.error('Choose a valid vesting schedule with an end time after the start time.')
+      return
+    }
+
+    if (!payrollRunExists) {
+      toast.error('Create or load a payroll run before uploading allocations.')
+      return
+    }
+
+    if (!payrollRunOpenForAllocations) {
+      toast.error('This payroll run is no longer open for allocation uploads.')
+      return
+    }
+
     if (payrollWouldZeroOut) {
       toast.error('Requested payroll exceeds the decrypted available budget. CipherRoll would zero the allocation, so this action is blocked until the budget is increased.')
       return
@@ -479,13 +1097,29 @@ export default function AdminPage() {
     await withTransaction(
       'Payroll issuance',
       'Approve the wallet transaction to encrypt and issue this employee allocation.',
-      'Confidential payroll allocation issued.',
+      payrollMode === 'vesting'
+        ? 'Confidential vesting payroll allocation issued.'
+        : 'Confidential payroll allocation issued.',
       async () => {
       const contract = getCipherRollContract(signer!)
       const encryptedAmount = await encryptUint128(paymentAmountInWei)
 
-      return contract.issueConfidentialPayroll(
+      if (payrollMode === 'vesting') {
+        return contract.issueVestingAllocationToRun(
+          orgId,
+          selectedPayrollRunId,
+          employee,
+          encryptedAmount,
+          paymentId,
+          memoHash,
+          vestingStartTimestamp!,
+          vestingEndTimestamp!
+        )
+      }
+
+      return contract.issueConfidentialPayrollToRun(
         orgId,
+        selectedPayrollRunId,
         employee,
         encryptedAmount,
         paymentId,
@@ -493,12 +1127,31 @@ export default function AdminPage() {
       )
       }
     )
+
+    await loadPayrollRun()
   }
 
   const summaryCards = [
     { label: 'Budget', value: summaryValues.budget, handle: summaryHandles?.budget ?? null },
     { label: 'Committed', value: summaryValues.committed, handle: summaryHandles?.committed ?? null },
     { label: 'Available', value: summaryValues.available, handle: summaryHandles?.available ?? null }
+  ]
+
+  const budgetNumber = Number(summaryValues.budget ?? '0')
+  const committedNumber = Number(summaryValues.committed ?? '0')
+  const availableNumber = Number(summaryValues.available ?? '0')
+  const budgetUtilization = budgetNumber > 0 ? Math.min(100, (committedNumber / budgetNumber) * 100) : 0
+  const availableRunway = budgetNumber > 0 ? Math.max(0, (availableNumber / budgetNumber) * 100) : 0
+  const claimRate = organizationInsights.totalPayrollItems > 0
+    ? Math.round((organizationInsights.claimedPayrollItems / organizationInsights.totalPayrollItems) * 100)
+    : 0
+  const analyticsCards = [
+    { label: 'Payroll Items', value: String(organizationInsights.totalPayrollItems), detail: 'Total allocations issued' },
+    { label: 'Active Items', value: String(organizationInsights.activePayrollItems), detail: 'Still pending employee claim' },
+    { label: 'Claimed Items', value: String(organizationInsights.claimedPayrollItems), detail: `${claimRate}% claim completion` },
+    { label: 'Recipients', value: String(organizationInsights.employeeRecipients), detail: 'Unique employee wallets paid' },
+    { label: 'Vesting Items', value: String(organizationInsights.vestingPayrollItems), detail: 'Locked by schedule' },
+    { label: 'Budget Utilization', value: summaryValues.budget ? `${budgetUtilization.toFixed(0)}%` : 'Locked', detail: 'Committed versus funded budget' }
   ]
 
   const readinessChecklist = [
@@ -636,93 +1289,107 @@ export default function AdminPage() {
 
         <NetworkStatus />
 
-        <div className="mt-8 grid gap-4">
-          <GlassCard className="p-6 border-white/5 bg-[#0a0a0a] rounded-3xl">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white/60">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Operator Status
+        {activePortal === 'overview' && (
+          <div className="space-y-6 mt-8">
+            <GlassCard className="p-6 border-white/5 bg-[#0a0a0a] rounded-3xl">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white/60">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Operator Status
+                  </div>
+                  <h2 className="mt-4 text-2xl font-bold text-white">{surfaceStatus.title}</h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[#c9c9d0]">{surfaceStatus.detail}</p>
                 </div>
-                <h2 className="mt-4 text-2xl font-bold text-white">{surfaceStatus.title}</h2>
-                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[#c9c9d0]">{surfaceStatus.detail}</p>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                {address && !isTargetChain && (
+                <div className="flex flex-wrap gap-3">
+                  {address && !isTargetChain && (
+                    <button
+                      onClick={() => {
+                        void switchToTargetChain()
+                          .then(() => {
+                            setSurfaceStatus({
+                              tone: 'success',
+                              title: `Wallet switched to ${TARGET_CHAIN_NAME}`,
+                              detail: 'Refresh the organization state or continue with the next admin action.'
+                            })
+                          })
+                          .catch((error) => {
+                            const message = extractCipherRollErrorMessage(error)
+                            setSurfaceStatus({
+                              tone: 'error',
+                              title: 'Network switch failed',
+                              detail: message
+                            })
+                            toast.error(message)
+                          })
+                      }}
+                      className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-50 hover:bg-cyan-400/15"
+                    >
+                      Switch To {TARGET_CHAIN_NAME}
+                    </button>
+                  )}
                   <button
-                    onClick={() => {
-                      void switchToTargetChain()
-                        .then(() => {
-                          setSurfaceStatus({
-                            tone: 'success',
-                            title: `Wallet switched to ${TARGET_CHAIN_NAME}`,
-                            detail: 'Refresh the organization state or continue with the next admin action.'
-                          })
-                        })
-                        .catch((error) => {
-                          const message = extractCipherRollErrorMessage(error)
-                          setSurfaceStatus({
-                            tone: 'error',
-                            title: 'Network switch failed',
-                            detail: message
-                          })
-                          toast.error(message)
-                        })
-                    }}
-                    className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-50 hover:bg-cyan-400/15"
+                    onClick={() => void refreshWorkspaceState('manual')}
+                    disabled={!canReadState || isRefreshing}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
                   >
-                    Switch To {TARGET_CHAIN_NAME}
+                    {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    {isRefreshing ? 'Refreshing...' : 'Refresh Organization'}
                   </button>
-                )}
-                <button
-                  onClick={() => void loadOrganization('manual')}
-                  disabled={!canReadState || isRefreshing}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
-                >
-                  {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                  {isRefreshing ? 'Refreshing...' : 'Refresh Organization'}
-                </button>
+                </div>
               </div>
-            </div>
 
-            <div className={`mt-4 rounded-2xl border p-4 text-sm ${surfaceStatusStyles[surfaceStatus.tone]}`}>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <span>
-                  {lastRefreshedAt
-                    ? `Last successful refresh: ${new Date(lastRefreshedAt).toLocaleString()}`
-                    : 'No successful refresh recorded in this session yet.'}
-                </span>
-                {surfaceStatus.txHash && (
-                  <span className="font-mono text-xs uppercase tracking-[0.14em] opacity-90">
-                    Tx {shortHash(surfaceStatus.txHash)}
-                  </span>
-                )}
-              </div>
-            </div>
-          </GlassCard>
-
-          {operatorAlerts.length > 0 && (
-            <div className="grid gap-4">
-              {operatorAlerts.map((alert) => (
-                <div
-                  key={`${alert.title}-${alert.detail}`}
-                  className={`rounded-3xl border p-5 ${alert.tone === 'error' ? 'border-rose-400/20 bg-rose-400/10' : 'border-cyan-400/20 bg-cyan-400/10'}`}
-                >
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className={`mt-0.5 h-5 w-5 shrink-0 ${alert.tone === 'error' ? 'text-rose-200' : 'text-cyan-200'}`} />
-                    <div>
-                      <h3 className={`text-sm font-semibold ${alert.tone === 'error' ? 'text-rose-50' : 'text-cyan-50'}`}>{alert.title}</h3>
-                      <p className={`mt-1 text-sm leading-relaxed ${alert.tone === 'error' ? 'text-rose-100/90' : 'text-cyan-100/90'}`}>{alert.detail}</p>
-                    </div>
+              {!organization.exists ? (
+                <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-amber-50">Workspace not created</p>
+                    <p className="mt-1 text-sm text-amber-100/85">Create the workspace first, then come back here for the full operator view.</p>
+                  </div>
+                  <button
+                    onClick={() => setActivePortal('setup')}
+                    className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm font-semibold text-amber-50 hover:bg-amber-300/15"
+                  >
+                    Open Workspace Setup
+                  </button>
+                </div>
+              ) : (
+                <div className={`mt-4 rounded-2xl border p-4 text-sm ${surfaceStatusStyles[surfaceStatus.tone]}`}>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <span>
+                      {lastRefreshedAt
+                        ? `Last successful refresh: ${new Date(lastRefreshedAt).toLocaleString()}`
+                        : 'No successful refresh recorded in this session yet.'}
+                    </span>
+                    {surfaceStatus.txHash && (
+                      <span className="font-mono text-xs uppercase tracking-[0.14em] opacity-90">
+                        Tx {shortHash(surfaceStatus.txHash)}
+                      </span>
+                    )}
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              )}
+            </GlassCard>
 
-        {activePortal === 'overview' && (
-          <div className="grid lg:grid-cols-[0.92fr,1.08fr] gap-8 mt-8">
+            {operatorAlerts.length > 0 && (
+              <div className="grid gap-4">
+                {operatorAlerts.map((alert) => (
+                  <div
+                    key={`${alert.title}-${alert.detail}`}
+                    className={`rounded-3xl border p-5 ${alert.tone === 'error' ? 'border-rose-400/20 bg-rose-400/10' : 'border-cyan-400/20 bg-cyan-400/10'}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className={`mt-0.5 h-5 w-5 shrink-0 ${alert.tone === 'error' ? 'text-rose-200' : 'text-cyan-200'}`} />
+                      <div>
+                        <h3 className={`text-sm font-semibold ${alert.tone === 'error' ? 'text-rose-50' : 'text-cyan-50'}`}>{alert.title}</h3>
+                        <p className={`mt-1 text-sm leading-relaxed ${alert.tone === 'error' ? 'text-rose-100/90' : 'text-cyan-100/90'}`}>{alert.detail}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+          <div className="grid lg:grid-cols-[0.92fr,1.08fr] gap-8">
             <div className="space-y-6">
               <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
                 <div className="flex items-center gap-3 mb-6">
@@ -761,7 +1428,7 @@ export default function AdminPage() {
                     Initialize CoFHE
                   </button>
                   <button
-                    onClick={() => void loadOrganization('manual')}
+                    onClick={() => void refreshWorkspaceState('manual')}
                     disabled={!canReadState || isRefreshing}
                     className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
                   >
@@ -771,23 +1438,6 @@ export default function AdminPage() {
 
                 <div className="mt-6 rounded-2xl border border-cyan-400/15 bg-cyan-400/10 p-4 text-sm text-cyan-50">
                   Configured {TARGET_CHAIN_NAME} payroll contract: <span className="font-mono break-all">{CONTRACT_ADDRESS || 'Not configured'}</span>
-                </div>
-              </GlassCard>
-
-              <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
-                <div className="flex items-center gap-3 mb-4">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-300" />
-                  <h2 className="text-xl font-bold text-white">{TARGET_CHAIN_NAME} Readiness</h2>
-                </div>
-                <div className="space-y-3">
-                  {readinessChecklist.map((item) => (
-                    <div key={item.label} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
-                      <span className="text-white">{item.label}</span>
-                      <span className={item.complete ? 'text-emerald-300 font-semibold' : 'text-white/50'}>
-                        {item.complete ? 'Ready' : 'Pending'}
-                      </span>
-                    </div>
-                  ))}
                 </div>
               </GlassCard>
             </div>
@@ -826,44 +1476,50 @@ export default function AdminPage() {
               </GlassCard>
 
               <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
-                <div className="flex items-center gap-3 mb-4">
-                  <Building2 className="w-5 h-5 text-cyan-300" />
-                  <h2 className="text-xl font-bold text-white">Workspace snapshot</h2>
-                </div>
-
-                <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 text-sm">
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">Org id</p>
-                    <p className="font-mono text-white">{formatBytes32Preview(orgId)}</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">Workspace state</p>
-                    <p className="text-white">{organization.exists ? 'Created on-chain' : 'Not created yet'}</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">Reserved quorum</p>
-                    <p className="text-white">{organization.reservedQuorum} of {organization.reservedAdminSlots}</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">Updated</p>
-                    <p className="text-white">
-                      {organization.updatedAt
-                        ? new Date(organization.updatedAt * 1000).toLocaleString()
-                        : 'No on-chain updates yet'}
+                <div className="flex items-center gap-3 mb-6">
+                  <Sparkles className="w-5 h-5 text-cyan-300" />
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Operator insights</h2>
+                    <p className="text-sm text-[#a1a1aa] mt-2">
+                      Aggregate-only activity across the organization. No employee-level salary rows are exposed here.
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-6 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm text-cyan-50">
-                  {`CipherRoll is configured for ${TARGET_CHAIN_NAME} within the supported ${SUPPORTED_CHAIN_NAMES} rollout. Organizational state remains encrypted on the host chain.`}
+                <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {analyticsCards.map((item) => (
+                    <div key={item.label} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                      <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold mb-3">{item.label}</p>
+                      <p className="text-3xl font-black text-white">{item.value}</p>
+                      <p className="mt-3 text-sm text-[#a1a1aa]">{item.detail}</p>
+                    </div>
+                  ))}
                 </div>
 
-                <Link href="/docs" className="inline-flex items-center gap-2 text-sm font-semibold text-white mt-6 underline underline-offset-4">
-                  Read the CoFHE architecture notes
-                  <ArrowLeft className="w-4 h-4 rotate-180" />
-                </Link>
+                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold mb-3">Runway health</p>
+                    <p className="text-2xl font-black text-white">
+                      {summaryValues.budget ? `${availableRunway.toFixed(0)}% budget still available` : 'Initialize CoFHE to unlock'}
+                    </p>
+                    <p className="mt-3 text-sm text-[#a1a1aa]">
+                      CipherRoll derives this from encrypted budget summaries after the admin permit is active.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold mb-3">Latest activity</p>
+                    <p className="text-sm text-white">
+                      Last payroll issued: {organizationInsights.lastIssuedAt ? new Date(organizationInsights.lastIssuedAt * 1000).toLocaleString() : 'No payroll issued yet'}
+                    </p>
+                    <p className="mt-2 text-sm text-white">
+                      Last employee claim: {organizationInsights.lastClaimedAt ? new Date(organizationInsights.lastClaimedAt * 1000).toLocaleString() : 'No claims recorded yet'}
+                    </p>
+                  </div>
+                </div>
               </GlassCard>
+
             </div>
+          </div>
           </div>
         )}
 
@@ -914,6 +1570,260 @@ export default function AdminPage() {
                 </div>
               )}
             </GlassCard>
+
+            <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
+              <div className="flex items-center gap-3 mb-6">
+                <ShieldCheck className="w-5 h-5 text-cyan-300" />
+                <div>
+                  <h2 className="text-2xl font-bold text-white">Attach treasury route</h2>
+                  <p className="text-sm text-[#a1a1aa] mt-2">
+                    Choose how this workspace should settle payroll so the full Priority 4 flow can run from the frontend.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-white/5 p-2">
+                  {[
+                    { id: 'wrapper', label: 'FHERC20 wrapper' },
+                    { id: 'direct', label: 'Direct treasury' }
+                  ].map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setTreasuryRouteMode(option.id as 'wrapper' | 'direct')}
+                      className={`rounded-2xl px-4 py-3 text-sm font-semibold transition-colors ${
+                        treasuryRouteMode === option.id
+                          ? 'bg-white text-black'
+                          : 'text-white/70 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+
+                <input
+                  value={treasuryRouteLabel}
+                  onChange={(event) => setTreasuryRouteLabel(event.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                  placeholder="Treasury route label"
+                />
+
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-[#c9c9d0] space-y-2">
+                  <p className="text-white font-semibold">
+                    {treasuryRouteMode === 'wrapper' ? 'FHERC20 wrapper route' : 'Direct treasury route'}
+                  </p>
+                  <p>
+                    {treasuryRouteMode === 'wrapper'
+                      ? 'Employees will request payout first, then finalize the wrapper claim to release the underlying token.'
+                      : 'Employees will claim once and receive the treasury payout token immediately.'}
+                  </p>
+                  <p className="font-mono break-all text-xs text-white/55">
+                    Adapter: {selectedTreasuryAdapterAddress || 'Not configured in frontend env'}
+                  </p>
+                  {organization.treasuryAdapter && organization.treasuryAdapter !== '0x0000000000000000000000000000000000000000' ? (
+                    <p className="font-mono break-all text-xs text-emerald-300">
+                      Current workspace adapter: {organization.treasuryAdapter}
+                    </p>
+                  ) : null}
+                </div>
+
+                <button
+                  onClick={configureTreasuryRoute}
+                  disabled={!canSubmitTransactions || !organization.exists || !isAdmin || isBusy || !canConfigureTreasuryRoute}
+                  className="w-full rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
+                >
+                  Configure Treasury Route
+                </button>
+              </div>
+
+              {!organization.exists && (
+                <div className="mt-6 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-50">
+                  Create the workspace first, then attach the treasury route from this same tab.
+                </div>
+              )}
+            </GlassCard>
+          </div>
+        )}
+
+        {activePortal === 'auditor' && (
+          <div className="grid lg:grid-cols-[0.95fr,1.05fr] gap-8 mt-8">
+            <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
+              <div className="flex items-center gap-3 mb-6">
+                <FileKey2 className="w-5 h-5 text-cyan-300" />
+                <div>
+                  <h2 className="text-2xl font-bold text-white">Create auditor sharing payload</h2>
+                  <p className="text-sm text-[#a1a1aa] mt-2">
+                    Create a current <span className="font-mono">@cofhe/sdk</span> sharing permit for one named auditor recipient before they import anything on the auditor side.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <input
+                  value={auditorName}
+                  onChange={(event) => setAuditorName(event.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                  placeholder="Auditor name"
+                />
+                <input
+                  value={auditorRecipientAddress}
+                  onChange={(event) => setAuditorRecipientAddress(event.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                  placeholder="Auditor wallet address"
+                />
+                <input
+                  value={auditorPermitName}
+                  onChange={(event) => setAuditorPermitName(event.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                  placeholder="Permit name"
+                />
+                <div>
+                  <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-white/55">Permit expiration</label>
+                  <input
+                    type="datetime-local"
+                    value={auditorPermitExpirationInput}
+                    onChange={(event) => setAuditorPermitExpirationInput(event.target.value)}
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-cyan-400/15 bg-cyan-400/10 p-4 text-sm text-cyan-50">
+                <p className="font-semibold text-white">What this disclosure includes</p>
+                <ul className="mt-3 space-y-2 text-sm text-cyan-50/90">
+                  <li>Encrypted organization-level budget, committed payroll, and available runway handles.</li>
+                  <li>Public organization summary data like payroll-run counts, funding status, and aggregate claim activity.</li>
+                  <li>No employee salary rows, no employee allocation handles, and no unnecessary PII.</li>
+                </ul>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-[#c9c9d0]">
+                <p className="font-semibold text-white">Selective-disclosure boundary</p>
+                <p className="mt-2">
+                  This sharing flow depends on prior on-chain <span className="font-mono text-white">FHE.allow(...)</span> access that the data owner already granted to the encrypted aggregate handles. The shared payload does not create new contract-side salary visibility, it only lets the named recipient decrypt the aggregate handles that CipherRoll intentionally exposed for audit review.
+                </p>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-[#c9c9d0]">
+                <p className="font-semibold text-white">Before you share</p>
+                <p className="mt-2">Recipient: {auditorRecipientSafeAddress || 'Enter a valid address'}</p>
+                <p className="mt-2">Expires: {auditorPermitExpirationTimestamp ? new Date(auditorPermitExpirationTimestamp * 1000).toLocaleString() : 'Choose an expiration time'}</p>
+                <p className="mt-2">Scope: Aggregate-only auditor review for workspace {formatBytes32Preview(orgId)}</p>
+              </div>
+
+              {auditorPermitExpiresSoon && (
+                <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-50">
+                  This permit expires in under one hour. That is allowed, but make sure the auditor will import it immediately.
+                </div>
+              )}
+
+              <button
+                onClick={createAuditorPermit}
+                disabled={!canSubmitTransactions || !cofheReady || !organization.exists || !isAdmin || isBusy || !auditorRecipientSafeAddress || !auditorPermitExpirationTimestamp}
+                className="mt-6 w-full rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
+              >
+                Create Auditor Sharing Permit
+              </button>
+            </GlassCard>
+
+            <div className="space-y-6">
+              <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
+                <div className="flex items-center gap-3 mb-6">
+                  <ShieldCheck className="w-5 h-5 text-emerald-300" />
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Current sharing permits</h2>
+                    <p className="text-sm text-[#a1a1aa] mt-2">
+                      These are the auditor sharing permits currently stored in this admin browser for the connected wallet.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {auditorSharingPermits.length === 0 ? (
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-[#a1a1aa]">
+                      No auditor sharing permits have been created in this browser session yet.
+                    </div>
+                  ) : (
+                    auditorSharingPermits.map((permit) => (
+                      <div key={permit.hash} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                          <div>
+                            <p className="font-semibold text-white">{permit.name}</p>
+                            <p className="mt-2 text-sm text-[#c9c9d0]">Recipient: <span className="font-mono text-white/85">{permit.recipient}</span></p>
+                            <p className="mt-1 text-sm text-[#c9c9d0]">Expires: {new Date(permit.expiration * 1000).toLocaleString()}</p>
+                            <p className="mt-1 text-xs text-white/45 font-mono break-all">Hash: {permit.hash}</p>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setAuditorExportPayload(permit.exportPayload)}
+                              className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10"
+                            >
+                              View Payload
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void copyAuditorPayload(permit.exportPayload)}
+                              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10"
+                            >
+                              <Copy className="h-4 w-4" />
+                              Copy
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteAuditorPermit(permit.hash)}
+                              className="inline-flex items-center gap-2 rounded-2xl border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-sm font-semibold text-rose-100 hover:bg-rose-400/15"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </GlassCard>
+
+              <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
+                <div className="flex items-center gap-3 mb-6">
+                  <KeyRound className="w-5 h-5 text-cyan-300" />
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Export payload</h2>
+                    <p className="text-sm text-[#a1a1aa] mt-2">
+                      This is the non-sensitive sharing payload you hand to the auditor so they can import it as a recipient permit.
+                    </p>
+                  </div>
+                </div>
+
+                <textarea
+                  readOnly
+                  value={auditorExportPayload}
+                  className="min-h-[280px] w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/85 font-mono"
+                  placeholder="Create or select an auditor sharing permit to reveal the export payload here."
+                />
+
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => void copyAuditorPayload(auditorExportPayload)}
+                    disabled={!auditorExportPayload}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-gray-200 disabled:opacity-50"
+                  >
+                    <Copy className="h-4 w-4" />
+                    Copy Payload
+                  </button>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-[#c9c9d0]">
+                    The export removes the private sealing key. The auditor will still need to import and sign it on their own wallet.
+                  </div>
+                </div>
+                <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-50">
+                  Removing a sharing permit from this admin browser is a product-level revocation aid, not a guaranteed remote kill switch. If the auditor already imported the payload, access persists until that imported recipient permit expires or is deleted from the auditor wallet session.
+                </div>
+              </GlassCard>
+            </div>
           </div>
         )}
 
@@ -1000,19 +1910,90 @@ export default function AdminPage() {
         )}
 
         {activePortal === 'payroll' && (
-          <div className="grid lg:grid-cols-[1.08fr,0.92fr] gap-8 mt-8">
+          <div className="grid lg:grid-cols-[1.12fr,0.88fr] gap-8 mt-8">
             <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
               <div className="flex items-center gap-3 mb-6">
                 <KeyRound className="w-5 h-5 text-cyan-300" />
                 <div>
                   <h2 className="text-2xl font-bold text-white">Pay one employee</h2>
                   <p className="text-sm text-[#a1a1aa] mt-2">
-                    This interface supports a single, push-style confidential payroll issuance from admins directly to specific employees.
+                    Model payroll as a run: create it, upload encrypted allocations, fund it, activate it, then let employees claim.
                   </p>
                 </div>
               </div>
 
               <div className="space-y-4">
+                <div className="rounded-3xl border border-white/10 bg-white/5 p-5 space-y-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-white">Payroll lifecycle</h3>
+                    <p className="text-sm text-[#a1a1aa] mt-2">
+                      Follow these steps in order so the run becomes claimable without guesswork.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#c9c9d0]">
+                    This screen is optimized for one employee at a time, so the payroll run headcount is fixed to <span className="font-semibold text-white">1</span>.
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
+                    <p className="text-sm font-semibold text-white">
+                      Step 1: Create the payroll run
+                    </p>
+                    <p className="text-sm text-[#a1a1aa]">
+                      Pick the payroll run label you want to use for this one-employee payout, then create it once before reserving funds or issuing payroll.
+                    </p>
+                    <label className="space-y-2 text-sm block">
+                      <span className="text-white/70">Payroll run label</span>
+                      <input
+                        value={selectedPayrollRunInput}
+                        onChange={(event) => setSelectedPayrollRunInput(event.target.value)}
+                        className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                        placeholder="may-2026-payroll"
+                      />
+                    </label>
+                    <label className="space-y-2 text-sm block">
+                      <span className="text-white/70">Funding deadline</span>
+                      <input
+                        type="datetime-local"
+                        value={payrollFundingDeadlineInput}
+                        onChange={(event) => setPayrollFundingDeadlineInput(event.target.value)}
+                        className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white"
+                      />
+                    </label>
+                    <button
+                      onClick={createPayrollRun}
+                      disabled={!canSubmitTransactions || isBusy || !organization.exists}
+                      className="w-full rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
+                    >
+                      Create Run
+                    </button>
+                  </div>
+
+	                <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+	                  <p className="text-sm font-semibold text-white mb-3">
+	                    Step 2: Add the employee allocation
+	                  </p>
+	                  <p className="mb-4 text-sm text-[#a1a1aa]">
+	                    Upload the private employee amount into this run before funding it. Treasury-backed funding will fail until at least one allocation has been added.
+	                  </p>
+	                <div className="grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-white/5 p-2">
+                  {[
+                    { id: 'instant', label: 'Instant payroll' },
+                    { id: 'vesting', label: 'Vesting payroll' }
+                  ].map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setPayrollMode(option.id as 'instant' | 'vesting')}
+                      className={`rounded-2xl px-4 py-3 text-sm font-semibold transition-colors ${
+                        payrollMode === option.id
+                          ? 'bg-white text-black'
+                          : 'text-white/70 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
                 <input
                   value={employeeAddress}
                   onChange={(event) => setEmployeeAddress(event.target.value)}
@@ -1029,8 +2010,30 @@ export default function AdminPage() {
                   value={paymentMemo}
                   onChange={(event) => setPaymentMemo(event.target.value)}
                   className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                  placeholder="March payroll"
+                  placeholder="Optional memo"
                 />
+                {payrollMode === 'vesting' && (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="space-y-2 text-sm">
+                      <span className="text-white/70">Vesting start</span>
+                      <input
+                        type="datetime-local"
+                        value={vestingStartInput}
+                        onChange={(event) => setVestingStartInput(event.target.value)}
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                      />
+                    </label>
+                    <label className="space-y-2 text-sm">
+                      <span className="text-white/70">Vesting end</span>
+                      <input
+                        type="datetime-local"
+                        value={vestingEndInput}
+                        onChange={(event) => setVestingEndInput(event.target.value)}
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                      />
+                    </label>
+                  </div>
+                )}
                 <button
                   onClick={issuePayroll}
                   disabled={
@@ -1038,14 +2041,89 @@ export default function AdminPage() {
                     !organization.exists ||
                     !isAdmin ||
                     isBusy ||
+                    !payrollRunOpenForAllocations ||
                     paymentAmountInWei === null ||
                     !safeAddress(employeeAddress) ||
-                    payrollWouldZeroOut
+                    payrollWouldZeroOut ||
+                    vestingWindowInvalid
                   }
                   className="w-full rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
                 >
-                  Issue Confidential Payroll
+                  {payrollMode === 'vesting' ? 'Issue Vesting Payroll' : 'Issue Confidential Payroll'}
                 </button>
+                </div>
+
+                  {hasTreasuryRoute && (
+                    <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 space-y-3">
+                      <p className="text-sm font-semibold text-emerald-50">Step 3: Fund treasury inventory</p>
+                      <p className="text-sm text-emerald-100/90">
+                        Deposit payout tokens into the treasury first. This does not create the payroll run yet, it only loads inventory that can be reserved later.
+                      </p>
+                      <div className="grid gap-3 md:grid-cols-[1fr,auto]">
+                        <input
+                          value={treasuryDepositAmount}
+                          onChange={(event) => setTreasuryDepositAmount(event.target.value)}
+                          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                          placeholder="Treasury deposit amount"
+                        />
+                        <button
+                          onClick={depositTreasuryFunds}
+                          disabled={!canSubmitTransactions || isBusy || treasuryDepositAmountInWei === null}
+                          className="rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
+                        >
+                          Fund Treasury
+                        </button>
+                      </div>
+                      <div className="grid gap-2 text-sm text-emerald-50">
+                        <p>Available treasury funds: {treasuryAvailableFundsDisplay}</p>
+                        <p>Reserved treasury funds: {treasuryReservedFundsDisplay}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
+                    <p className="text-sm font-semibold text-white">
+                      {hasTreasuryRoute ? 'Step 4: Reserve treasury funds into the run' : 'Step 3: Fund the payroll run'}
+                    </p>
+                    <p className="text-sm text-[#a1a1aa]">
+                      Use the same amount you plan to pay the employee. This step moves treasury inventory into the selected payroll run.
+                    </p>
+                    <div className="grid gap-3 md:grid-cols-[1fr,auto]">
+                      <input
+                        value={payrollFundingAmount}
+                        onChange={(event) => setPayrollFundingAmount(event.target.value)}
+                        className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                        placeholder="Funding amount"
+                      />
+                      <button
+                        onClick={fundPayrollRun}
+                        disabled={
+                          !(hasTreasuryRoute ? canSubmitTransactions : canEncryptInputs) ||
+                          isBusy ||
+                          !payrollRunExists ||
+                          payrollFundingAmountInWei === null
+                        }
+                        className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                      >
+                        {hasTreasuryRoute ? 'Reserve Treasury Funds' : 'Fund Run'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4 space-y-3">
+                    <p className="text-sm font-semibold text-cyan-50">
+                      {hasTreasuryRoute ? 'Step 5: Activate employee claims' : 'Step 4: Activate employee claims'}
+                    </p>
+                    <button
+                      onClick={activatePayrollRun}
+                      disabled={!canSubmitTransactions || isBusy || !payrollRunExists || payrollRun.status !== 1}
+                      className="w-full rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-50 hover:bg-cyan-400/15 disabled:opacity-50"
+                    >
+                      Activate Claim Window
+                    </button>
+                  </div>
+
+                </div>
               </div>
 
               {paymentAmount.trim() && paymentAmountInWei === null && (
@@ -1060,6 +2138,12 @@ export default function AdminPage() {
                 </div>
               )}
 
+              {payrollMode === 'vesting' && vestingWindowInvalid && (
+                <div className="mt-6 rounded-2xl border border-rose-400/20 bg-rose-400/10 p-4 text-sm text-rose-50">
+                  Choose a vesting start and end time, and make sure the end time is later than the start time.
+                </div>
+              )}
+
               {organization.exists && !cofheReady && (
                 <div className="mt-6 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm text-cyan-50">
                   Initialize CoFHE before issuing payroll so the amount can be encrypted client-side.
@@ -1070,28 +2154,41 @@ export default function AdminPage() {
             <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
               <div className="flex items-center gap-3 mb-4">
                 <CheckCircle2 className="w-5 h-5 text-emerald-300" />
-                <h2 className="text-xl font-bold text-white">Before you send</h2>
+                <h2 className="text-xl font-bold text-white">Run snapshot</h2>
               </div>
 
-              <div className="space-y-3 text-sm">
-                {[
-                  { label: 'Workspace is already created', complete: organization.exists },
-                  { label: 'Connected wallet matches the admin', complete: Boolean(isAdmin) },
-                  { label: 'Budget has been funded', complete: Boolean(summaryHandles) },
-                  { label: 'Employee wallet address is valid', complete: Boolean(safeAddress(employeeAddress)) },
-                  { label: 'Requested amount fits decrypted budget', complete: !payrollWouldZeroOut }
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                    <span className="text-white">{item.label}</span>
-                    <span className={item.complete ? 'text-emerald-300 font-semibold' : 'text-white/50'}>
-                      {item.complete ? 'Yes' : 'No'}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-[#c9c9d0]">
+                  <p className="text-white font-semibold">Selected run status: {payrollRunStatusLabel}</p>
+                  <p className="mt-2">
+                    Settlement route: {hasTreasuryRoute
+                      ? treasuryAdapterDetails.supportsConfidentialSettlement
+                        ? 'FHERC20 wrapper'
+                        : 'Direct treasury'
+                      : 'Encrypted budget only'}
+                  </p>
+                  {!payrollRunExists && (
+                    <p className="mt-3 text-amber-200">
+                      No payroll run exists for the current label yet.
+                    </p>
+                  )}
+                  {payrollRunExists && payrollRun.allocationCount === 0 && (
+                    <p className="mt-3 text-amber-200">
+                      This run is still empty. Add the employee allocation before funding or activating claims.
+                    </p>
+                  )}
+                  <p className="mt-3">Allocations uploaded: {payrollRunExists ? payrollRun.allocationCount : 0} / {payrollRunExists ? payrollRun.plannedHeadcount : 0}</p>
+                  <p className="mt-1">Claims finalized: {payrollRunExists ? payrollRun.claimedCount : 0}</p>
+                </div>
 
-              <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-[#a1a1aa] leading-relaxed">
-                The employee must later connect the same wallet on the employee portal and generate a permit to decrypt the confidential allocation handle.
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-[#a1a1aa] leading-relaxed">
+                  {payrollMode === 'vesting'
+                    ? 'The employee will later see whether this payroll is still locked, when it unlocks, and when claim becomes available.'
+                    : 'The employee will later connect the same wallet on the employee portal, decrypt the allocation, and claim it immediately.'}
+                </div>
+                <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-50 leading-relaxed">
+                  CipherRoll keeps payroll amounts private, but wallet addresses, payment ids, vesting timestamps, payroll-run status, and claim/finalization transactions remain visible on the host chain today.
+                </div>
               </div>
             </GlassCard>
           </div>

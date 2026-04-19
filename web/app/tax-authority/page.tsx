@@ -7,12 +7,12 @@ export default function TreasuryPreviewPage() {
     <CipherRollComingSoon
       badge="Status Only"
       title="Tax And Treasury Flows Are Roadmap Work"
-      description="CipherRoll does not currently ship tax authority routing, automated withholding, or treasury settlement adapters in the web product. This page now reflects roadmap status rather than presenting a pseudo-portal."
+      description="CipherRoll does not currently ship tax authority workflows, automated withholding, or production settlement rails in the web product. This page reflects roadmap status rather than a live portal."
       wave="Roadmap Target: Phase 3"
       focus={[
         "Confidential settlement rails once the core payroll path is stable.",
         "Tax authority visibility and withholding flows with explicit role boundaries.",
-        "Broader treasury analytics and compliance evidence generation."
+        "Broader organization-level compliance analytics and evidence generation."
       ]}
     />
   );

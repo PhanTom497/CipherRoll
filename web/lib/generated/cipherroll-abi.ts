@@ -158,6 +158,229 @@ export const CIPHERROLL_ABI = [
       },
       {
         "indexed": true,
+        "internalType": "bytes32",
+        "name": "payrollRunId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "admin",
+        "type": "address"
+      }
+    ],
+    "name": "PayrollRunActivated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "payrollRunId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "settlementAssetId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "fundingDeadline",
+        "type": "uint64"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint32",
+        "name": "plannedHeadcount",
+        "type": "uint32"
+      }
+    ],
+    "name": "PayrollRunCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "payrollRunId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "PayrollRunFinalized",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "payrollRunId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "admin",
+        "type": "address"
+      }
+    ],
+    "name": "PayrollRunFunded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "payrollRunId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "admin",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "asset",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "PayrollRunTreasuryFunded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "paymentId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "employee",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "asset",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "PayrollSettled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "paymentId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "employee",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "payoutAsset",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "confidentialAsset",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "requestId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "PayrollSettlementRequested",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
         "internalType": "address",
         "name": "admin",
         "type": "address"
@@ -187,11 +410,57 @@ export const CIPHERROLL_ABI = [
       },
       {
         "internalType": "bytes32",
+        "name": "payrollRunId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "activatePayrollRun",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
         "name": "paymentId",
         "type": "bytes32"
       }
     ],
     "name": "claimPayroll",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "paymentId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint128",
+        "name": "cleartextAmount",
+        "type": "uint128"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "claimPayrollWithSettlement",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -255,6 +524,39 @@ export const CIPHERROLL_ABI = [
         "type": "bytes32"
       },
       {
+        "internalType": "bytes32",
+        "name": "payrollRunId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "settlementAssetId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint64",
+        "name": "fundingDeadline",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint32",
+        "name": "plannedHeadcount",
+        "type": "uint32"
+      }
+    ],
+    "name": "createPayrollRun",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
         "components": [
           {
             "internalType": "uint256",
@@ -293,6 +595,102 @@ export const CIPHERROLL_ABI = [
         "internalType": "bytes32",
         "name": "orgId",
         "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "paymentId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint64",
+        "name": "decryptedAmount",
+        "type": "uint64"
+      },
+      {
+        "internalType": "bytes",
+        "name": "decryptionProof",
+        "type": "bytes"
+      }
+    ],
+    "name": "finalizePayrollSettlement",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "payrollRunId",
+        "type": "bytes32"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "ctHash",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint8",
+            "name": "securityZone",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint8",
+            "name": "utype",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes",
+            "name": "signature",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct InEuint128",
+        "name": "encryptedAmount",
+        "type": "tuple"
+      }
+    ],
+    "name": "fundPayrollRun",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "payrollRunId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint128",
+        "name": "cleartextAmount",
+        "type": "uint128"
+      }
+    ],
+    "name": "fundPayrollRunFromTreasury",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
       }
     ],
     "name": "getAdminBudgetHandles",
@@ -311,6 +709,91 @@ export const CIPHERROLL_ABI = [
         "internalType": "euint128",
         "name": "available",
         "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getAuditorEncryptedSummaryHandles",
+    "outputs": [
+      {
+        "internalType": "euint128",
+        "name": "budget",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "euint128",
+        "name": "committed",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "euint128",
+        "name": "available",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getAuditorOrganizationInsights",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint64",
+            "name": "totalPayrollItems",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "activePayrollItems",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "claimedPayrollItems",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "vestingPayrollItems",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "employeeRecipients",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "lastIssuedAt",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "lastClaimedAt",
+            "type": "uint64"
+          }
+        ],
+        "internalType": "struct CipherRollPayroll.OrganizationInsights",
+        "name": "",
+        "type": "tuple"
       }
     ],
     "stateMutability": "view",
@@ -425,6 +908,81 @@ export const CIPHERROLL_ABI = [
     "inputs": [
       {
         "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getOrganizationInsights",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint64",
+            "name": "totalPayrollItems",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "activePayrollItems",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "claimedPayrollItems",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "vestingPayrollItems",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "employeeRecipients",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "lastIssuedAt",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "lastClaimedAt",
+            "type": "uint64"
+          }
+        ],
+        "internalType": "struct CipherRollPayroll.OrganizationInsights",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getOrganizationPayrollRunIds",
+    "outputs": [
+      {
+        "internalType": "bytes32[]",
+        "name": "",
+        "type": "bytes32[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
         "name": "paymentId",
         "type": "bytes32"
       }
@@ -486,6 +1044,152 @@ export const CIPHERROLL_ABI = [
     "inputs": [
       {
         "internalType": "bytes32",
+        "name": "payrollRunId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getPayrollRun",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "orgId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "settlementAssetId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint64",
+            "name": "fundingDeadline",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint32",
+            "name": "plannedHeadcount",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "allocationCount",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "claimedCount",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint64",
+            "name": "createdAt",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "fundedAt",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "activatedAt",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "finalizedAt",
+            "type": "uint64"
+          },
+          {
+            "internalType": "enum CipherRollPayroll.PayrollRunStatus",
+            "name": "status",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "exists",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct CipherRollPayroll.PayrollRun",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "paymentId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getPayrollRunForPayment",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "paymentId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getPayrollSettlementRequest",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "requestId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "address",
+            "name": "payoutAsset",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "confidentialAsset",
+            "type": "address"
+          },
+          {
+            "internalType": "uint64",
+            "name": "requestedAt",
+            "type": "uint64"
+          },
+          {
+            "internalType": "bool",
+            "name": "exists",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct CipherRollPayroll.PayrollSettlementRequest",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
         "name": "orgId",
         "type": "bytes32"
       }
@@ -515,6 +1219,45 @@ export const CIPHERROLL_ABI = [
       {
         "internalType": "bool",
         "name": "supportsConfidentialSettlement",
+        "type": "bool"
+      },
+      {
+        "internalType": "address",
+        "name": "settlementAsset",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "confidentialSettlementAsset",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "availablePayrollFunds",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "reservedPayrollFunds",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "paymentId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "isPayrollClaimed",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
         "type": "bool"
       }
     ],
@@ -584,6 +1327,66 @@ export const CIPHERROLL_ABI = [
         "type": "bytes32"
       },
       {
+        "internalType": "bytes32",
+        "name": "payrollRunId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "employee",
+        "type": "address"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "ctHash",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint8",
+            "name": "securityZone",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint8",
+            "name": "utype",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes",
+            "name": "signature",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct InEuint128",
+        "name": "encryptedAmount",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "paymentId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "memoHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "issueConfidentialPayrollToRun",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
         "internalType": "address",
         "name": "employee",
         "type": "address"
@@ -637,6 +1440,479 @@ export const CIPHERROLL_ABI = [
       }
     ],
     "name": "issueVestingAllocation",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "payrollRunId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "employee",
+        "type": "address"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "ctHash",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint8",
+            "name": "securityZone",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint8",
+            "name": "utype",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes",
+            "name": "signature",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct InEuint128",
+        "name": "encryptedAmount",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "paymentId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "memoHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint64",
+        "name": "startTimestamp",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "endTimestamp",
+        "type": "uint64"
+      }
+    ],
+    "name": "issueVestingAllocationToRun",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "paymentId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint128",
+        "name": "cleartextAmount",
+        "type": "uint128"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "requestPayrollSettlement",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+] as const;
+export const CIPHERROLL_AUDITOR_ABI = [
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "payrollCoreAddress",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "auditor",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "batchHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "published",
+        "type": "bool"
+      }
+    ],
+    "name": "AuditorAggregateDisclosureBatchRecorded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint8",
+        "name": "metric",
+        "type": "uint8"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "auditor",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint128",
+        "name": "cleartextValue",
+        "type": "uint128"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "published",
+        "type": "bool"
+      }
+    ],
+    "name": "AuditorAggregateDisclosureRecorded",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "enum CipherRollAuditorDisclosure.AuditorAggregateMetric",
+        "name": "metric",
+        "type": "uint8"
+      }
+    ],
+    "name": "getAuditorAggregateHandle",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getAuditorEncryptedSummaryHandles",
+    "outputs": [
+      {
+        "internalType": "euint128",
+        "name": "budget",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "euint128",
+        "name": "committed",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "euint128",
+        "name": "available",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getAuditorOrganizationSummary",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bool",
+            "name": "treasuryRouteConfigured",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "supportsConfidentialSettlement",
+            "type": "bool"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "treasuryRouteId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "address",
+            "name": "settlementAsset",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "confidentialSettlementAsset",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "availableTreasuryFunds",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "reservedTreasuryFunds",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint64",
+            "name": "totalPayrollRuns",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "draftPayrollRuns",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "fundedPayrollRuns",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "activePayrollRuns",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "finalizedPayrollRuns",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "totalPayrollItems",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "activePayrollItems",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "claimedPayrollItems",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "vestingPayrollItems",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "employeeRecipients",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "lastIssuedAt",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "lastClaimedAt",
+            "type": "uint64"
+          }
+        ],
+        "internalType": "struct CipherRollAuditorDisclosure.AuditorOrganizationSummary",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "payrollCore",
+    "outputs": [
+      {
+        "internalType": "contract ICipherRollPayrollCore",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "enum CipherRollAuditorDisclosure.AuditorAggregateMetric",
+        "name": "metric",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint128",
+        "name": "cleartextValue",
+        "type": "uint128"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "publishAuditorAggregateDisclosure",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "enum CipherRollAuditorDisclosure.AuditorAggregateMetric[]",
+        "name": "metrics",
+        "type": "uint8[]"
+      },
+      {
+        "internalType": "uint128[]",
+        "name": "cleartextValues",
+        "type": "uint128[]"
+      },
+      {
+        "internalType": "bytes[]",
+        "name": "signatures",
+        "type": "bytes[]"
+      }
+    ],
+    "name": "publishAuditorAggregateDisclosureBatch",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "enum CipherRollAuditorDisclosure.AuditorAggregateMetric",
+        "name": "metric",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint128",
+        "name": "cleartextValue",
+        "type": "uint128"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "verifyAuditorAggregateDisclosure",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "enum CipherRollAuditorDisclosure.AuditorAggregateMetric[]",
+        "name": "metrics",
+        "type": "uint8[]"
+      },
+      {
+        "internalType": "uint128[]",
+        "name": "cleartextValues",
+        "type": "uint128[]"
+      },
+      {
+        "internalType": "bytes[]",
+        "name": "signatures",
+        "type": "bytes[]"
+      }
+    ],
+    "name": "verifyAuditorAggregateDisclosureBatch",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

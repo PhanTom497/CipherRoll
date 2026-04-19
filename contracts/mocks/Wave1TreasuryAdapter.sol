@@ -18,4 +18,60 @@ contract Wave1TreasuryAdapter is ITreasuryAdapter {
     function supportsConfidentialSettlement() external pure returns (bool) {
         return false;
     }
+
+    function settlementAsset() external pure returns (address) {
+        return address(0);
+    }
+
+    function confidentialSettlementAsset() external pure returns (address) {
+        return address(0);
+    }
+
+    function availablePayrollFunds(bytes32) external pure returns (uint256) {
+        return 0;
+    }
+
+    function reservedPayrollFunds(bytes32) external pure returns (uint256) {
+        return 0;
+    }
+
+    function depositPayrollFunds(bytes32, uint256) external pure {
+        revert("CipherRoll: settlement unsupported");
+    }
+
+    function reservePayrollFunding(bytes32, bytes32, uint256) external pure {
+        revert("CipherRoll: settlement unsupported");
+    }
+
+    function settlePayroll(
+        bytes32,
+        bytes32,
+        bytes32,
+        address,
+        uint256
+    ) external pure {
+        revert("CipherRoll: settlement unsupported");
+    }
+
+    function requestPayrollSettlement(
+        bytes32,
+        bytes32,
+        bytes32,
+        address,
+        uint256
+    ) external pure returns (bytes32, address, address) {
+        revert("CipherRoll: settlement unsupported");
+    }
+
+    function finalizePayrollSettlement(
+        bytes32,
+        bytes32,
+        bytes32,
+        address,
+        bytes32,
+        uint64,
+        bytes calldata
+    ) external pure returns (address, uint256) {
+        revert("CipherRoll: settlement unsupported");
+    }
 }

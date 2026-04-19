@@ -53,12 +53,12 @@ const timelinePhases = [
   {
     id: "wave3",
     wave: "Phase 3: Total Compliance Integration",
-    description: <>Broadening CipherRoll into a cross-chain settlement engine with recurring encrypted payroll streams and fiat bridges.</>,
+    description: <>Broadening CipherRoll into a fuller compliance and settlement layer once the core payroll workflow is complete.</>,
     status: "FUTURE",
     tags: ["Tax Authority Flows", "Advanced Analytics", "Fiat On-Ramps", "Compliance"],
     milestones: [
-      <>Automated <span className="font-bold text-white">tax provisioning</span> via designated route identifiers granting read visibility strictly to mapped government addresses.</>,
-      <>Expanding <span className="font-bold text-white">Advanced Treasury Analytics</span> to include cross-chain flow analysis while preserving PII privacy.</>,
+      <>Automated <span className="font-bold text-white">tax provisioning</span> with explicit government-role access controls once those compliance workflows are implemented for real.</>,
+      <>Expanding <span className="font-bold text-white">aggregate analytics</span> to include richer organization-level reporting while preserving PII privacy.</>,
       <>Automated <span className="font-bold text-white">Fiat On-Ramps</span> allowing organizations to seamlessly convert corporate fiat into encrypted stablecoins.</>
     ],
     callout: <>Driving the final vision for autonomous, private corporate operations.</>,
@@ -131,7 +131,7 @@ export default function DocsPage() {
                       <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
                         <h3 className="text-white font-bold text-lg mb-3">What ships today</h3>
                         <p className="text-[#c9c9d0] mb-4">
-                          CipherRoll currently ships a focused payroll flow rather than a full compliance suite. Admins can create workspaces, fund encrypted budget state, and issue payroll allocations. Employees can fetch allocation handles and decrypt them locally after signing a permit.
+                          CipherRoll currently ships a focused payroll flow rather than a full compliance suite. Admins can create workspaces, fund encrypted budget state, create payroll runs, upload allocations, activate claimability, and track claim state. Employees can fetch allocation handles and decrypt them locally after signing a permit.
                         </p>
                         <p className="text-[#c9c9d0]">
                           The current runtime uses the official <span className="font-bold text-white">CoFHE (Coprocessor for Fully Homomorphic Encryption)</span> stack on <span className="font-bold text-white">{TARGET_CHAIN_NAME}</span>. Contract arithmetic runs over ciphertext handles while plaintext stays local to authorized wallets.
@@ -140,7 +140,7 @@ export default function DocsPage() {
                       <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
                         <h3 className="text-white font-bold text-lg mb-3">What does not ship yet</h3>
                         <p className="text-[#c9c9d0] mb-4">
-                          Auditor selective-disclosure, tax authority routing, automated withholding, multi-admin execution gating, and broader treasury settlement rails are still roadmap work.
+                          Auditor selective-disclosure, tax authority workflows, automated withholding, multi-admin execution gating, and broader settlement rails are still roadmap work.
                         </p>
                         <p className="text-[#c9c9d0]">
                           Those future roles have status pages in the app so the current boundary stays explicit. The live product surface is admin, employee, and docs only.
@@ -174,6 +174,42 @@ export default function DocsPage() {
                       </GlassCard>
                     ))}
                   </div>
+
+                  <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
+                    <h3 className="text-2xl font-bold text-white mb-4">Privacy Boundary Today</h3>
+                    <div className="grid md:grid-cols-3 gap-4 text-sm leading-relaxed">
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                        <p className="text-xs uppercase tracking-[0.2em] text-white/55 font-bold mb-3">Private</p>
+                        <p className="text-[#c9c9d0]">
+                          Budget, committed payroll, available runway, and each employee allocation amount stay encrypted on-chain and are only decrypted locally by wallets with the right permit.
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                        <p className="text-xs uppercase tracking-[0.2em] text-white/55 font-bold mb-3">Public</p>
+                        <p className="text-[#c9c9d0]">
+                          Workspace ids, admin and employee wallet addresses, payment ids, memo hashes, vesting windows, payroll-run status, funding deadlines, and claim/finalization transactions remain visible on the host chain.
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                        <p className="text-xs uppercase tracking-[0.2em] text-white/55 font-bold mb-3">Settlement</p>
+                        <p className="text-[#c9c9d0]">
+                          The app currently tracks encrypted payroll allocations inside CipherRoll and can now settle them through a treasury-backed payout path. If a workspace uses the FHERC20 wrapper route, payroll first moves through a confidential wrapper balance, then the employee finishes an <span className="font-bold text-white">unshield + claim</span> step to release the underlying payout token on-chain.
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 md:col-span-3">
+                        <p className="text-xs uppercase tracking-[0.2em] text-white/55 font-bold mb-3">Auditor selective disclosure</p>
+                        <p className="text-[#c9c9d0]">
+                          CipherRoll now ships an aggregate-first auditor portal. Admins create a current <span className="font-bold text-white">@cofhe/sdk</span> sharing permit for a named recipient, export the non-sensitive payload, and the auditor imports it as a recipient permit. That permit decrypts only the aggregate budget / committed / available handles and public compliance-safe summary fields exposed by the contract. It does <span className="font-bold text-white">not</span> unlock employee salary rows, employee allocation handles, or unnecessary PII.
+                        </p>
+                        <p className="mt-4 text-[#c9c9d0]">
+                          When an audit needs defensible evidence instead of a view-only disclosure, CipherRoll can now take one shared aggregate metric at a time, or a selected batch of shared aggregate metrics, through <span className="font-bold text-white">decryptForTx</span> and into either an on-chain verify receipt or a published decrypt result. Verify is the narrower default; publish is reserved for cases where downstream contracts need the result directly.
+                        </p>
+                        <p className="mt-4 text-[#c9c9d0]">
+                          In plain language: <span className="font-bold text-white">view-only review</span> keeps the decrypted aggregate values local to the auditor browser, while <span className="font-bold text-white">receipt mode</span> records evidence on-chain for the selected metric or batch.
+                        </p>
+                      </div>
+                    </div>
+                  </GlassCard>
                 </>
               )}
 
@@ -212,10 +248,25 @@ export default function DocsPage() {
                       <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:col-span-2">
                         <h3 className="text-white font-bold text-lg mb-3">Current Contract Boundary</h3>
                         <p className="text-[#c9c9d0] mb-4">
-                          The current contract and frontend focus on workspace metadata, encrypted budget summaries, and direct payroll issuance. They do not yet include live stablecoin adapters, cross-chain bridges, or government-role routing.
+                          The current contract and frontend focus on workspace metadata, encrypted budget summaries, payroll-run lifecycle state, encrypted payroll issuance, vesting, and employee claim state. They do not yet include live settlement assets, cross-chain bridges, or government-role workflows.
                         </p>
                         <p className="text-[#c9c9d0]">
                           That narrower boundary is intentional for now: it keeps the shipped behavior aligned with what can be demonstrated, tested, and verified in the current repository.
+                        </p>
+                      </div>
+                      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:col-span-2">
+                        <h3 className="text-white font-bold text-lg mb-3">Selective Disclosure Rules</h3>
+                        <p className="text-[#c9c9d0] mb-4">
+                          Auditor sharing does not bypass CipherRoll&apos;s contract ACLs. The current shared-permit model only works for the aggregate handles intentionally exposed by the auditor getters, and only because the data owner already granted on-chain <span className="font-bold text-white">FHE.allow(...)</span> access to those handles.
+                        </p>
+                        <p className="text-[#c9c9d0] mb-4">
+                          View-only review and provable receipts are intentionally separate. A recipient permit can power both <span className="font-bold text-white">decryptForView(...)</span> for local review and <span className="font-bold text-white">decryptForTx(...)</span> for on-chain evidence, but CipherRoll keeps the provable path narrow to one selected aggregate metric at a time or a selected batch of those same aggregate metrics.
+                        </p>
+                        <p className="text-[#c9c9d0] mb-4">
+                          Verify mode proves that a disclosed value matches the shared encrypted handle and emits a narrow receipt. Publish mode goes further by making that decrypt result available on-chain for downstream contract consumers.
+                        </p>
+                        <p className="text-[#c9c9d0]">
+                          Permit removal in the admin or auditor browser should be read honestly as a local revoke aid. It helps stop future local decrypts in that wallet/browser session, but it is not a universal remote invalidation of every previously imported permit copy.
                         </p>
                       </div>
                     </div>

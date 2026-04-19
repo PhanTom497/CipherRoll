@@ -2,13 +2,26 @@
   "network": "arb-sepolia",
   "chainId": "421614",
   "deployer": "0x35E94A5Ad13FDCe9EEb9274742745EdC4f4CC562",
-  "startNonce": 0,
-  "payroll": "0xcBfcc13e67AE42A8C7F9266715FdacbE55Ba77F6",
-  "treasuryAdapter": "0x68FB42E0D712Cf1927Baa207D5FD8649B78D0AF1",
+  "startNonce": 56,
+  "payroll": "0x387E9B1c6464A68243CaeB498d58C1dc4Bc096d2",
+  "auditorDisclosure": "0xe202F82b6F897e16A298C970E94b525B8B888550",
+  "treasuryAdapter": "0xCa838ba039f93F754429E6FF06eA0EeB33Da7e1a",
+  "settlementToken": "0xdFaa338653731E8b55f2Bf02584B7e1762256512",
+  "directSettlementAdapter": "0x7C439fC47d13221cDDF9f1956c7fbeEc2840C4D0",
+  "confidentialPayrollToken": "0x87b2C4C8d33e08B16ee6fAE06d4b0625d8E76EE4",
+  "wrapperSettlementAdapter": "0x808B62EEEa65611B39DB1614A389b2796680ea3e",
   "artifacts": {
     "payroll": "artifacts/contracts/CipherRollPayroll.sol/CipherRollPayroll.json",
+    "auditorDisclosure": "artifacts/contracts/CipherRollAuditorDisclosure.sol/CipherRollAuditorDisclosure.json",
     "treasuryAdapter": "artifacts/contracts/mocks/Wave1TreasuryAdapter.sol/Wave1TreasuryAdapter.json",
-    "typechain": "typechain-types/contracts/CipherRollPayroll.ts"
+    "settlementToken": "artifacts/contracts/mocks/MockSettlementToken.sol/MockSettlementToken.json",
+    "directSettlementAdapter": "artifacts/contracts/mocks/MockSettlementTreasuryAdapter.sol/MockSettlementTreasuryAdapter.json",
+    "confidentialPayrollToken": "artifacts/contracts/mocks/MockConfidentialPayrollToken.sol/MockConfidentialPayrollToken.json",
+    "wrapperSettlementAdapter": "artifacts/contracts/mocks/MockFHERC20SettlementTreasuryAdapter.sol/MockFHERC20SettlementTreasuryAdapter.json",
+    "typechain": {
+      "payroll": "typechain-types/contracts/CipherRollPayroll.ts",
+      "auditorDisclosure": "typechain-types/contracts/CipherRollAuditorDisclosure.ts"
+    }
   },
   "ciphertextHandleModel": {
     "euint128": "bytes32",

@@ -21,11 +21,48 @@ async function main() {
   const payrollAddress = await payroll.getAddress();
   console.log(`CipherRollPayroll deployed at ${payrollAddress}`);
 
+  const auditorDisclosureFactory = await ethers.getContractFactory("CipherRollAuditorDisclosure");
+  const auditorDisclosure = await auditorDisclosureFactory.deploy(payrollAddress);
+  await auditorDisclosure.waitForDeployment();
+  const auditorDisclosureAddress = await auditorDisclosure.getAddress();
+  console.log(`CipherRollAuditorDisclosure deployed at ${auditorDisclosureAddress}`);
+
   const adapterFactory = await ethers.getContractFactory("Wave1TreasuryAdapter");
   const treasuryAdapter = await adapterFactory.deploy();
   await treasuryAdapter.waitForDeployment();
   const treasuryAdapterAddress = await treasuryAdapter.getAddress();
   console.log(`Wave1TreasuryAdapter deployed at ${treasuryAdapterAddress}`);
+
+  const settlementTokenFactory = await ethers.getContractFactory("MockSettlementToken");
+  const settlementToken = await settlementTokenFactory.deploy();
+  await settlementToken.waitForDeployment();
+  const settlementTokenAddress = await settlementToken.getAddress();
+  console.log(`MockSettlementToken deployed at ${settlementTokenAddress}`);
+
+  const directSettlementAdapterFactory = await ethers.getContractFactory("MockSettlementTreasuryAdapter");
+  const directSettlementAdapter = await directSettlementAdapterFactory.deploy(
+    payrollAddress,
+    settlementTokenAddress
+  );
+  await directSettlementAdapter.waitForDeployment();
+  const directSettlementAdapterAddress = await directSettlementAdapter.getAddress();
+  console.log(`MockSettlementTreasuryAdapter deployed at ${directSettlementAdapterAddress}`);
+
+  const confidentialTokenFactory = await ethers.getContractFactory("MockConfidentialPayrollToken");
+  const confidentialToken = await confidentialTokenFactory.deploy(settlementTokenAddress);
+  await confidentialToken.waitForDeployment();
+  const confidentialTokenAddress = await confidentialToken.getAddress();
+  console.log(`MockConfidentialPayrollToken deployed at ${confidentialTokenAddress}`);
+
+  const wrapperSettlementAdapterFactory = await ethers.getContractFactory("MockFHERC20SettlementTreasuryAdapter");
+  const wrapperSettlementAdapter = await wrapperSettlementAdapterFactory.deploy(
+    payrollAddress,
+    settlementTokenAddress,
+    confidentialTokenAddress
+  );
+  await wrapperSettlementAdapter.waitForDeployment();
+  const wrapperSettlementAdapterAddress = await wrapperSettlementAdapter.getAddress();
+  console.log(`MockFHERC20SettlementTreasuryAdapter deployed at ${wrapperSettlementAdapterAddress}`);
 
   const chainId = (await deployer.provider.getNetwork()).chainId;
   const deploymentFilename = `${networkName}-deployment.json`;
@@ -35,11 +72,24 @@ async function main() {
     deployer: deployerAddress,
     startNonce,
     payroll: payrollAddress,
+    auditorDisclosure: auditorDisclosureAddress,
     treasuryAdapter: treasuryAdapterAddress,
+    settlementToken: settlementTokenAddress,
+    directSettlementAdapter: directSettlementAdapterAddress,
+    confidentialPayrollToken: confidentialTokenAddress,
+    wrapperSettlementAdapter: wrapperSettlementAdapterAddress,
     artifacts: {
       payroll: "artifacts/contracts/CipherRollPayroll.sol/CipherRollPayroll.json",
+      auditorDisclosure: "artifacts/contracts/CipherRollAuditorDisclosure.sol/CipherRollAuditorDisclosure.json",
       treasuryAdapter: "artifacts/contracts/mocks/Wave1TreasuryAdapter.sol/Wave1TreasuryAdapter.json",
-      typechain: "typechain-types/contracts/CipherRollPayroll.ts"
+      settlementToken: "artifacts/contracts/mocks/MockSettlementToken.sol/MockSettlementToken.json",
+      directSettlementAdapter: "artifacts/contracts/mocks/MockSettlementTreasuryAdapter.sol/MockSettlementTreasuryAdapter.json",
+      confidentialPayrollToken: "artifacts/contracts/mocks/MockConfidentialPayrollToken.sol/MockConfidentialPayrollToken.json",
+      wrapperSettlementAdapter: "artifacts/contracts/mocks/MockFHERC20SettlementTreasuryAdapter.sol/MockFHERC20SettlementTreasuryAdapter.json",
+      typechain: {
+        payroll: "typechain-types/contracts/CipherRollPayroll.ts",
+        auditorDisclosure: "typechain-types/contracts/CipherRollAuditorDisclosure.ts"
+      }
     },
     ciphertextHandleModel: {
       euint128: "bytes32",
