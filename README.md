@@ -23,13 +23,13 @@ Instead of writing salaries, payroll balances, and payroll commitments to a tran
 
 Wave 2 extends CipherRoll from encrypted bookkeeping into a **real settlement system** with:
 
-- treasury-backed payroll funding
-- explicit payroll-run lifecycle management
-- direct treasury payout support
-- official FHERC20 wrapper-backed payout flow
-- employee local decrypt + claim/finalize flow
-- aggregate-only auditor permit review
-- verifiable and publishable audit receipts
+- **Treasury-backed payroll funding**
+- **Explicit payroll-run lifecycle management**
+- **Direct treasury payout support**
+- **Official FHERC20 wrapper-backed payout flow**
+- **Employee local decrypt + claim/finalize flow**
+- **Aggregate-only auditor permit review**
+- **Verifiable and publishable audit receipts**
 
 ---
 
@@ -37,10 +37,10 @@ Wave 2 extends CipherRoll from encrypted bookkeeping into a **real settlement sy
 
 Payroll is one of the most sensitive workflows inside any company, but traditional on-chain payment systems leak too much:
 
-- salary amounts become inferable from transfers
-- treasury timing and runway become visible
-- employee compensation events become linkable to wallets
-- audit and compliance workflows often reveal more than necessary
+- **Salary amounts** become inferable from transfers
+- **Treasury timing and runway** become visible
+- **Employee compensation events** become linkable to wallets
+- **Audit and compliance workflows** often reveal more than necessary
 
 CipherRoll is designed to solve that problem with a practical privacy boundary:
 
@@ -51,7 +51,7 @@ The goal is not to claim that “everything is hidden.” The goal is to keep th
 
 ---
 
-## What Wave 2 Ships
+## Wave 2 Ships
 
 ### 1. Real payroll settlement
 
@@ -120,7 +120,7 @@ flowchart TD
     D --> L[Aggregate Auditor Getters]
     D --> M[Audit Receipt Functions]
 
-    B --> N[@cofhe/sdk]
+    B --> N["CoFHE SDK"]
     F --> N
     G --> N
 
@@ -179,7 +179,7 @@ sequenceDiagram
     participant Auditor
     participant AuditorPortal as Auditor Portal
     participant Disclosure as CipherRollAuditorDisclosure
-    participant SDK as @cofhe/sdk
+    participant SDK as CoFHE SDK
 
     Admin->>AdminPortal: Create auditor sharing permit
     AdminPortal->>SDK: createSharing(...)
@@ -200,7 +200,9 @@ sequenceDiagram
 
 ---
 
-## Core Contracts
+## Deployed Contracts
+
+### Contract Links
 
 Wave 2 deployment on **Arbitrum Sepolia (chain id 421614)**:
 
@@ -348,12 +350,14 @@ CipherRoll/
 
 ## Local Development
 
+### Quick Start
+
 ### Requirements
 
-- Node.js 20+
-- npm
-- Arbitrum Sepolia RPC endpoint
-- funded deployer/admin wallet for testnet actions
+- **Node.js 20+**
+- **npm**
+- **Arbitrum Sepolia RPC endpoint**
+- **Funded deployer/admin wallet for testnet actions**
 
 ### Install
 
@@ -450,10 +454,10 @@ The active frontend build target is:
 
 If you deploy your own instance, ensure:
 
-- the Vercel project root points to `web/`
-- build command is `npm run build`
-- install command is `npm install`
-- environment variables match the current Arbitrum Sepolia deployment
+- **Project root** points to `web/`
+- **Build command** is `npm run build`
+- **Install command** is `npm install`
+- **Environment variables** match the current Arbitrum Sepolia deployment
 
 ---
 
@@ -461,12 +465,12 @@ If you deploy your own instance, ensure:
 
 CipherRoll’s Wave 2 contribution is not just “private payroll” in the abstract. It combines:
 
-- CoFHE-native encrypted payroll accounting
-- explicit treasury-backed settlement
-- official FHERC20 wrapper payout integration
-- employee-local decrypts
-- aggregate-only selective disclosure for auditors
-- verifiable audit receipts for compliance evidence
+- **CoFHE-native encrypted payroll accounting**
+- **Explicit treasury-backed settlement**
+- **Official FHERC20 wrapper payout integration**
+- **Employee-local decrypts**
+- **Aggregate-only selective disclosure for auditors**
+- **Verifiable audit receipts for compliance evidence**
 
 This moves the product from a concept demo into a much more complete operational prototype.
 
@@ -476,11 +480,11 @@ This moves the product from a concept demo into a much more complete operational
 
 CipherRoll is still a buildathon-stage system and should be described honestly:
 
-- active target is Arbitrum Sepolia only
-- deployed assets are testnet assets
-- tax authority portal is still status-oriented, not a full compliance workflow
-- wrapper-backed final payout amounts become public at final unshield claim time
-- local/browser permit revocation is a session-level aid, not a universal remote revoke
+- **Active target** is Arbitrum Sepolia only
+- **Deployed assets** are testnet assets
+- **Tax authority portal** is still status-oriented, not a full compliance workflow
+- **Wrapper-backed final payout amounts** become public at final unshield claim time
+- **Local/browser permit revocation** is a session-level aid, not a universal remote revoke
 
 ---
 

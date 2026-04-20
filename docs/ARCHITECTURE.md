@@ -24,7 +24,7 @@ flowchart TD
     C[Employee Portal] --> B
     D[Auditor Portal] --> E[CipherRollAuditorDisclosure]
 
-    A --> F[@cofhe/sdk]
+    A --> F["CoFHE SDK"]
     C --> F
     D --> F
 
