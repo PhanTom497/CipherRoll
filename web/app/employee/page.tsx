@@ -1,14 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
 import {
   CheckCircle2,
   Clock3,
-  Download,
   Eye,
-  FileLock2,
-  KeyRound,
   Loader2,
   Wallet
 } from 'lucide-react'
@@ -20,7 +16,6 @@ import { useCipherRollWallet } from '@/components/EvmWalletProvider'
 import { formatHandle, getCipherRollContract } from '@/lib/cipherroll-client'
 import {
   DEFAULT_ORG_ID,
-  SUPPORTED_CHAIN_NAMES,
   TARGET_CHAIN_ID,
   TARGET_CHAIN_NAME,
   toBytes32Label
@@ -381,13 +376,6 @@ export default function EmployeePage() {
     }
   }
 
-  const readinessChecklist = [
-    { label: 'Wallet connected', complete: Boolean(address) },
-    { label: `${TARGET_CHAIN_NAME} selected`, complete: Boolean(isTargetChain) },
-    { label: 'Privacy mode enabled', complete: cofheReady },
-    { label: 'Workspace id entered', complete: Boolean(orgIdInput.trim()) }
-  ]
-
   return (
     <main className="min-h-screen relative z-10 font-sans text-gray-100 bg-black selection:bg-white/20 pt-32">
       <div
@@ -397,16 +385,11 @@ export default function EmployeePage() {
       <div className="fixed inset-0 z-0 bg-black/60 backdrop-blur-[2px]" />
 
       <div className="w-full max-w-6xl mx-auto px-6 pb-20 relative z-10">
-        <div className="mb-12 border-b border-white/5 pb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="mb-12 border-b border-white/5 pb-8 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 text-cyan-300 text-xs font-bold tracking-widest uppercase mb-4">
             Employee Self-Service
           </div>
-          <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white mb-2">
-            Confidential Employee Portal
-          </h1>
-          <p className="text-[#a1a1aa] text-lg max-w-3xl">
-            Open your payroll items privately, understand whether they are ready or still vesting, and claim them when the contract allows it.
-          </p>
+          <h1 className="text-5xl md:text-6xl font-black tracking-tight text-white mb-2">Employee Portal</h1>
         </div>
 
         <NetworkStatus />
@@ -415,7 +398,7 @@ export default function EmployeePage() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-2xl font-bold text-white">{status.title}</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[#c9c9d0]">{status.detail}</p>
+              <p className="mt-2 text-sm text-[#c9c9d0]">{status.detail}</p>
             </div>
             <button
               onClick={() => void loadAllocations()}
@@ -426,20 +409,14 @@ export default function EmployeePage() {
               {isLoading ? 'Refreshing...' : 'Refresh Payroll'}
             </button>
           </div>
-          <div className={`mt-4 rounded-2xl border p-4 text-sm ${statusStyles[status.tone]}`}>
-            Payroll visibility and claim state are loaded directly from {TARGET_CHAIN_NAME} for the connected wallet.
-          </div>
         </div>
 
-        <div className="grid lg:grid-cols-[0.9fr,1.1fr] gap-8 mt-8">
+        <div className="grid lg:grid-cols-[0.82fr,1.18fr] gap-8 mt-8">
           <div className="space-y-6">
             <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
               <div className="flex items-center gap-3 mb-6">
                 <Wallet className="w-5 h-5 text-cyan-300" />
-                <div>
-                  <h2 className="text-xl font-bold text-white">Access</h2>
-                  <p className="text-sm text-[#a1a1aa]">{`Your payroll stays encrypted across ${SUPPORTED_CHAIN_NAMES}. Only your wallet and its permit can reveal the amount locally.`}</p>
-                </div>
+                <h2 className="text-xl font-bold text-white">Access</h2>
               </div>
 
               <div className="space-y-3">
@@ -459,52 +436,12 @@ export default function EmployeePage() {
                 </button>
               </div>
             </GlassCard>
-
-            <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
-              <div className="flex items-center gap-3 mb-4">
-                <CheckCircle2 className="w-5 h-5 text-emerald-300" />
-                <h2 className="text-xl font-bold text-white">Readiness</h2>
-              </div>
-              <div className="space-y-3">
-                {readinessChecklist.map((item) => (
-                  <div key={item.label} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
-                    <span className="text-white">{item.label}</span>
-                    <span className={item.complete ? 'text-emerald-300 font-semibold' : 'text-white/50'}>
-                      {item.complete ? 'Ready' : 'Pending'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </GlassCard>
-
-            <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
-              <div className="flex items-center gap-3 mb-4">
-                <FileLock2 className="w-5 h-5 text-cyan-300" />
-                <h2 className="text-xl font-bold text-white">What This Means</h2>
-              </div>
-              <div className="space-y-3 text-sm text-[#c9c9d0] leading-relaxed">
-                <p>Available items can be claimed immediately.</p>
-                <p>Scheduled or vesting items stay visible, but the contract will keep them locked until their unlock time.</p>
-                <p>Claimed items remain in your history so you can confirm what already settled on-chain.</p>
-                <p>If the workspace treasury is configured for settlement, claim can now release a real token balance on-chain. Without that treasury route, claim still finalizes CipherRoll payroll state only.</p>
-                <p>Wallet addresses, ids, vesting dates, and claim transactions are still public on the host chain even though the payroll amounts remain encrypted.</p>
-              </div>
-              <Link href="/docs" className="inline-flex items-center gap-2 text-sm font-semibold text-white mt-6 underline underline-offset-4">
-                Read the architecture notes
-                <Download className="w-4 h-4" aria-hidden="true" />
-              </Link>
-            </GlassCard>
           </div>
 
           <div className="space-y-6">
             <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
               <div className="flex items-center justify-between gap-4 mb-6">
-                <div>
-                  <h2 className="text-xl font-bold text-white">Your payroll items</h2>
-                  <p className="text-sm text-[#a1a1aa] mt-2">
-                    CipherRoll loads your assigned items, decrypts the amount in-browser, and explains whether each one is available, vesting, or already claimed.
-                  </p>
-                </div>
+                <h2 className="text-xl font-bold text-white">Your payroll</h2>
               </div>
 
               {allocations.length === 0 ? (
@@ -541,7 +478,7 @@ export default function EmployeePage() {
                             <p className="text-white font-medium text-lg">
                               Issued {allocation.createdAt ? new Date(allocation.createdAt * 1000).toLocaleDateString() : 'Unknown date'}
                             </p>
-                            <p className="mt-2 text-sm text-[#a1a1aa]">{descriptor.detail}</p>
+                            <p className="mt-2 text-sm text-[#a1a1aa]">{descriptor.badge}</p>
                           </div>
 
                           <div className="text-left lg:text-right">
@@ -562,7 +499,7 @@ export default function EmployeePage() {
 
                         <div className="mt-6 grid gap-3 md:grid-cols-2 text-sm">
                           <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                            <p className="text-white/50 uppercase tracking-[0.16em] text-[11px] font-bold mb-2">Payroll run</p>
+                            <p className="text-white/50 uppercase tracking-[0.16em] text-[11px] font-bold mb-2">Run</p>
                             <p className="text-white">{payrollRunStatusLabel}</p>
                             <p className="mt-2 text-xs text-white/45 font-mono">
                               {allocation.payrollRunId ? allocation.payrollRunId.slice(0, 12) : 'Direct workspace issuance'}
@@ -570,7 +507,7 @@ export default function EmployeePage() {
                             </p>
                           </div>
                           <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                            <p className="text-white/50 uppercase tracking-[0.16em] text-[11px] font-bold mb-2">Vesting window</p>
+                            <p className="text-white/50 uppercase tracking-[0.16em] text-[11px] font-bold mb-2">Unlock</p>
                             <p className="text-white">
                               {allocation.isVesting
                                 ? `${toLocalDateTime(allocation.vestingStart)} to ${toLocalDateTime(allocation.vestingEnd)}`
@@ -595,7 +532,7 @@ export default function EmployeePage() {
                             </p>
                           </div>
                           <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                            <p className="text-white/50 uppercase tracking-[0.16em] text-[11px] font-bold mb-2">What happens next</p>
+                            <p className="text-white/50 uppercase tracking-[0.16em] text-[11px] font-bold mb-2">Next</p>
                             <p className="text-white">
                               {!runClaimOpen
                                 ? 'The employer still needs to fund and activate this payroll run.'

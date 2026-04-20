@@ -15,30 +15,30 @@ const description =
 
 const portals = [
   {
-    title: "Admin Portal",
+    title: "Admin",
     description:
-      "Create a payroll workspace, fund encrypted budget balances, issue confidential payouts, and inspect encrypted budget summaries.",
+      "Set up payroll, fund it, and pay your team.",
     icon: Shield,
     url: "/admin"
   },
   {
-    title: "Employee Portal",
+    title: "Employee",
     description:
-      "Connect an EVM wallet, authenticate with CoFHE, and decrypt your own encrypted payroll allocations seamlessly on the client-side.",
+      "Check your payroll and claim your salary.",
     icon: Users,
     url: "/employee"
   },
   {
-    title: "Auditor Status",
+    title: "Auditor",
     description:
-      "See the current product boundary for auditor access. This route explains what is not shipped yet and what selective-disclosure work remains.",
+      "Review shared audit summaries and receipts.",
     icon: Eye,
     url: "/auditor"
   },
   {
-    title: "Tax Status",
+    title: "Tax",
     description:
-      "Review the roadmap status for tax authority and treasury settlement work without implying a live compliance portal.",
+      "See the current tax-facing product status.",
     icon: Landmark,
     url: "/tax-authority"
   }

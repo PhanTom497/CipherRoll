@@ -1,11 +1,9 @@
 'use client'
 
-import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import {
   AlertTriangle,
-  ArrowLeft,
   Building2,
   CheckCircle2,
   Copy,
@@ -33,7 +31,6 @@ import {
   formatBytes32Preview,
   makeDeterministicLabel,
   safeAddress,
-  SUPPORTED_CHAIN_NAMES,
   TARGET_CHAIN_ID,
   TARGET_CHAIN_NAME,
   WRAPPER_SETTLEMENT_ADAPTER_ADDRESS,
@@ -1153,27 +1150,21 @@ export default function AdminPage() {
     { label: 'Vesting Items', value: String(organizationInsights.vestingPayrollItems), detail: 'Locked by schedule' },
     { label: 'Budget Utilization', value: summaryValues.budget ? `${budgetUtilization.toFixed(0)}%` : 'Locked', detail: 'Committed versus funded budget' }
   ]
-
-  const readinessChecklist = [
+  const overviewInsightCards = [
+    ...analyticsCards,
     {
-      label: 'Admin wallet connected',
-      complete: Boolean(address)
+      label: 'Runway Left',
+      value: summaryValues.budget ? `${availableRunway.toFixed(0)}%` : 'Locked',
+      detail: 'Budget still available'
     },
     {
-      label: 'Workspace created',
-      complete: organization.exists
-    },
-    {
-      label: 'Connected wallet is admin',
-      complete: Boolean(isAdmin)
-    },
-    {
-      label: 'CoFHE initialized',
-      complete: cofheReady
-    },
-    {
-      label: `${TARGET_CHAIN_NAME} selected`,
-      complete: Boolean(isTargetChain)
+      label: 'Latest Activity',
+      value: organizationInsights.lastIssuedAt
+        ? new Date(organizationInsights.lastIssuedAt * 1000).toLocaleDateString()
+        : 'None',
+      detail: organizationInsights.lastClaimedAt
+        ? `Last claim ${new Date(organizationInsights.lastClaimedAt * 1000).toLocaleDateString()}`
+        : 'No claims yet'
     }
   ]
 
@@ -1253,12 +1244,7 @@ export default function AdminPage() {
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 text-cyan-300 text-xs font-bold tracking-widest uppercase mb-5">
             Authorized Operators Only
           </div>
-          <h1 className="text-5xl md:text-6xl font-black tracking-tight text-white mb-4">
-            Admin Portal
-          </h1>
-          <p className="text-[#a1a1aa] text-lg md:text-xl max-w-3xl mx-auto leading-relaxed">
-            Run the core protocol lifecycle with a streamlined operator surface: create workspaces, allocate budgets, and securely issue encrypted employee salaries on {SUPPORTED_CHAIN_NAMES}.
-          </p>
+          <h1 className="text-5xl md:text-6xl font-black tracking-tight text-white mb-4">Admin Portal</h1>
         </section>
 
         <div className="mb-6">
@@ -1394,12 +1380,7 @@ export default function AdminPage() {
               <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
                 <div className="flex items-center gap-3 mb-6">
                   <Wallet className="w-5 h-5 text-cyan-300" />
-                  <div>
-                    <h2 className="text-2xl font-bold text-white tracking-tight">Operator access</h2>
-                    <p className="text-sm text-[#a1a1aa] mt-2">
-                      Connect the admin wallet from the top navigation, then enable permit-based reads for encrypted summaries.
-                    </p>
-                  </div>
+                  <h2 className="text-2xl font-bold text-white tracking-tight">Operator access</h2>
                 </div>
 
                 <div className="grid sm:grid-cols-3 gap-4">
@@ -1446,18 +1427,13 @@ export default function AdminPage() {
               <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
                 <div className="flex items-center gap-3 mb-6">
                   <ShieldCheck className="w-5 h-5 text-emerald-300" />
-                  <div>
-                    <h2 className="text-2xl font-bold text-white">Encrypted Budget Summary</h2>
-                    <p className="text-sm text-[#a1a1aa] mt-2">
-                      Admin-only aggregate state with optional permit-backed decryption.
-                    </p>
-                  </div>
+                  <h2 className="text-2xl font-bold text-white">Encrypted Budget Summary</h2>
                 </div>
 
-                <div className="grid md:grid-cols-3 gap-4">
+                <div className="grid gap-4 md:grid-cols-3">
                   {summaryCards.map((item) => (
-                    <div key={item.label} className="relative rounded-2xl border border-white/10 bg-white/5 p-6 overflow-hidden">
-                      <div className="flex justify-between items-center mb-4">
+                    <div key={item.label} className="relative min-w-0 rounded-2xl border border-white/10 bg-white/5 p-5 overflow-hidden">
+                      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                         <p className="text-xs uppercase tracking-[0.2em] text-white/55 font-bold">{item.label}</p>
                         {item.value ? (
                           <div className="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Decrypted</div>
@@ -1466,60 +1442,35 @@ export default function AdminPage() {
                         )}
                       </div>
                       <div className="flex items-baseline gap-2">
-                        <p className="text-4xl font-black text-white">{item.value ?? '***'}</p>
+                        <p className="text-3xl font-black text-white">{item.value ?? '***'}</p>
                         {item.value && <span className="text-sm text-white/50 font-semibold">ETH</span>}
                       </div>
-                      <p className="text-[10px] text-[#8e8e95] mt-4 font-mono truncate" title={String(item.handle)}>Handle: {item.handle ? "Encrypted (Hidden)" : "Not Created"}</p>
+                      <p className="mt-4 truncate text-[10px] text-[#8e8e95] font-mono" title={String(item.handle)}>
+                        {item.handle ? 'Encrypted handle' : 'No handle yet'}
+                      </p>
                     </div>
                   ))}
-                </div>
-              </GlassCard>
-
-              <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
-                <div className="flex items-center gap-3 mb-6">
-                  <Sparkles className="w-5 h-5 text-cyan-300" />
-                  <div>
-                    <h2 className="text-2xl font-bold text-white">Operator insights</h2>
-                    <p className="text-sm text-[#a1a1aa] mt-2">
-                      Aggregate-only activity across the organization. No employee-level salary rows are exposed here.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {analyticsCards.map((item) => (
-                    <div key={item.label} className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                      <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold mb-3">{item.label}</p>
-                      <p className="text-3xl font-black text-white">{item.value}</p>
-                      <p className="mt-3 text-sm text-[#a1a1aa]">{item.detail}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-6 grid gap-4 md:grid-cols-2">
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                    <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold mb-3">Runway health</p>
-                    <p className="text-2xl font-black text-white">
-                      {summaryValues.budget ? `${availableRunway.toFixed(0)}% budget still available` : 'Initialize CoFHE to unlock'}
-                    </p>
-                    <p className="mt-3 text-sm text-[#a1a1aa]">
-                      CipherRoll derives this from encrypted budget summaries after the admin permit is active.
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                    <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold mb-3">Latest activity</p>
-                    <p className="text-sm text-white">
-                      Last payroll issued: {organizationInsights.lastIssuedAt ? new Date(organizationInsights.lastIssuedAt * 1000).toLocaleString() : 'No payroll issued yet'}
-                    </p>
-                    <p className="mt-2 text-sm text-white">
-                      Last employee claim: {organizationInsights.lastClaimedAt ? new Date(organizationInsights.lastClaimedAt * 1000).toLocaleString() : 'No claims recorded yet'}
-                    </p>
-                  </div>
                 </div>
               </GlassCard>
 
             </div>
           </div>
+          <GlassCard className="mt-8 p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
+            <div className="flex items-center gap-3 mb-6">
+              <Sparkles className="w-5 h-5 text-cyan-300" />
+              <h2 className="text-2xl font-bold text-white">Operator insights</h2>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-4">
+              {overviewInsightCards.map((item) => (
+                <div key={item.label} className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-5">
+                  <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold mb-3">{item.label}</p>
+                  <p className="text-3xl font-black text-white break-words">{item.value}</p>
+                  <p className="mt-2 text-sm text-[#a1a1aa]">{item.detail}</p>
+                </div>
+              ))}
+            </div>
+          </GlassCard>
           </div>
         )}
 
@@ -1528,12 +1479,7 @@ export default function AdminPage() {
             <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
               <div className="flex items-center gap-3 mb-6">
                 <Building2 className="w-5 h-5 text-cyan-300" />
-                <div>
-                  <h2 className="text-2xl font-bold text-white">Create workspace</h2>
-                  <p className="text-sm text-[#a1a1aa] mt-2">
-                    This is the one required setup step before budget and payroll actions.
-                  </p>
-                </div>
+                <h2 className="text-2xl font-bold text-white">Create workspace</h2>
               </div>
 
               <div className="space-y-4">
@@ -1574,12 +1520,7 @@ export default function AdminPage() {
             <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
               <div className="flex items-center gap-3 mb-6">
                 <ShieldCheck className="w-5 h-5 text-cyan-300" />
-                <div>
-                  <h2 className="text-2xl font-bold text-white">Attach treasury route</h2>
-                  <p className="text-sm text-[#a1a1aa] mt-2">
-                    Choose how this workspace should settle payroll so the full Priority 4 flow can run from the frontend.
-                  </p>
-                </div>
+                <h2 className="text-2xl font-bold text-white">Attach treasury route</h2>
               </div>
 
               <div className="space-y-4">
@@ -1652,12 +1593,7 @@ export default function AdminPage() {
             <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
               <div className="flex items-center gap-3 mb-6">
                 <FileKey2 className="w-5 h-5 text-cyan-300" />
-                <div>
-                  <h2 className="text-2xl font-bold text-white">Create auditor sharing payload</h2>
-                  <p className="text-sm text-[#a1a1aa] mt-2">
-                    Create a current <span className="font-mono">@cofhe/sdk</span> sharing permit for one named auditor recipient before they import anything on the auditor side.
-                  </p>
-                </div>
+                <h2 className="text-2xl font-bold text-white">Create auditor sharing payload</h2>
               </div>
 
               <div className="space-y-4">
@@ -1691,26 +1627,26 @@ export default function AdminPage() {
               </div>
 
               <div className="mt-6 rounded-2xl border border-cyan-400/15 bg-cyan-400/10 p-4 text-sm text-cyan-50">
-                <p className="font-semibold text-white">What this disclosure includes</p>
-                <ul className="mt-3 space-y-2 text-sm text-cyan-50/90">
-                  <li>Encrypted organization-level budget, committed payroll, and available runway handles.</li>
-                  <li>Public organization summary data like payroll-run counts, funding status, and aggregate claim activity.</li>
-                  <li>No employee salary rows, no employee allocation handles, and no unnecessary PII.</li>
-                </ul>
+                <p className="font-semibold text-white">Aggregate-only share</p>
+                <p className="mt-2 text-cyan-50/90">Budget, committed payroll, runway, run counts, and funding status. No employee salary rows.</p>
               </div>
 
               <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-[#c9c9d0]">
-                <p className="font-semibold text-white">Selective-disclosure boundary</p>
-                <p className="mt-2">
-                  This sharing flow depends on prior on-chain <span className="font-mono text-white">FHE.allow(...)</span> access that the data owner already granted to the encrypted aggregate handles. The shared payload does not create new contract-side salary visibility, it only lets the named recipient decrypt the aggregate handles that CipherRoll intentionally exposed for audit review.
-                </p>
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-[#c9c9d0]">
-                <p className="font-semibold text-white">Before you share</p>
-                <p className="mt-2">Recipient: {auditorRecipientSafeAddress || 'Enter a valid address'}</p>
-                <p className="mt-2">Expires: {auditorPermitExpirationTimestamp ? new Date(auditorPermitExpirationTimestamp * 1000).toLocaleString() : 'Choose an expiration time'}</p>
-                <p className="mt-2">Scope: Aggregate-only auditor review for workspace {formatBytes32Preview(orgId)}</p>
+                <p className="font-semibold text-white">Share preview</p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Recipient</p>
+                    <p className="mt-1 text-white">{auditorRecipientSafeAddress || 'Add address'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Expires</p>
+                    <p className="mt-1 text-white">{auditorPermitExpirationTimestamp ? new Date(auditorPermitExpirationTimestamp * 1000).toLocaleString() : 'Pick a time'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Scope</p>
+                    <p className="mt-1 text-white">Audit review</p>
+                  </div>
+                </div>
               </div>
 
               {auditorPermitExpiresSoon && (
@@ -1734,9 +1670,7 @@ export default function AdminPage() {
                   <ShieldCheck className="w-5 h-5 text-emerald-300" />
                   <div>
                     <h2 className="text-2xl font-bold text-white">Current sharing permits</h2>
-                    <p className="text-sm text-[#a1a1aa] mt-2">
-                      These are the auditor sharing permits currently stored in this admin browser for the connected wallet.
-                    </p>
+                    
                   </div>
                 </div>
 
@@ -1792,9 +1726,6 @@ export default function AdminPage() {
                   <KeyRound className="w-5 h-5 text-cyan-300" />
                   <div>
                     <h2 className="text-2xl font-bold text-white">Export payload</h2>
-                    <p className="text-sm text-[#a1a1aa] mt-2">
-                      This is the non-sensitive sharing payload you hand to the auditor so they can import it as a recipient permit.
-                    </p>
                   </div>
                 </div>
 
@@ -1816,12 +1747,10 @@ export default function AdminPage() {
                     Copy Payload
                   </button>
                   <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-[#c9c9d0]">
-                    The export removes the private sealing key. The auditor will still need to import and sign it on their own wallet.
+                    Share this with the auditor.
                   </div>
                 </div>
-                <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-50">
-                  Removing a sharing permit from this admin browser is a product-level revocation aid, not a guaranteed remote kill switch. If the auditor already imported the payload, access persists until that imported recipient permit expires or is deleted from the auditor wallet session.
-                </div>
+                
               </GlassCard>
             </div>
           </div>
@@ -1834,9 +1763,7 @@ export default function AdminPage() {
                 <FolderCog className="w-5 h-5 text-cyan-300" />
                 <div>
                   <h2 className="text-2xl font-bold text-white">Add budget</h2>
-                  <p className="text-sm text-[#a1a1aa] mt-2">
-                    Budget amounts are accepted as plain integers, then encrypted client-side by the @cofhe/sdk encryptInputs flow before touching the blockchain.
-                  </p>
+                  
                 </div>
               </div>
 
@@ -1876,21 +1803,18 @@ export default function AdminPage() {
             </GlassCard>
 
             <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
-              <div className="flex items-center gap-3 mb-6">
-                <ShieldCheck className="w-5 h-5 text-emerald-300" />
-                <div>
-                  <h2 className="text-2xl font-bold text-white">Summary handles</h2>
-                  <p className="text-sm text-[#a1a1aa] mt-2">
-                    These stay encrypted unless the admin wallet also has a permit.
-                  </p>
+                <div className="flex items-center gap-3 mb-6">
+                  <ShieldCheck className="w-5 h-5 text-emerald-300" />
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Summary handles</h2>
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-3">
                   {summaryCards.map((item) => (
-                    <div key={item.label} className="relative rounded-2xl border border-white/10 bg-white/5 p-6 overflow-hidden">
-                      <div className="flex justify-between items-center mb-4">
-                        <p className="text-xs uppercase tracking-[0.2em] text-white/55 font-bold">{item.label}</p>
+                    <div key={item.label} className="relative min-w-0 rounded-2xl border border-white/10 bg-white/5 p-5 overflow-hidden">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs uppercase tracking-[0.16em] text-white/55 font-bold">{item.label}</p>
                         {item.value ? (
                           <div className="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Decrypted</div>
                         ) : (
@@ -1898,10 +1822,12 @@ export default function AdminPage() {
                         )}
                       </div>
                       <div className="flex items-baseline gap-2">
-                        <p className="text-4xl font-black text-white">{item.value ?? '***'}</p>
+                        <p className="text-3xl font-black text-white">{item.value ?? '***'}</p>
                         {item.value && <span className="text-sm text-white/50 font-semibold">ETH</span>}
                       </div>
-                      <p className="text-[10px] text-[#8e8e95] mt-4 font-mono truncate" title={String(item.handle)}>Handle: {item.handle ? "Encrypted (Hidden)" : "Not Created"}</p>
+                      <p className="mt-4 truncate text-[10px] text-[#8e8e95] font-mono" title={String(item.handle)}>
+                        {item.handle ? 'Encrypted handle' : 'No handle yet'}
+                      </p>
                     </div>
                   ))}
               </div>
@@ -1910,219 +1836,215 @@ export default function AdminPage() {
         )}
 
         {activePortal === 'payroll' && (
-          <div className="grid lg:grid-cols-[1.12fr,0.88fr] gap-8 mt-8">
+          <div className="space-y-8 mt-8">
+            <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
+              <div className="flex items-center gap-3 mb-4">
+                <CheckCircle2 className="w-5 h-5 text-emerald-300" />
+                <h2 className="text-xl font-bold text-white">Run snapshot</h2>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-[1.2fr,1fr,1fr]">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-[#c9c9d0]">
+                  <p className="text-white font-semibold">Status: {payrollRunStatusLabel}</p>
+                  {!payrollRunExists && <p className="mt-3 text-amber-200">No payroll run yet.</p>}
+                  {payrollRunExists && payrollRun.allocationCount === 0 && (
+                    <p className="mt-3 text-amber-200">Add the employee allocation before funding.</p>
+                  )}
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Allocations</p>
+                  <p className="mt-2 text-3xl font-black text-white">
+                    {payrollRunExists ? payrollRun.allocationCount : 0}
+                    <span className="ml-2 text-sm font-semibold text-white/45">/ {payrollRunExists ? payrollRun.plannedHeadcount : 0}</span>
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Claims</p>
+                  <p className="mt-2 text-3xl font-black text-white">{payrollRunExists ? payrollRun.claimedCount : 0}</p>
+                </div>
+              </div>
+            </GlassCard>
+
             <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
               <div className="flex items-center gap-3 mb-6">
                 <KeyRound className="w-5 h-5 text-cyan-300" />
-                <div>
-                  <h2 className="text-2xl font-bold text-white">Pay one employee</h2>
-                  <p className="text-sm text-[#a1a1aa] mt-2">
-                    Model payroll as a run: create it, upload encrypted allocations, fund it, activate it, then let employees claim.
-                  </p>
-                </div>
+                <h2 className="text-2xl font-bold text-white">Pay one employee</h2>
               </div>
 
-              <div className="space-y-4">
-                <div className="rounded-3xl border border-white/10 bg-white/5 p-5 space-y-4">
-                  <div>
-                    <h3 className="text-lg font-bold text-white">Payroll lifecycle</h3>
-                    <p className="text-sm text-[#a1a1aa] mt-2">
-                      Follow these steps in order so the run becomes claimable without guesswork.
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#c9c9d0]">
-                    This screen is optimized for one employee at a time, so the payroll run headcount is fixed to <span className="font-semibold text-white">1</span>.
-                  </div>
-
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
-                    <p className="text-sm font-semibold text-white">
-                      Step 1: Create the payroll run
-                    </p>
-                    <p className="text-sm text-[#a1a1aa]">
-                      Pick the payroll run label you want to use for this one-employee payout, then create it once before reserving funds or issuing payroll.
-                    </p>
-                    <label className="space-y-2 text-sm block">
-                      <span className="text-white/70">Payroll run label</span>
-                      <input
-                        value={selectedPayrollRunInput}
-                        onChange={(event) => setSelectedPayrollRunInput(event.target.value)}
-                        className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                        placeholder="may-2026-payroll"
-                      />
-                    </label>
-                    <label className="space-y-2 text-sm block">
-                      <span className="text-white/70">Funding deadline</span>
-                      <input
-                        type="datetime-local"
-                        value={payrollFundingDeadlineInput}
-                        onChange={(event) => setPayrollFundingDeadlineInput(event.target.value)}
-                        className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white"
-                      />
-                    </label>
-                    <button
-                      onClick={createPayrollRun}
-                      disabled={!canSubmitTransactions || isBusy || !organization.exists}
-                      className="w-full rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
-                    >
-                      Create Run
-                    </button>
-                  </div>
-
-	                <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-	                  <p className="text-sm font-semibold text-white mb-3">
-	                    Step 2: Add the employee allocation
-	                  </p>
-	                  <p className="mb-4 text-sm text-[#a1a1aa]">
-	                    Upload the private employee amount into this run before funding it. Treasury-backed funding will fail until at least one allocation has been added.
-	                  </p>
-	                <div className="grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-white/5 p-2">
-                  {[
-                    { id: 'instant', label: 'Instant payroll' },
-                    { id: 'vesting', label: 'Vesting payroll' }
-                  ].map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setPayrollMode(option.id as 'instant' | 'vesting')}
-                      className={`rounded-2xl px-4 py-3 text-sm font-semibold transition-colors ${
-                        payrollMode === option.id
-                          ? 'bg-white text-black'
-                          : 'text-white/70 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  value={employeeAddress}
-                  onChange={(event) => setEmployeeAddress(event.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                  placeholder="Employee wallet address"
-                />
-                <input
-                  value={paymentAmount}
-                  onChange={(event) => setPaymentAmount(event.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                  placeholder={`3.5 (${TARGET_CHAIN_NAME})`}
-                />
-                <input
-                  value={paymentMemo}
-                  onChange={(event) => setPaymentMemo(event.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                  placeholder="Optional memo"
-                />
-                {payrollMode === 'vesting' && (
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <label className="space-y-2 text-sm">
-                      <span className="text-white/70">Vesting start</span>
-                      <input
-                        type="datetime-local"
-                        value={vestingStartInput}
-                        onChange={(event) => setVestingStartInput(event.target.value)}
-                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
-                      />
-                    </label>
-                    <label className="space-y-2 text-sm">
-                      <span className="text-white/70">Vesting end</span>
-                      <input
-                        type="datetime-local"
-                        value={vestingEndInput}
-                        onChange={(event) => setVestingEndInput(event.target.value)}
-                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
-                      />
-                    </label>
-                  </div>
-                )}
-                <button
-                  onClick={issuePayroll}
-                  disabled={
-                    !canEncryptInputs ||
-                    !organization.exists ||
-                    !isAdmin ||
-                    isBusy ||
-                    !payrollRunOpenForAllocations ||
-                    paymentAmountInWei === null ||
-                    !safeAddress(employeeAddress) ||
-                    payrollWouldZeroOut ||
-                    vestingWindowInvalid
-                  }
-                  className="w-full rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
-                >
-                  {payrollMode === 'vesting' ? 'Issue Vesting Payroll' : 'Issue Confidential Payroll'}
-                </button>
+              <div className="grid gap-4 xl:grid-cols-2">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-3">
+                  <p className="text-sm font-semibold text-white">Step 1: Create the payroll run</p>
+                  <label className="space-y-2 text-sm block">
+                    <span className="text-white/70">Payroll run label</span>
+                    <input
+                      value={selectedPayrollRunInput}
+                      onChange={(event) => setSelectedPayrollRunInput(event.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                      placeholder="may-2026-payroll"
+                    />
+                  </label>
+                  <label className="space-y-2 text-sm block">
+                    <span className="text-white/70">Funding deadline</span>
+                    <input
+                      type="datetime-local"
+                      value={payrollFundingDeadlineInput}
+                      onChange={(event) => setPayrollFundingDeadlineInput(event.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white"
+                    />
+                  </label>
+                  <button
+                    onClick={createPayrollRun}
+                    disabled={!canSubmitTransactions || isBusy || !organization.exists}
+                    className="w-full rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
+                  >
+                    Create Run
+                  </button>
                 </div>
 
-                  {hasTreasuryRoute && (
-                    <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 space-y-3">
-                      <p className="text-sm font-semibold text-emerald-50">Step 3: Fund treasury inventory</p>
-                      <p className="text-sm text-emerald-100/90">
-                        Deposit payout tokens into the treasury first. This does not create the payroll run yet, it only loads inventory that can be reserved later.
-                      </p>
-                      <div className="grid gap-3 md:grid-cols-[1fr,auto]">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
+                  <p className="text-sm font-semibold text-white">Step 2: Add the employee allocation</p>
+                  <div className="grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-white/5 p-2">
+                    {[
+                      { id: 'instant', label: 'Instant payroll' },
+                      { id: 'vesting', label: 'Vesting payroll' }
+                    ].map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setPayrollMode(option.id as 'instant' | 'vesting')}
+                        className={`rounded-2xl px-4 py-3 text-sm font-semibold transition-colors ${
+                          payrollMode === option.id
+                            ? 'bg-white text-black'
+                            : 'text-white/70 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    value={employeeAddress}
+                    onChange={(event) => setEmployeeAddress(event.target.value)}
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                    placeholder="Employee wallet address"
+                  />
+                  <div className="grid gap-3 md:grid-cols-[1fr,0.8fr]">
+                    <input
+                      value={paymentAmount}
+                      onChange={(event) => setPaymentAmount(event.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                      placeholder={`3.5 (${TARGET_CHAIN_NAME})`}
+                    />
+                    <input
+                      value={paymentMemo}
+                      onChange={(event) => setPaymentMemo(event.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                      placeholder="Optional memo"
+                    />
+                  </div>
+                  {payrollMode === 'vesting' && (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <label className="space-y-2 text-sm">
+                        <span className="text-white/70">Vesting start</span>
                         <input
-                          value={treasuryDepositAmount}
-                          onChange={(event) => setTreasuryDepositAmount(event.target.value)}
-                          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                          placeholder="Treasury deposit amount"
+                          type="datetime-local"
+                          value={vestingStartInput}
+                          onChange={(event) => setVestingStartInput(event.target.value)}
+                          className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
                         />
-                        <button
-                          onClick={depositTreasuryFunds}
-                          disabled={!canSubmitTransactions || isBusy || treasuryDepositAmountInWei === null}
-                          className="rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
-                        >
-                          Fund Treasury
-                        </button>
-                      </div>
-                      <div className="grid gap-2 text-sm text-emerald-50">
-                        <p>Available treasury funds: {treasuryAvailableFundsDisplay}</p>
-                        <p>Reserved treasury funds: {treasuryReservedFundsDisplay}</p>
-                      </div>
+                      </label>
+                      <label className="space-y-2 text-sm">
+                        <span className="text-white/70">Vesting end</span>
+                        <input
+                          type="datetime-local"
+                          value={vestingEndInput}
+                          onChange={(event) => setVestingEndInput(event.target.value)}
+                          className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                        />
+                      </label>
                     </div>
                   )}
+                  <button
+                    onClick={issuePayroll}
+                    disabled={
+                      !canEncryptInputs ||
+                      !organization.exists ||
+                      !isAdmin ||
+                      isBusy ||
+                      !payrollRunOpenForAllocations ||
+                      paymentAmountInWei === null ||
+                      !safeAddress(employeeAddress) ||
+                      payrollWouldZeroOut ||
+                      vestingWindowInvalid
+                    }
+                    className="w-full rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
+                  >
+                    {payrollMode === 'vesting' ? 'Issue Vesting Payroll' : 'Issue Confidential Payroll'}
+                  </button>
+                </div>
 
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
-                    <p className="text-sm font-semibold text-white">
-                      {hasTreasuryRoute ? 'Step 4: Reserve treasury funds into the run' : 'Step 3: Fund the payroll run'}
-                    </p>
-                    <p className="text-sm text-[#a1a1aa]">
-                      Use the same amount you plan to pay the employee. This step moves treasury inventory into the selected payroll run.
-                    </p>
+                {hasTreasuryRoute && (
+                  <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-5 space-y-3">
+                    <p className="text-sm font-semibold text-emerald-50">Step 3: Fund treasury</p>
                     <div className="grid gap-3 md:grid-cols-[1fr,auto]">
                       <input
-                        value={payrollFundingAmount}
-                        onChange={(event) => setPayrollFundingAmount(event.target.value)}
-                        className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                        placeholder="Funding amount"
+                        value={treasuryDepositAmount}
+                        onChange={(event) => setTreasuryDepositAmount(event.target.value)}
+                        className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                        placeholder="Treasury deposit amount"
                       />
                       <button
-                        onClick={fundPayrollRun}
-                        disabled={
-                          !(hasTreasuryRoute ? canSubmitTransactions : canEncryptInputs) ||
-                          isBusy ||
-                          !payrollRunExists ||
-                          payrollFundingAmountInWei === null
-                        }
-                        className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                        onClick={depositTreasuryFunds}
+                        disabled={!canSubmitTransactions || isBusy || treasuryDepositAmountInWei === null}
+                        className="rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
                       >
-                        {hasTreasuryRoute ? 'Reserve Treasury Funds' : 'Fund Run'}
+                        Fund Treasury
                       </button>
                     </div>
+                    <div className="grid gap-2 text-sm text-emerald-50 sm:grid-cols-2">
+                      <p>Available: {treasuryAvailableFundsDisplay}</p>
+                      <p>Reserved: {treasuryReservedFundsDisplay}</p>
+                    </div>
                   </div>
+                )}
 
-                  <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4 space-y-3">
-                    <p className="text-sm font-semibold text-cyan-50">
-                      {hasTreasuryRoute ? 'Step 5: Activate employee claims' : 'Step 4: Activate employee claims'}
-                    </p>
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-5 space-y-3">
+                  <p className="text-sm font-semibold text-white">
+                    {hasTreasuryRoute ? 'Step 4: Reserve funds' : 'Step 3: Fund the run'}
+                  </p>
+                  <div className="grid gap-3 md:grid-cols-[1fr,auto]">
+                    <input
+                      value={payrollFundingAmount}
+                      onChange={(event) => setPayrollFundingAmount(event.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                      placeholder="Funding amount"
+                    />
                     <button
-                      onClick={activatePayrollRun}
-                      disabled={!canSubmitTransactions || isBusy || !payrollRunExists || payrollRun.status !== 1}
-                      className="w-full rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-50 hover:bg-cyan-400/15 disabled:opacity-50"
+                      onClick={fundPayrollRun}
+                      disabled={
+                        !(hasTreasuryRoute ? canSubmitTransactions : canEncryptInputs) ||
+                        isBusy ||
+                        !payrollRunExists ||
+                        payrollFundingAmountInWei === null
+                      }
+                      className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
                     >
-                      Activate Claim Window
+                      {hasTreasuryRoute ? 'Reserve Treasury Funds' : 'Fund Run'}
                     </button>
                   </div>
+                </div>
 
+                <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-5 space-y-3">
+                  <p className="text-sm font-semibold text-cyan-50">
+                    {hasTreasuryRoute ? 'Step 5: Activate employee claims' : 'Step 4: Activate employee claims'}
+                  </p>
+                  <button
+                    onClick={activatePayrollRun}
+                    disabled={!canSubmitTransactions || isBusy || !payrollRunExists || payrollRun.status !== 1}
+                    className="w-full rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-50 hover:bg-cyan-400/15 disabled:opacity-50"
+                  >
+                    Activate Claim Window
+                  </button>
                 </div>
               </div>
 
@@ -2149,47 +2071,6 @@ export default function AdminPage() {
                   Initialize CoFHE before issuing payroll so the amount can be encrypted client-side.
                 </div>
               )}
-            </GlassCard>
-
-            <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
-              <div className="flex items-center gap-3 mb-4">
-                <CheckCircle2 className="w-5 h-5 text-emerald-300" />
-                <h2 className="text-xl font-bold text-white">Run snapshot</h2>
-              </div>
-
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-[#c9c9d0]">
-                  <p className="text-white font-semibold">Selected run status: {payrollRunStatusLabel}</p>
-                  <p className="mt-2">
-                    Settlement route: {hasTreasuryRoute
-                      ? treasuryAdapterDetails.supportsConfidentialSettlement
-                        ? 'FHERC20 wrapper'
-                        : 'Direct treasury'
-                      : 'Encrypted budget only'}
-                  </p>
-                  {!payrollRunExists && (
-                    <p className="mt-3 text-amber-200">
-                      No payroll run exists for the current label yet.
-                    </p>
-                  )}
-                  {payrollRunExists && payrollRun.allocationCount === 0 && (
-                    <p className="mt-3 text-amber-200">
-                      This run is still empty. Add the employee allocation before funding or activating claims.
-                    </p>
-                  )}
-                  <p className="mt-3">Allocations uploaded: {payrollRunExists ? payrollRun.allocationCount : 0} / {payrollRunExists ? payrollRun.plannedHeadcount : 0}</p>
-                  <p className="mt-1">Claims finalized: {payrollRunExists ? payrollRun.claimedCount : 0}</p>
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-[#a1a1aa] leading-relaxed">
-                  {payrollMode === 'vesting'
-                    ? 'The employee will later see whether this payroll is still locked, when it unlocks, and when claim becomes available.'
-                    : 'The employee will later connect the same wallet on the employee portal, decrypt the allocation, and claim it immediately.'}
-                </div>
-                <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-50 leading-relaxed">
-                  CipherRoll keeps payroll amounts private, but wallet addresses, payment ids, vesting timestamps, payroll-run status, and claim/finalization transactions remain visible on the host chain today.
-                </div>
-              </div>
             </GlassCard>
           </div>
         )}
