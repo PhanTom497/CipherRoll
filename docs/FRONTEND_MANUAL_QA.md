@@ -5,7 +5,7 @@ Use this master checklist to manually verify the CipherRoll web application prio
 ## 1. Environment & Build Integrity
 - [ ] Run `npm run baseline` at the repo root to verify compile, contract tests, and the production frontend build together.
 - [ ] Boot the optimized build via `npm run start` and ensure `/`, `/admin`, `/employee`, and `/docs` route reliably.
-- [ ] Confirm `NEXT_PUBLIC_CIPHERROLL_TARGET_CHAIN` resolves to only `arb-sepolia` or `base-sepolia`.
+- [ ] Confirm `NEXT_PUBLIC_CIPHERROLL_TARGET_CHAIN` resolves to `arb-sepolia`.
 
 ## 2. Branding & Visual Architecture
 - [ ] **Landing Page:** Ensure the hero section renders with the "Private Payroll. Blind Execution." tagline and background immersive assets resolve flawlessly.
@@ -47,7 +47,7 @@ Use this master checklist to manually verify the CipherRoll web application prio
 
 ## 7. Typographical Cleanliness
 - [ ] Review all text descriptions. Ensure absolutely no raw HTML entities (like `&apos;` or `&quot;`) render natively onto the screen in any portal.
-- [ ] Review all network labels. Ensure the active product mentions only Arbitrum Sepolia, Base Sepolia, or the configured target testnet.
+- [ ] Review all network labels. Ensure the active product mentions only Arbitrum Sepolia.
 
 ## 8. Privacy Boundary Validation
 - [ ] **Private Values:** Confirm encrypted budget summaries and encrypted employee allocation amounts remain hidden until the correct permit-backed decrypt flow runs locally.

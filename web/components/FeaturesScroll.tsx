@@ -4,13 +4,13 @@ import Image from 'next/image';
 import { useRef, useState } from 'react';
 import { motion, useMotionValueEvent, useScroll } from 'framer-motion';
 import { Lock, Shield, Zap } from "lucide-react";
-import { SUPPORTED_CHAIN_NAMES } from '@/lib/cipherroll-config';
+import { TARGET_CHAIN_NAME } from '@/lib/cipherroll-config';
 
 const features = [
   {
     icon: Lock,
     title: "Encrypted State",
-    desc: `Budgets, commitments, and employee allocations are stored as FHE-protected values on ${SUPPORTED_CHAIN_NAMES}, completely hiding the underlying integers from host operators.`,
+    desc: `Budgets, commitments, and employee allocations are stored as FHE-protected values on ${TARGET_CHAIN_NAME}, completely hiding the underlying integers from host operators.`,
     bg: "linear-gradient(135deg, #e4e4e7 0%, #a1a1aa 100%)",
     textColor: "text-[#18181b]",
     descColor: "text-[#3f3f46]",
@@ -19,7 +19,7 @@ const features = [
   {
     icon: Zap,
     title: "CoFHE Coprocessor",
-    desc: `By utilizing the official CoFHE coprocessor stack, CipherRoll runs encrypted payroll logic across ${SUPPORTED_CHAIN_NAMES} without introducing network ambiguity.`,
+    desc: `By utilizing the official CoFHE coprocessor stack, CipherRoll runs encrypted payroll logic on ${TARGET_CHAIN_NAME} without introducing network ambiguity.`,
     bg: "linear-gradient(135deg, #0f766e 0%, #083344 100%)",
     textColor: "text-white",
     descColor: "text-white/80",

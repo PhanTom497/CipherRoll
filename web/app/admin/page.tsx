@@ -184,18 +184,41 @@ export default function AdminPage() {
   const [showGuide, setShowGuide] = useState(false)
 
   useEffect(() => {
-    const hasSeenGuide = localStorage.getItem('cipherroll-admin-guide-seen')
-    if (!hasSeenGuide) {
+    try {
+      const hasDismissedGuide = localStorage.getItem('cipherroll-admin-guide-dismissed')
+      if (!hasDismissedGuide) {
+        setShowGuide(true)
+      }
+    } catch {
       setShowGuide(true)
     }
   }, [])
 
   useEffect(() => {
+    if (!showGuide) return
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [showGuide])
+
+  useEffect(() => {
     setCofheReady(false)
   }, [address, chainId])
 
-  const closeGuide = () => {
-    localStorage.setItem('cipherroll-admin-guide-seen', 'true')
+  const remindGuideLater = () => {
+    setShowGuide(false)
+  }
+
+  const dismissGuideForever = () => {
+    try {
+      localStorage.setItem('cipherroll-admin-guide-dismissed', 'true')
+    } catch {
+      // ignore storage failures
+    }
     setShowGuide(false)
   }
 
@@ -2080,61 +2103,70 @@ export default function AdminPage() {
 
       <AnimatePresence>
         {showGuide && (
-          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6 bg-black/70 backdrop-blur-md overflow-y-auto">
+          <div className="fixed inset-0 z-[10000] overflow-y-auto bg-black/76 p-5 pt-24 md:pt-28">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-lg bg-[#0a0a0a] border border-white/10 rounded-[2rem] shadow-2xl overflow-hidden mt-20"
+              className="relative mx-auto mt-2 flex max-h-[calc(100vh-7rem)] w-full max-w-[720px] flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-[#080808] shadow-2xl md:mt-4 md:max-h-[calc(100vh-8rem)]"
             >
-              <div className="p-8">
-                <div className="flex items-center justify-between mb-8">
+              <div className="overflow-y-auto p-6 md:p-7">
+                <div className="mb-5 flex items-center gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-cyan-400/10 border border-cyan-400/20">
-                      <Zap className="w-5 h-5 text-cyan-400" />
+                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-2">
+                      <Zap className="w-4.5 h-4.5 text-white/85" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold text-white leading-tight">Admin Flow</h2>
-                      <p className="text-white/45 text-[10px] uppercase tracking-widest font-bold mt-0.5">Quick Start Guide</p>
+                      <h2 className="text-lg font-semibold text-white leading-tight">Admin guide</h2>
+                      <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.22em] text-white/35">CipherRoll flow</p>
                     </div>
                   </div>
-                  <button 
-                    onClick={closeGuide}
-                    className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-white transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
                 </div>
 
-                <div className="space-y-5">
+                <p className="mb-5 max-w-xl text-[13px] leading-6 text-white/42">
+                  Follow this order once and the full payroll flow becomes straightforward.
+                </p>
+
+                <div className="space-y-3">
                   {[
-                    { step: "01", title: "Initialize CoFHE", desc: "First, activate the browser privacy worker in the top header.", icon: KeyRound },
-                    { step: "02", title: "Setup Workspace", desc: "Define your organization id and create the on-chain workspace in the Workspace tab.", icon: Building2 },
-                    { step: "03", title: "Add Budget", desc: "Deposit budget into the encrypted payroll pool. Amounts are encrypted before submission.", icon: FolderCog },
-                    { step: "04", title: "Execute Payroll", desc: "Issue confidential salary payouts to individual employee addresses.", icon: ShieldCheck },
-                    { step: "05", title: "Refresh Summaries", desc: "Reload admin-only budget handles and decrypt them once the admin wallet has initialized CoFHE.", icon: Wallet }
+                    { step: "01", title: "Initialize CoFHE", desc: "Turn on privacy from the admin header first.", icon: KeyRound },
+                    { step: "02", title: "Create workspace", desc: "Open Workspace and create your organization.", icon: Building2 },
+                    { step: "03", title: "Add budget", desc: "Deposit payroll funds into the treasury.", icon: FolderCog },
+                    { step: "04", title: "Pay one employee", desc: "Create run, reserve funds, activate claims, then issue payroll.", icon: ShieldCheck },
+                    { step: "05", title: "Review and share", desc: "Refresh summaries or open Auditor Sharing when needed.", icon: Wallet }
                   ].map((item) => (
-                    <div key={item.step} className="flex gap-4 group">
-                      <div className="shrink-0 w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[10px] font-black text-cyan-400/60 transition-all duration-300">
+                    <div key={item.step} className="flex gap-3 rounded-2xl border border-white/8 bg-white/[0.02] px-4 py-3">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-[9px] font-black text-white/55">
                         {item.step}
                       </div>
                       <div>
-                        <div className="flex items-center gap-2 mb-0.5">
-                           <item.icon className="w-3.5 h-3.5 text-cyan-400/40" />
-                           <h4 className="text-white font-bold text-sm">{item.title}</h4>
+                        <div className="mb-0.5 flex items-center gap-2">
+                           <item.icon className="w-3.5 h-3.5 text-white/38" />
+                           <h4 className="text-[13px] font-semibold text-white">{item.title}</h4>
                         </div>
-                        <p className="text-xs text-[#a1a1aa] leading-relaxed">{item.desc}</p>
+                        <p className="text-[12px] leading-relaxed text-white/42">{item.desc}</p>
                       </div>
                     </div>
                   ))}
                 </div>
 
-                <button
-                  onClick={closeGuide}
-                  className="w-full mt-8 py-4 rounded-xl bg-white text-black font-bold text-sm hover:bg-white/90 active:scale-[0.98] transition-all"
-                >
-                  Ok, I understand
-                </button>
+                <div className="mt-6 flex items-center justify-between gap-4 border-t border-white/8 pt-5">
+                  <button
+                    onClick={remindGuideLater}
+                    className="text-sm font-medium text-white/38 transition-colors hover:text-white/62"
+                  >
+                    Remind me later
+                  </button>
+
+                  <button
+                    onClick={dismissGuideForever}
+                    className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black transition-all hover:bg-white/92 active:scale-[0.98]"
+                  >
+                    Ok, I understand
+                    {" "}
+                    don&apos;t show again
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>

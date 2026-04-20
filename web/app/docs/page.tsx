@@ -7,7 +7,6 @@ import GlassCard from "@/components/GlassCard";
 import {
   CONTRACT_ADDRESS,
   DEFAULT_ORG_ID,
-  SUPPORTED_CHAIN_NAMES,
   TARGET_CHAIN_NAME
 } from "@/lib/cipherroll-config";
 
@@ -27,7 +26,7 @@ const timelinePhases = [
     tags: ["CoFHE Coprocessor", TARGET_CHAIN_NAME, "WASM Decryption", "EIP-712 Permits"],
     milestones: [
       <>Workspace creation, encrypted budget funding, and single-admin payroll issuance are implemented in the current contract and frontend.</>,
-      <>CipherRoll now runs on the <span className="font-bold text-white">CoFHE Coprocessor</span> pattern for compatibility with <span className="font-bold text-white">{SUPPORTED_CHAIN_NAMES}</span>.</>,
+      <>CipherRoll now runs on the <span className="font-bold text-white">CoFHE Coprocessor</span> pattern for compatibility with <span className="font-bold text-white">{TARGET_CHAIN_NAME}</span>.</>,
       <>Implemented <span className="font-bold text-white">client-side decryptForView()</span> via `@cofhe/sdk` so employee and admin plaintext stays in the browser.</>,
       <>Current encrypted state, handles, and tests align with the official CoFHE <span className="font-bold text-white">TaskManager</span> workflow.</>,
       <>The production build, compile step, and automated contract tests all pass from the root baseline command.</>
@@ -37,17 +36,17 @@ const timelinePhases = [
   },
   {
     id: "wave2",
-    wave: "Phase 2: Technical Execution & Governance Overhaul",
-    description: <>Aggressive upgrade maximizing CoFHE alignment, privacy execution, and governance decentralization across <span className="font-bold text-white">{SUPPORTED_CHAIN_NAMES}</span>.</>,
-    status: "ACTIVE",
-    tags: ["SDK Migration", "M-of-N Admins", "Shared Permits", "ReineiraOS"],
+    wave: "Phase 2: Wave 2 Submission Scope",
+    description: <>Phase 2 is the currently completed Wave 2 delivery: treasury-backed settlement, FHERC20 wrapper payouts, aggregate-first auditor review, and verifiable audit receipts on <span className="font-bold text-white">{TARGET_CHAIN_NAME}</span>.</>,
+    status: "COMPLETE",
+    tags: ["Treasury Settlement", "FHERC20 Wrapper", "Auditor Portal", "Audit Receipts"],
     milestones: [
-      <>Standardize explicitly on <span className="font-bold text-white">@cofhe/sdk</span> builder APIs: `encryptInputs`, `decryptForView`, and `decryptForTx`.</>,
-      <>Queue encrypted budget allocations via <span className="font-bold text-white">M-of-N threshold approval</span> payloads.</>,
-      <>Design auditor disclosure flows around explicit aggregate reads rather than claiming a live auditor portal too early.</>,
-      <>Integrate <span className="font-bold text-white">@reineira-os/sdk</span> resolving on-chain verifications using the FHE Auditor findings.</>
+      <>Standardized end to end on <span className="font-bold text-white">@cofhe/sdk</span> builder APIs including `encryptInputs`, `decryptForView`, and `decryptForTx`.</>,
+      <>Shipped a real treasury-backed payroll lifecycle with explicit create, fund, activate, claim, and finalize steps.</>,
+      <>Integrated the preferred <span className="font-bold text-white">FHERC20 wrapper</span> settlement path so employees can request and finalize confidential payout release on-chain.</>,
+      <>Delivered an aggregate-first auditor portal with shared permits, single-metric evidence receipts, and batched compliance receipts.</>
     ],
-    callout: <>Uncompromising focus on technical execution and true zero-leakage privacy.</>,
+    callout: <>This is the current Wave 2 submission surface: real confidential payroll settlement plus selective-disclosure audit evidence.</>,
     isCurrent: false
   },
   {
@@ -87,7 +86,7 @@ export default function DocsPage() {
           CipherRoll <span className="text-[#06b6d4]">Documentation</span>
         </h1>
         <p className="text-[#a1a1aa] text-lg max-w-3xl mx-auto text-center leading-relaxed">
-          Explore the current CipherRoll product, architecture, and roadmap. The shipped app today centers on encrypted payroll operations for admins and employees on {SUPPORTED_CHAIN_NAMES}.
+          Explore the current CipherRoll product, architecture, and roadmap. The shipped app today centers on encrypted payroll operations, treasury-backed settlement, and selective-disclosure auditing on {TARGET_CHAIN_NAME}.
         </p>
 
         <div className="flex justify-center w-full mb-16">
@@ -131,7 +130,7 @@ export default function DocsPage() {
                       <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
                         <h3 className="text-white font-bold text-lg mb-3">What ships today</h3>
                         <p className="text-[#c9c9d0] mb-4">
-                          CipherRoll currently ships a focused payroll flow rather than a full compliance suite. Admins can create workspaces, fund encrypted budget state, create payroll runs, upload allocations, activate claimability, and track claim state. Employees can fetch allocation handles and decrypt them locally after signing a permit.
+                          CipherRoll currently ships a focused payroll flow rather than a full compliance suite. Admins can create workspaces, fund encrypted budget state, create payroll runs, upload allocations, activate claimability, and drive treasury-backed settlement. Employees can fetch allocation handles, decrypt them locally after signing a permit, and complete payout from their own wallet.
                         </p>
                         <p className="text-[#c9c9d0]">
                           The current runtime uses the official <span className="font-bold text-white">CoFHE (Coprocessor for Fully Homomorphic Encryption)</span> stack on <span className="font-bold text-white">{TARGET_CHAIN_NAME}</span>. Contract arithmetic runs over ciphertext handles while plaintext stays local to authorized wallets.
@@ -140,10 +139,10 @@ export default function DocsPage() {
                       <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
                         <h3 className="text-white font-bold text-lg mb-3">What does not ship yet</h3>
                         <p className="text-[#c9c9d0] mb-4">
-                          Auditor selective-disclosure, tax authority workflows, automated withholding, multi-admin execution gating, and broader settlement rails are still roadmap work.
+                          Tax authority workflows, automated withholding, multi-admin execution gating, and broader compliance automation are still roadmap work.
                         </p>
                         <p className="text-[#c9c9d0]">
-                          Those future roles have status pages in the app so the current boundary stays explicit. The live product surface is admin, employee, and docs only.
+                          The tax route remains a status page so the current boundary stays explicit. The live product surface today includes admin, employee, auditor, and docs.
                         </p>
                       </div>
                     </div>
@@ -242,13 +241,13 @@ export default function DocsPage() {
                           Previous attempts at confidentially processing zero-knowledge functions suffered severely because off-chain proxies routed decrypted outputs. CipherRoll utilizes standard `ethers.js` connected to the current `@cofhe/sdk` client via `createCofheClient(...)`. 
                         </p>
                         <p className="text-[#c9c9d0]">
-                          Our frontend prompts the wallet to uniquely sign an `EIP-712` view permit, then runs `client.decryptForView(...)` for local reads. Phase 2 selective disclosures will extend the same flow with `client.decryptForTx(...)`.
+                          Our frontend prompts the wallet to uniquely sign an `EIP-712` view permit, then runs `client.decryptForView(...)` for local reads. Auditor evidence flows now extend the same model with `client.decryptForTx(...)`.
                         </p>
                       </div>
                       <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:col-span-2">
                         <h3 className="text-white font-bold text-lg mb-3">Current Contract Boundary</h3>
                         <p className="text-[#c9c9d0] mb-4">
-                          The current contract and frontend focus on workspace metadata, encrypted budget summaries, payroll-run lifecycle state, encrypted payroll issuance, vesting, and employee claim state. They do not yet include live settlement assets, cross-chain bridges, or government-role workflows.
+                          The current contract and frontend focus on workspace metadata, encrypted budget summaries, payroll-run lifecycle state, encrypted payroll issuance, vesting, employee claim state, treasury-backed settlement, and auditor-safe aggregate disclosures. They do not include cross-chain bridges, tax authority workflows, or multi-admin governance yet.
                         </p>
                         <p className="text-[#c9c9d0]">
                           That narrower boundary is intentional for now: it keeps the shipped behavior aligned with what can be demonstrated, tested, and verified in the current repository.

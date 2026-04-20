@@ -130,7 +130,7 @@ export default function EmployeePage() {
   const [status, setStatus] = useState<EmployeeStatus>({
     tone: 'neutral',
     title: 'Waiting for employee access',
-    detail: 'Connect your wallet, switch to the supported testnet, then enable privacy mode to load your payroll items.'
+    detail: `Connect your wallet, switch to ${TARGET_CHAIN_NAME}, then enable privacy mode to load your payroll items.`
   })
 
   const orgId = useMemo(() => toBytes32Label(orgIdInput), [orgIdInput])

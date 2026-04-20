@@ -132,6 +132,7 @@ function formatTimestamp(value: number) {
 
 export default function AuditorPage() {
   const { address, provider, signer, chainId } = useCipherRollWallet()
+  const connectedAddress = address ?? undefined
   const [orgIdInput, setOrgIdInput] = useState(DEFAULT_ORG_ID)
   const [sharedPayload, setSharedPayload] = useState('')
   const [cofheReady, setCofheReady] = useState(false)
@@ -160,7 +161,7 @@ export default function AuditorPage() {
   const [status, setStatus] = useState<AuditorStatus>({
     tone: 'neutral',
     title: 'Waiting for auditor access',
-    detail: 'Connect the auditor wallet, switch to the supported testnet, then import a shared permit payload from the admin before reviewing aggregate payroll summaries.'
+    detail: `Connect the auditor wallet, switch to ${TARGET_CHAIN_NAME}, then import a shared permit payload from the admin before reviewing aggregate payroll summaries.`
   })
 
   const orgId = useMemo(() => toBytes32Label(orgIdInput), [orgIdInput])
@@ -267,8 +268,8 @@ export default function AuditorPage() {
         detail: 'Approve the wallet signature so the imported sharing payload becomes an active recipient permit for this auditor wallet.'
       })
 
-      const permit = await importAuditorSharingPermit(sharedPayload, chainId ?? undefined, address)
-      selectAuditorRecipientPermit(permit.hash, chainId ?? undefined, address)
+      const permit = await importAuditorSharingPermit(sharedPayload, chainId ?? undefined, connectedAddress)
+      selectAuditorRecipientPermit(permit.hash, chainId ?? undefined, connectedAddress)
       loadRecipientPermits()
       setActiveRecipientPermitHash(permit.hash)
       setSharedPayload('')

@@ -12,22 +12,10 @@ const SUPPORTED_CHAIN_CONFIG = {
     },
     rpcUrls: ["https://arbitrum-sepolia-rpc.publicnode.com"],
     blockExplorerUrls: ["https://sepolia.arbiscan.io"]
-  },
-  "base-sepolia": {
-    chainId: 84532,
-    name: "Base Sepolia",
-    chainIdHex: "0x14a34",
-    nativeCurrency: {
-      name: "ETH",
-      symbol: "ETH",
-      decimals: 18
-    },
-    rpcUrls: ["https://sepolia.base.org"],
-    blockExplorerUrls: ["https://sepolia.basescan.org"]
   }
 } as const;
 
-export type SupportedChainKey = keyof typeof SUPPORTED_CHAIN_CONFIG;
+export type SupportedChainKey = "arb-sepolia";
 
 export const CONTRACT_ADDRESS =
   process.env.NEXT_PUBLIC_CIPHERROLL_CONTRACT_ADDRESS || "";
@@ -44,10 +32,7 @@ export const WRAPPER_SETTLEMENT_ADAPTER_ADDRESS =
 export const DEFAULT_ORG_ID =
   process.env.NEXT_PUBLIC_DEFAULT_ORG_ID || "cipherroll-default-org";
 
-const requestedTargetChain = process.env.NEXT_PUBLIC_CIPHERROLL_TARGET_CHAIN;
-
-export const TARGET_CHAIN_KEY: SupportedChainKey =
-  requestedTargetChain === "base-sepolia" ? "base-sepolia" : "arb-sepolia";
+export const TARGET_CHAIN_KEY: SupportedChainKey = "arb-sepolia";
 
 export const TARGET_CHAIN_NAME = SUPPORTED_CHAIN_CONFIG[TARGET_CHAIN_KEY].name;
 export const TARGET_CHAIN_ID = SUPPORTED_CHAIN_CONFIG[TARGET_CHAIN_KEY].chainId;
@@ -65,9 +50,7 @@ export const SUPPORTED_CHAIN_IDS: number[] = Object.values(SUPPORTED_CHAIN_CONFI
   (chain) => chain.chainId
 );
 
-export const SUPPORTED_CHAIN_NAMES = Object.values(SUPPORTED_CHAIN_CONFIG)
-  .map((chain) => chain.name)
-  .join(" or ");
+export const SUPPORTED_CHAIN_NAMES = TARGET_CHAIN_NAME;
 
 export function toBytes32Label(input: string): string {
   const value = input.trim();

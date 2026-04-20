@@ -2,7 +2,7 @@
 
 ## 🌐 System Overview
 
-CipherRoll is built to provide operational privacy for payroll management using the official **CoFHE (Coprocessor for Fully Homomorphic Encryption)** architecture on **Arbitrum Sepolia** and **Base Sepolia**.
+CipherRoll is built to provide operational privacy for payroll management using the official **CoFHE (Coprocessor for Fully Homomorphic Encryption)** architecture on **Arbitrum Sepolia**.
 
 Unlike traditional blockchain applications where state is plaintext, or early privacy protocols relying on isolated ZK-SNARK provers, CipherRoll processes all financial logic directly on the EVM using encrypted variables (`euint128`).
 
@@ -18,7 +18,7 @@ graph TD
 ## 🧩 Core Components
 
 ### 1. Smart Contract Layer (`CipherRollPayroll.sol`)
-The fundamental backend orchestrator for the supported deployment targets: Arbitrum Sepolia and Base Sepolia.
+The fundamental backend orchestrator for the current supported deployment target: Arbitrum Sepolia.
 - **State Management:** Manages organizational metadata and encrypted variables (`_encryptedBudget`, `_encryptedAvailable`, `_encryptedCommitted`).
 - **Encrypted Math:** Uses `FHE.add`, `FHE.sub`, and `FHE.select` to update balances without revealing values.
 - **Access Control:** Implements explicit visibility logic using `FHE.allowThis()` and `FHE.allow()`.
@@ -30,8 +30,8 @@ CipherRoll uses `createCofheConfig(...)`, `createCofheClient(...)`, and `client.
 - **Synchronized State:** The current product reads encrypted contract state directly instead of depending on user-managed record syncing.
 
 ### 3. Current Product Boundary
-- The shipped web app and contract focus on organization setup, encrypted budget management, payroll issuance, vesting, and employee self-service reads/claims.
-- Broader settlement adapters, tax workflows, and additional compliance roles remain roadmap work and are not active product flows yet.
+- The shipped web app and contract now cover organization setup, encrypted budget management, payroll-run lifecycle management, treasury-backed settlement, FHERC20 wrapper payouts, employee self-service reads/claims, aggregate-first auditor review, and verifiable audit receipts.
+- Tax authority workflows, automated withholding, and on-chain M-of-N governance remain roadmap work and are not active product flows yet.
 
 ### 4. What Is Private vs Public Right Now
 - **Private:** `_encryptedBudget`, `_encryptedCommitted`, `_encryptedAvailable`, and each allocation's encrypted amount handle.

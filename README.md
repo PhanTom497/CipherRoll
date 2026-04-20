@@ -2,7 +2,7 @@
 
 <div align="center">
   <h3>Private Payroll. Blind Execution.</h3>
-  <p>Confidential payroll infrastructure for Arbitrum Sepolia and Base Sepolia.</p>
+  <p>Confidential payroll infrastructure for Arbitrum Sepolia.</p>
 </div>
 
 ---
@@ -13,7 +13,7 @@
 
 ## 🔒 What is CipherRoll?
 
-CipherRoll is a confidential payroll application built for the latest official **CoFHE (Coprocessor for Fully Homomorphic Encryption)** workflow on **Arbitrum Sepolia** and **Base Sepolia**.
+CipherRoll is a confidential payroll application built for the latest official **CoFHE (Coprocessor for Fully Homomorphic Encryption)** workflow on **Arbitrum Sepolia**.
 
 CipherRoll eliminates the need for transparent ledgers or clunky off-chain ZK provers. Instead, organizations deposit funds and issue payroll salaries into **mathematically encrypted states**. The host chain (EVM) computes the additions and subtractions natively over these ciphertexts without ever decrypting the underlying values.
 
@@ -30,7 +30,7 @@ CipherRoll eliminates the need for transparent ledgers or clunky off-chain ZK pr
 
 - **Private today:** encrypted budget, committed payroll, available runway, and per-employee allocation amounts.
 - **Visible today:** organization ids, admin and employee wallet addresses involved in transactions, payment ids, memo hashes, vesting timestamps, payroll-run status, funding deadlines, and claim/finalization transactions.
-- **Asset being tracked today:** the app currently tracks encrypted host-chain payroll amounts shown in the UI as `ETH`-denominated values on the configured testnet.
+- **Asset being tracked today:** CipherRoll runs on Arbitrum Sepolia and can settle payroll through the configured treasury route for that deployment.
 - **Current settlement path:** when a workspace treasury adapter is configured, CipherRoll can now either release a token directly from treasury or use the official FHERC20 wrapper route. Wrapper-backed payouts follow a two-step flow: request confidential unshielding first, then finalize the wrapper claim to release the underlying token.
 - **Practical summary:** CipherRoll now supports real treasury-backed payout delivery, including an FHERC20 wrapper-backed confidential settlement path.
 - **Auditor disclosure boundary:** auditor access is now aggregate-only and shared-permit based. Admins can export a non-sensitive sharing payload for a named auditor recipient, and the auditor can import it to decrypt only aggregate budget / commitment / runway handles that already have on-chain `FHE.allow(...)` access. When a review needs defensible evidence, the auditor portal can move either one shared aggregate or a selected batch of aggregate metrics from viewable to provable through `decryptForTx` plus on-chain verify / publish receipts. Removing a permit from one browser session is only a local revoke aid; expiration and narrow scope remain the primary controls.
@@ -66,7 +66,7 @@ sequenceDiagram
 2. **Environment Configuration**
    ```bash
    cp .env.example .env
-   # Ensure your Arbitrum Sepolia or Base Sepolia RPC and keys are configured
+   # Ensure your Arbitrum Sepolia RPC and keys are configured
    ```
 
 3. **Smart Contract Deployment**
@@ -95,7 +95,7 @@ sequenceDiagram
 
 ## 🛡️ Security Model
 
-CipherRoll leverages `@fhenixprotocol/cofhe-contracts` to handle operational lifecycles on Arbitrum Sepolia and Base Sepolia. We ensure that **"Blind Computation"** protects your organization's financial strength from malicious validators, metadata leakage, and unauthorized handle scraping via open RPCs.
+CipherRoll leverages `@fhenixprotocol/cofhe-contracts` to handle operational lifecycles on Arbitrum Sepolia. We ensure that **"Blind Computation"** protects your organization's financial strength from malicious validators, metadata leakage, and unauthorized handle scraping via open RPCs.
 
 ---
-*Built during the Fhenix Buildathon using the CoFHE stack on Arbitrum Sepolia and Base Sepolia.*
+*Built during the Fhenix Buildathon using the CoFHE stack on Arbitrum Sepolia.*

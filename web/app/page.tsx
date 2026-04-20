@@ -10,12 +10,13 @@ import ProblemMarquee from "@/components/ProblemMarquee";
 import SolutionSection from "@/components/SolutionSection";
 import SectionDivider from "@/components/SectionDivider";
 import ScrollProgressBar from "@/components/ScrollProgressBar";
-import { SUPPORTED_CHAIN_NAMES, TARGET_CHAIN_NAME } from "@/lib/cipherroll-config";
+import WaveTwoNotesModal from "@/components/WaveTwoNotesModal";
+import { TARGET_CHAIN_NAME } from "@/lib/cipherroll-config";
 
 const title = "CipherRoll";
 const tagline = "Private Payroll. Blind Execution.";
 const description =
-  `Experience the world's first FHE-native HR protocol. Run payroll with mathematically encrypted state on ${SUPPORTED_CHAIN_NAMES} using the official CoFHE coprocessor stack.`;
+  `Experience the world's first FHE-native HR protocol. Run payroll with mathematically encrypted state on ${TARGET_CHAIN_NAME} using the official CoFHE coprocessor stack.`;
 
 const portals = [
   {
@@ -59,6 +60,7 @@ export default function Home() {
   return (
     <div ref={scrollRef} className="relative z-10 min-h-screen overflow-clip bg-black">
       <ScrollProgressBar />
+      <WaveTwoNotesModal />
 
       <section className="min-h-screen flex items-center md:items-end px-6 md:px-12 lg:px-24 pb-24 relative z-10 pt-32 overflow-hidden">
         <motion.div
@@ -179,7 +181,7 @@ export default function Home() {
                 CipherRoll Workspaces
               </h2>
               <p className="text-[18px] md:text-[20px] text-[#b4b4bc] mt-6 max-w-2xl font-normal leading-[1.65]">
-                {`CipherRoll utilizes the CoFHE coprocessor stack to keep confidential data encrypted on ${SUPPORTED_CHAIN_NAMES}, meaning host chain operators never see your organization's financial state.`}
+                {`CipherRoll utilizes the CoFHE coprocessor stack to keep confidential data encrypted on ${TARGET_CHAIN_NAME}, meaning host chain operators never see your organization's financial state.`}
               </p>
             </div>
           </div>

@@ -11,7 +11,7 @@ Detailed browser QA lives in `docs/FRONTEND_MANUAL_QA.md`.
 - `.env` configured properly
 - `npm run baseline` passes cleanly from the repository root
 - `NEXT_PUBLIC_CIPHERROLL_CONTRACT_ADDRESS` is accurately mapped after deployment
-- `NEXT_PUBLIC_CIPHERROLL_TARGET_CHAIN` is set to `arb-sepolia` or `base-sepolia`
+- `NEXT_PUBLIC_CIPHERROLL_TARGET_CHAIN` is set to `arb-sepolia`
 - admin operational multisig/wallet provisioned
 - employee test wallets available
 

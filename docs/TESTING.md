@@ -1,6 +1,6 @@
 # CipherRoll Testing & Verification Guide
 
-This guide outlines the proper procedures for testing the CoFHE-based CipherRoll contracts and frontend integration on Arbitrum Sepolia or Base Sepolia.
+This guide outlines the proper procedures for testing the CoFHE-based CipherRoll contracts and frontend integration on Arbitrum Sepolia.
 
 ## 1. Smart Contract Compilation
 
@@ -30,13 +30,11 @@ npm run baseline
 
 ## 3. Protocol Deployment
 
-Deploy the core protocol to Arbitrum Sepolia or Base Sepolia.
+Deploy the core protocol to Arbitrum Sepolia.
 
 ```bash
 npm install
 npm run deploy:arb-sepolia
-# or
-npm run deploy:base-sepolia
 ```
 
 **Expected Output:**

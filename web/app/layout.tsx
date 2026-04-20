@@ -8,7 +8,7 @@ import CursorAura from '@/components/CursorAura'
 
 export const metadata: Metadata = {
     title: 'CipherRoll',
-    description: 'Confidential payroll operations on Arbitrum Sepolia and Base Sepolia',
+    description: 'Confidential payroll operations on Arbitrum Sepolia',
 }
 
 const EvmWalletProvider = dynamic(

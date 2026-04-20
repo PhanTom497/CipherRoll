@@ -2,7 +2,7 @@
   "name": "cipherroll",
   "version": "0.2.0",
   "private": true,
-  "description": "CipherRoll — confidential payroll on Arbitrum Sepolia and Base Sepolia via the CoFHE coprocessor stack",
+  "description": "CipherRoll — confidential payroll on Arbitrum Sepolia via the CoFHE coprocessor stack",
   "scripts": {
     "baseline": "npm run compile && npm run test && npm run build:web",
     "compile": "npx hardhat compile",

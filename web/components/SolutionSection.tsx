@@ -1,7 +1,7 @@
 'use client';
 
 import { Coins, Eye, FileCheck2, KeyRound, Lock, Shield, Wallet } from "lucide-react";
-import { SUPPORTED_CHAIN_NAMES, TARGET_CHAIN_NAME } from "@/lib/cipherroll-config";
+import { TARGET_CHAIN_NAME } from "@/lib/cipherroll-config";
 
 const solutionBodyTone = "text-[#8f8f97]";
 
@@ -86,7 +86,7 @@ export default function SolutionSection() {
 
       <div className="relative mx-auto max-w-7xl">
         <div className="mb-20 text-center">
-          <div className="flex justify-center">
+          <div className="mb-7 flex justify-center">
             <div className="inline-flex items-center gap-4 text-[11px] font-semibold uppercase tracking-[0.32em] text-white/40">
               <span className="h-px w-10 bg-white/15" />
               The Solution
@@ -94,18 +94,20 @@ export default function SolutionSection() {
             </div>
           </div>
 
-          <div className="relative mt-7 inline-block overflow-visible px-2 md:px-4">
-            <h2 className="pr-2 text-[32px] font-semibold tracking-[-0.04em] text-white md:pr-4 md:text-[44px] lg:pr-5 lg:text-[56px]">
+          <div className="relative mx-auto inline-block max-w-full overflow-visible px-3 md:px-5">
+            <h2 className="text-[32px] font-semibold leading-[1.08] tracking-[-0.04em] text-white md:text-[44px] lg:text-[56px]">
               What is{" "}
-              <span className="inline-block bg-gradient-to-r from-white via-zinc-300 to-white/70 bg-clip-text pr-2 text-transparent italic md:pr-3">
+              <span className="inline-block bg-gradient-to-r from-white via-zinc-300 to-white/70 bg-clip-text pr-1 text-transparent italic md:pr-1.5">
                 CipherRoll
               </span>
-              <span className="inline-block bg-gradient-to-r from-white via-zinc-300 to-white/70 bg-clip-text text-transparent italic">?</span>
+              <span className="inline-block bg-gradient-to-r from-white via-zinc-300 to-white/70 bg-clip-text pr-1 text-transparent italic md:pr-1.5">
+                ?
+              </span>
             </h2>
             <svg
               aria-hidden="true"
               viewBox="0 0 320 38"
-              className="pointer-events-none absolute -bottom-5 right-0 h-6 w-[220px] opacity-80 md:w-[260px]"
+              className="pointer-events-none absolute -bottom-5 right-2 h-6 w-[220px] opacity-80 md:right-3 md:w-[260px]"
             >
               <path
                 d="M6 24 C62 8, 122 8, 178 20 S270 30, 314 14"
@@ -119,7 +121,7 @@ export default function SolutionSection() {
 
           <p className={`mx-auto mt-6 max-w-3xl text-[16px] leading-[1.85] md:text-[19px] ${solutionBodyTone}`}>
             CipherRoll is a confidential payroll system built on the official CoFHE stack for{" "}
-            {SUPPORTED_CHAIN_NAMES}. It keeps payroll budgets, commitments, allocations, and audit summaries encrypted while still giving teams a real settlement path, employee self-claim flow, and compliance-safe disclosure surface.
+            {TARGET_CHAIN_NAME}. It keeps payroll budgets, commitments, allocations, and audit summaries encrypted while still giving teams a real settlement path, employee self-claim flow, and compliance-safe disclosure surface.
           </p>
         </div>
 

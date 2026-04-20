@@ -5,7 +5,6 @@ import { Signal } from 'lucide-react';
 import { useCipherRollWallet } from './EvmWalletProvider';
 import {
     SUPPORTED_CHAIN_IDS,
-    SUPPORTED_CHAIN_NAMES,
     TARGET_CHAIN_ID,
     TARGET_CHAIN_NAME
 } from '@/lib/cipherroll-config';
@@ -51,7 +50,7 @@ export default function NetworkStatus() {
                     ? `#${currentHeight}`
                     : chainId
                       ? `chain:${chainId}`
-                      : `supports:${SUPPORTED_CHAIN_NAMES}`}
+                      : `target:${TARGET_CHAIN_NAME}`}
             </div>
         </div>
     );
