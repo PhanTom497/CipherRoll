@@ -1,7 +1,7 @@
 # CipherRoll
 
 <div align="center">
-  <h3>Private Payroll. Real Settlement.</h3>
+  <h3>Private Payroll. Blind Execution.</h3>
   <p>Confidential payroll infrastructure on Arbitrum Sepolia using Fhenix CoFHE and FHERC20 settlement primitives.</p>
 
   <p>
@@ -423,9 +423,8 @@ Detailed guides live here:
 
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
 - [docs/TESTING.md](./docs/TESTING.md)
-- [docs/FRONTEND_MANUAL_QA.md](./docs/FRONTEND_MANUAL_QA.md)
 - [docs/ROADMAP.md](./docs/ROADMAP.md)
-- [CHECKLIST.md](./CHECKLIST.md)
+
 
 Wave 2 verification includes:
 
