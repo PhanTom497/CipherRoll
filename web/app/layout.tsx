@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 import ReactQueryProvider from '@/components/ReactQueryProvider'
 import { Toaster } from "@/components/ui/sonner"
 import GlobalNav from '@/components/GlobalNav'
+import CursorAura from '@/components/CursorAura'
 
 export const metadata: Metadata = {
     title: 'CipherRoll',
@@ -25,6 +26,7 @@ export default function RootLayout({
             <body>
                 <ReactQueryProvider>
                     <EvmWalletProvider>
+                        <CursorAura />
                         <GlobalNav />
                         {children}
                         <Toaster />

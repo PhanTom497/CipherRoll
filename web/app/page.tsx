@@ -6,6 +6,10 @@ import { motion } from "framer-motion";
 import { Shield, Users, Eye, Wallet, Lock, ArrowRight, ArrowUpRight, Play, Landmark } from "lucide-react";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 import FeaturesScroll from "@/components/FeaturesScroll";
+import ProblemMarquee from "@/components/ProblemMarquee";
+import SolutionSection from "@/components/SolutionSection";
+import SectionDivider from "@/components/SectionDivider";
+import ScrollProgressBar from "@/components/ScrollProgressBar";
 import { SUPPORTED_CHAIN_NAMES, TARGET_CHAIN_NAME } from "@/lib/cipherroll-config";
 
 const title = "CipherRoll";
@@ -54,6 +58,8 @@ export default function Home() {
 
   return (
     <div ref={scrollRef} className="relative z-10 min-h-screen overflow-clip bg-black">
+      <ScrollProgressBar />
+
       <section className="min-h-screen flex items-center md:items-end px-6 md:px-12 lg:px-24 pb-24 relative z-10 pt-32 overflow-hidden">
         <motion.div
           initial={{ opacity: 0 }}
@@ -142,9 +148,25 @@ export default function Home() {
         </div>
       </section>
 
+      <SectionDivider />
+
+      <div className="relative z-10">
+        <ProblemMarquee />
+      </div>
+
+      <SectionDivider />
+
+      <div className="relative z-10">
+        <SolutionSection />
+      </div>
+
+      <SectionDivider />
+
       <div className="relative z-10">
         <FeaturesScroll />
       </div>
+
+      <SectionDivider />
 
       <section className="py-32 px-6 relative z-10 w-full bg-black">
         <div className="max-w-7xl mx-auto">
@@ -188,6 +210,8 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <SectionDivider />
 
       <footer className="py-20 px-6 border-t border-white/10 relative z-10 bg-[#000] w-full">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-16 md:gap-8">
