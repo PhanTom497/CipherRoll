@@ -52,34 +52,33 @@ const timelinePhases = [
   },
   {
     id: "wave3",
-    wave: "Phase 3: Hardening & Operator Support",
-    description: <>The current submission snapshot layers hardening and operator support on top of the Phase 2 core: truthful privacy boundaries, reduced avoidable leakage, safer identifiers, stronger wrapper verification, and a lightweight in-product CipherBot across docs, admin, and auditor surfaces.</>,
-    status: "ACTIVE",
-    tags: ["Submission Hardening", "Privacy Matrix", "CipherBot", "Operator Support"],
+    wave: "Phase 3: Submission Hardening & Operator Support",
+    description: <>Phase 3 is now the completed submission-readiness layer on top of the Phase 2 core: stronger wrapper verification, truthful privacy boundaries, reduced avoidable leakage, safer identifiers, a published privacy matrix, and a lightweight in-product CipherBot across docs, admin, and auditor surfaces.</>,
+    status: "COMPLETE",
+    tags: ["Submission Hardening", "Privacy Matrix", "CipherBot", "Complete"],
     milestones: [
       <>Patched the wrapper-finalize path so the final unshield release no longer accepts proof-shaped payloads without on-chain verification.</>,
       <>Locked the wrapper settlement path with permanent regression tests covering wrong plaintext, mismatched request id, replay attempts, and missing pending-request cases.</>,
       <>Published a clear <span className="font-bold text-white">privacy matrix</span>, corrected misleading disclosure language, trimmed convenience-only leakage, and reduced unnecessary identifier inference where practical.</>,
-      <>Shipped a lightweight <span className="font-bold text-white">CipherBot</span> across docs, admin, and auditor portals for product-specific onboarding, explanation, and operator support.</>,
-      <>Deferred larger platform work such as SDK extraction, operator exports, backend/indexing, and deeper compliance surfaces to later waves so the current submission stays stable and truthful.</>
+      <>Shipped a lightweight <span className="font-bold text-white">CipherBot</span> across docs, admin, and auditor portals for product-specific onboarding, explanation, and operator support.</>
     ],
-    callout: <>This is the current submission-ready layer: not a new backend platform yet, but a materially more truthful, stable, and operator-friendly CipherRoll.</>,
-    isCurrent: true
+    callout: <>This is the completed submission-ready layer: not a new backend platform yet, but a materially more truthful, stable, and operator-friendly CipherRoll.</>,
+    isCurrent: false
   },
   {
     id: "wave4",
-    wave: "Phase 4: Backend Foundation & Product Data Plane",
-    description: <>Phase 4 is where CipherRoll grows beyond a contracts-plus-frontend submission into a more complete application platform with read models, backend APIs, reporting infrastructure, and a real retrieval-backed assistant.</>,
-    status: "PLANNED",
-    tags: ["Backend", "Indexer", "Reporting APIs", "Real CipherBot"],
+    wave: "Phase 4: Backend Foundation, Reporting & Real CipherBot",
+    description: <>Phase 4 is where CipherRoll grows beyond a contracts-plus-frontend submission into a more complete application platform with read models, backend APIs, operator exports, richer analytics, and a real retrieval-backed assistant.</>,
+    status: "NEXT",
+    tags: ["Backend", "Indexer", "Reporting", "Real CipherBot"],
     milestones: [
       <>Stand up the first real backend service with health checks, structured config, and authenticated API routes where appropriate.</>,
       <>Add event ingestion and normalized read models so organizations, runs, claims, finalizations, and receipts can be queried cleanly.</>,
-      <>Move heavier exports and reporting into backend-safe APIs instead of asking the browser to reconstruct everything ad hoc.</>,
+      <>Move the deferred SDK, export, and operator analytics work into a reusable platform layer instead of keeping it stuck in frontend-only helpers.</>,
       <>Expand <span className="font-bold text-white">CipherBot</span> into a real retrieval-backed assistant that can answer free-form product questions from indexed docs and portal-aware guidance.</>
     ],
     callout: <>This is the next serious product layer: better data plumbing, better reporting, and a more capable support surface without centralizing sensitive decrypt paths.</>,
-    isCurrent: false
+    isCurrent: true
   },
   {
     id: "wave5",
@@ -388,8 +387,8 @@ export default function DocsPage() {
                       },
                       {
                         label: "Current Focus",
-                        value: "Phase 3",
-                        text: "Hardening, truthful privacy boundaries, reduced leakage, and operator support."
+                        value: "Phase 4",
+                        text: "Backend foundation, reporting, deferred SDK work, and a real retrieval-backed CipherBot."
                       },
                       {
                         label: "Submission State",

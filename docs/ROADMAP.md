@@ -68,39 +68,28 @@ Phase 2 is focused on one deliverable above all else: a fully working admin and 
 
 - **Track deeper CoFHE infrastructure changes without derailing delivery:** We will monitor evolving infrastructure such as commitment-oriented integrity tooling, but direct integration is not a submission blocker unless it becomes necessary for supported app-level workflows.
 
-### Pre-Phase 3 Execution Checklist
-
-These steps were ordered deliberately and executed in sequence before broader Phase 3 work. They remain listed here as the hardening record that brought CipherRoll into a more truthful, stable baseline.
-
-1. **Patch wrapper-finalize proof verification**
-   Update the wrapper finalize path so the final claim/unshield flow no longer accepts a proof-shaped payload without validating it on-chain. The request/finalize flow should match the intended `decryptForTx` verify/publish model rather than behaving like a mock simulation.
-2. **Align access-control naming with current CoFHE docs**
-   Replace `FHE.allowGlobal(...)` with `FHE.allowPublic(...)` in the wrapper claim path so the code follows the current documented API language instead of relying on older equivalent terminology.
-3. **Lock the settlement path with invalid-proof regression tests**
-   Extend the contract test suite so the wrapper settlement path fails correctly on wrong plaintext, mismatched request id, replayed finalize attempts, and finalize calls with no pending request. Treat these as permanent regression tests, not one-off debugging checks.
-4. **Correct the privacy wording everywhere it matters**
-   Update the README, docs, and any operator-facing copy so they reflect the real host-chain privacy boundary. In particular, stop implying that wrapper settlement amounts only become public at the final unshield claim if they are already revealed earlier in the on-chain request/finalize flow.
-5. **Publish a current-product privacy matrix**
-   Document which values remain encrypted on-chain, which values are public by Arbitrum/EVM design, which values are public because CipherRoll emits or stores them explicitly, and which labels/ids are only inferable because the current frontend uses deterministic hashing of predictable strings.
-6. **Reduce unnecessary identifier inference where practical**
-   Review organization ids, payroll-run ids, payment ids, memo labels, and other user-facing deterministic labels. For production-style flows, prefer higher-entropy identifiers or make it explicit that the current deterministic labels trade off convenience for inferability.
-7. **Review events and public surfaces for avoidable leakage**
-   Confirm that the currently emitted admin/employee addresses, timestamps, funding windows, route ids, and run-state transitions are intentional public metadata. If any field is exposed only out of convenience rather than product need, trim it before Phase 3.
-8. **Reconfirm the engineering baseline**
-   Re-run `npm run compile`, `npm run test`, and `npm run build:web` after the hardening work completes so Phase 2 finishes in a stable, repeatable state rather than carrying hidden regressions into Phase 3.
-
-## Phase 3: Governance, Compliance Integration & Expansion
+## Phase 3: Submission Hardening & Operator Support (Complete)
 
 - **Phase 3 principle: low-hassle, high-impact only**
-  Phase 3 should respect a constrained build window. The goal is to make CipherRoll feel more complete and more usable without introducing a heavy backend rewrite, multi-month governance system, or broad cross-chain complexity.
-- [x] **Priority 7: Ship a contextual CipherRoll copilot**
+  Phase 3 was intentionally scoped as a submission-readiness wave. The goal was to make CipherRoll more truthful, more stable, and easier to operate without introducing a heavy backend rewrite, multi-month governance system, or broad cross-chain complexity.
+- [x] **Priority 7A: Patch wrapper-finalize proof verification**
+  The wrapper finalize path no longer accepts proof-shaped payloads without validation. CipherRoll now verifies the decrypt result on-chain before releasing the final unshield/claim payout.
+- [x] **Priority 7B: Align access-control naming with current CoFHE docs**
+  The wrapper claim path now uses `FHE.allowPublic(...)` so the code follows the current documented CoFHE API language instead of relying on older equivalent terminology.
+- [x] **Priority 7C: Lock the settlement path with invalid-proof regression tests**
+  The contract suite now permanently covers wrong plaintext, mismatched request id, replayed finalize attempts, and finalize calls with no pending request for the wrapper settlement path.
+- [x] **Priority 7D: Correct privacy wording and publish a current-product privacy matrix**
+  CipherRoll now clearly documents what stays encrypted, what is public by Arbitrum/EVM design, what is emitted or stored intentionally, and when wrapper settlement amounts become public during the request/finalize flow.
+- [x] **Priority 7E: Reduce unnecessary identifier inference and trim avoidable leakage**
+  The admin portal now offers safer less-guessable identifiers where practical, warns operators about inferable readable labels, and trims convenience-only route-id / metadata exposure that did not need to remain public.
+- [x] **Priority 7F: Reconfirm the engineering baseline**
+  After the hardening sweep, `npm run compile`, `npm run test`, and `npm run build:web` were all brought back to a stable green state for the current submission snapshot.
+- [x] **Priority 7G: Ship a contextual CipherRoll copilot**
   CipherRoll now ships a lightweight `CipherBot` surface in the docs, admin portal, and auditor portal. It answers product-specific questions such as payroll funding flow, wrapper-finalize steps, auditor permit import, disclosure boundaries, and common failure states. The scope stays intentionally narrow: onboarding, explanation, and operator support rather than autonomous execution.
-- **Priority 8: Extract a small reusable CipherRoll SDK**
-  Pull stable frontend contract helpers into a typed SDK layer that can be reused by the web app, scripts, and future backend services. The first version should focus on organization reads, payroll-run reads, treasury-route reads, permit/disclosure helpers, and well-scoped write helpers rather than trying to become a giant product SDK immediately.
-- **Priority 9: Add operator-grade exports and reporting**
-  Package the existing disclosure and payroll state into clean exports for admins and auditors. The emphasis should be practical reviewability: payroll-run summary export, organization budget/committed/available snapshots, employee-count summaries, treasury-route configuration evidence, and audit receipt packaging.
-- **Priority 10: Improve aggregate-only operator analytics**
-  Extend the current admin portal with better organization-level metrics and searchability, but keep the privacy boundary intact. Focus on run counts, funding state, claimed vs unclaimed counts, treasury availability, recent actions, and organization health summaries instead of exposing employee-level payroll rows.
+
+### Phase 3 result
+
+Phase 3 is complete for the current submission. It should be understood as the wave that hardened the live settlement path, made CipherRoll's privacy boundary more truthful, reduced avoidable public leakage, and added the first in-product operator-support layer through CipherBot.
 
 ### Explicit Phase 3 non-goals
 
@@ -113,22 +102,28 @@ These steps were ordered deliberately and executed in sequence before broader Ph
 
 These are not rejected forever. They are deliberately deferred so Phase 3 stays realistic and shippable.
 
-## Phase 4: Backend Foundation, Data Plane & Integrations
+## Phase 4: Backend Foundation, Data Plane & Reporting
 
-Phase 4 is where CipherRoll should stop being only a contracts-plus-frontend product and become an actual application platform. This is the right phase for the heavier engineering work that would be too distracting during a time-constrained Phase 3.
+Phase 4 is where CipherRoll should stop being only a contracts-plus-frontend product and become an actual application platform. This is also where the remaining non-submission Phase 3 ambitions should now live: reusable SDK work, exports, richer analytics, and a real retrieval-backed assistant.
 
 - **Priority 11: Stand up the first real CipherRoll backend**
   Build a small but disciplined backend service that sits beside the frontend and contracts. At minimum it should provide authenticated API routes, normalized read models, environment-based config, structured logs, and health checks. This backend should support the product; it should not replace the wallet-local privacy model.
 - **Priority 12: Create a read-model/indexing layer**
   Add contract event ingestion and a normalized database so the product can query organizations, payroll runs, funding events, claim events, finalize events, and audit receipts without asking the browser to reconstruct everything ad hoc. This is the foundation for search, reporting, analytics, notifications, and future integrations.
+- **Priority 12A: Extract a small reusable CipherRoll SDK**
+  Pull stable frontend contract helpers into a typed SDK layer that can be reused by the web app, scripts, and future backend services. The first version should focus on organization reads, payroll-run reads, treasury-route reads, permit/disclosure helpers, and well-scoped write helpers rather than trying to become a giant product SDK immediately.
 - **Priority 13: Introduce backend-safe reporting APIs**
   Move heavy export generation and organization-level reporting into backend endpoints where appropriate. The backend should serve aggregate and operational views, while any privacy-sensitive decrypt path remains permit-gated and user-authorized.
+- **Priority 13A: Add operator-grade exports and reporting**
+  Package the existing disclosure and payroll state into clean exports for admins and auditors. The emphasis should be practical reviewability: payroll-run summary export, organization budget/committed/available snapshots, employee-count summaries, treasury-route configuration evidence, and audit receipt packaging.
 - **Priority 14: Build notification infrastructure**
   Add event-driven notifications for important workflow moments such as payroll run funded, payroll run activated, employee claimed, wrapper payout finalized, auditor permit shared, and audit receipt published. Start with email or simple dashboard notifications before considering chat surfaces.
 - **Priority 15: Add integration-ready API boundaries**
   Define stable API surfaces for HR systems, finance dashboards, internal admin tooling, and compliance consumers. This can later support webhooks, scheduled exports, or partner integrations, but the first step is simply making the data plane clean and deliberate.
 - **Priority 15A: Expand CipherBot into a real retrieval-backed assistant**
   The current Phase 3 `CipherBot` is intentionally lightweight and button-driven. In Phase 4, expand it into a real chat-style assistant backed by indexed docs, product state guidance, and portal-aware retrieval so it can answer free-form user questions more flexibly without pretending to execute sensitive actions autonomously.
+- **Priority 15B: Improve aggregate-only operator analytics**
+  Extend the current admin portal with better organization-level metrics and searchability, but keep the privacy boundary intact. Focus on run counts, funding state, claimed vs unclaimed counts, treasury availability, recent actions, and organization health summaries instead of exposing employee-level payroll rows.
 
 ### Backend responsibilities in Phase 4
 
@@ -180,12 +175,12 @@ gantt
     Auditor Selective Disclosure : p7, 2026-06, 2026-07
     Verifiable Audit Receipts : p8, 2026-06, 2026-08
     section Phase 3
-    CipherBot + Docs Copilot : p9, 2026-08, 2026-09
-    Small Reusable SDK : p10, 2026-08, 2026-09
-    Reporting + Operator Analytics : p11, 2026-09, 2026-10
+    Submission Hardening :done, p9, 2026-08, 2026-09
+    CipherBot + Operator Support :done, p10, 2026-08, 2026-09
     section Phase 4
-    Backend Foundation : p12, 2026-10, 2026-11
-    Indexer + Read Models : p13, 2026-10, 2026-12
+    Backend Foundation : p11, 2026-10, 2026-11
+    Indexer + Read Models : p12, 2026-10, 2026-12
+    SDK + Reporting + Real CipherBot : p13, 2026-10, 2027-01
     Notifications + Integrations : p14, 2026-11, 2027-01
     section Phase 5
     On-Chain Governance : p15, 2027-01, 2027-03
@@ -197,4 +192,4 @@ gantt
 
 - Judge confirmed that a technically correct, CoFHE-aligned custom confidential token wrapper / settlement adapter is acceptable for CipherRoll.
 - Strict migration to the official FHERC20 contract surface is not required for evaluation.
-- The active delivery path is therefore: treat the `Pre-Phase 3 Execution Checklist` as completed baseline hardening, continue the remaining Phase 3 usability/reporting work, and then move into later phases without treating official-FHERC20 migration as a blocker.
+- The active delivery path is therefore: treat Phase 3 as completed submission hardening and operator support, then move the remaining SDK, reporting, analytics, backend, and deeper assistant work into later phases without treating official-FHERC20 migration as a blocker.
