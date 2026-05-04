@@ -90,7 +90,6 @@ contract CipherRollPayroll {
     event OrganizationCreated(
         bytes32 indexed orgId,
         address indexed admin,
-        bytes32 metadataHash,
         uint64 reservedAdminSlots,
         uint64 reservedQuorum
     );
@@ -98,8 +97,7 @@ contract CipherRollPayroll {
     event TreasuryConfigured(
         bytes32 indexed orgId,
         address indexed admin,
-        address treasuryAdapter,
-        bytes32 treasuryRouteId
+        address treasuryAdapter
     );
 
     event BudgetDeposited(
@@ -111,8 +109,7 @@ contract CipherRollPayroll {
     event ConfidentialPayrollIssued(
         bytes32 indexed orgId,
         bytes32 indexed paymentId,
-        address indexed employee,
-        bytes32 memoHash
+        address indexed employee
     );
 
     event PayrollClaimed(
@@ -141,9 +138,7 @@ contract CipherRollPayroll {
     event PayrollRunCreated(
         bytes32 indexed orgId,
         bytes32 indexed payrollRunId,
-        bytes32 settlementAssetId,
-        uint64 fundingDeadline,
-        uint32 plannedHeadcount
+        uint64 fundingDeadline
     );
 
     event PayrollRunFunded(
@@ -219,7 +214,6 @@ contract CipherRollPayroll {
         emit OrganizationCreated(
             orgId,
             msg.sender,
-            metadataHash,
             reservedAdminSlots,
             reservedQuorum
         );
@@ -239,8 +233,7 @@ contract CipherRollPayroll {
         emit TreasuryConfigured(
             orgId,
             msg.sender,
-            treasuryAdapter,
-            treasuryRouteId
+            treasuryAdapter
         );
     }
 
@@ -275,9 +268,7 @@ contract CipherRollPayroll {
         emit PayrollRunCreated(
             orgId,
             payrollRunId,
-            settlementAssetId,
-            fundingDeadline,
-            plannedHeadcount
+            fundingDeadline
         );
     }
 
@@ -478,7 +469,7 @@ contract CipherRollPayroll {
         _recordIssuedPayroll(orgId, employee, false);
         _organizations[orgId].updatedAt = uint64(block.timestamp);
 
-        emit ConfidentialPayrollIssued(orgId, paymentId, employee, memoHash);
+        emit ConfidentialPayrollIssued(orgId, paymentId, employee);
     }
 
     function issueConfidentialPayrollToRun(
@@ -498,7 +489,7 @@ contract CipherRollPayroll {
         FHE.allow(grantedAmount, employee);
 
         _storeAllocation(orgId, payrollRunId, employee, paymentId, memoHash, grantedAmount, false, 0, 0);
-        emit ConfidentialPayrollIssued(orgId, paymentId, employee, memoHash);
+        emit ConfidentialPayrollIssued(orgId, paymentId, employee);
     }
 
     function issueVestingAllocation(
@@ -557,7 +548,7 @@ contract CipherRollPayroll {
         _recordIssuedPayroll(orgId, employee, true);
         _organizations[orgId].updatedAt = uint64(block.timestamp);
 
-        emit ConfidentialPayrollIssued(orgId, paymentId, employee, memoHash);
+        emit ConfidentialPayrollIssued(orgId, paymentId, employee);
     }
 
     function issueVestingAllocationToRun(
@@ -590,7 +581,7 @@ contract CipherRollPayroll {
             startTimestamp,
             endTimestamp
         );
-        emit ConfidentialPayrollIssued(orgId, paymentId, employee, memoHash);
+        emit ConfidentialPayrollIssued(orgId, paymentId, employee);
     }
 
     function claimPayroll(bytes32 orgId, bytes32 paymentId) external {
@@ -866,6 +857,7 @@ contract CipherRollPayroll {
     function getPayrollAllocationMeta(
         bytes32 paymentId
     ) external view returns (PayrollAllocationMeta memory) {
+        require(_allocations[paymentId].employee == msg.sender, "CipherRoll: employee only");
         return _allocations[paymentId];
     }
 
@@ -894,6 +886,7 @@ contract CipherRollPayroll {
     function getPayrollSettlementRequest(
         bytes32 paymentId
     ) external view returns (PayrollSettlementRequest memory) {
+        require(_allocations[paymentId].employee == msg.sender, "CipherRoll: employee only");
         return _settlementRequests[paymentId];
     }
 

@@ -13,6 +13,8 @@ import {
   Wallet
 } from 'lucide-react'
 import { toast } from 'sonner'
+import type { DecryptForTxResult } from '@cofhe/sdk'
+import CipherBotWidget from '@/components/CipherBotWidget'
 import GlassCard from '@/components/GlassCard'
 import NetworkStatus from '@/components/NetworkStatus'
 import { useCipherRollWallet } from '@/components/EvmWalletProvider'
@@ -64,7 +66,6 @@ const statusStyles: Record<AuditorStatusTone, string> = {
 const defaultSummary: AuditorOrganizationSummaryView = {
   treasuryRouteConfigured: false,
   supportsConfidentialSettlement: false,
-  treasuryRouteId: '',
   settlementAsset: '',
   confidentialSettlementAsset: '',
   availableTreasuryFunds: '0',
@@ -518,7 +519,7 @@ export default function AuditorPage() {
         handles.map((handle) => decryptUint128ForTx(handle, activePermit))
       )
 
-      if (decryptResults.some((result) => !result)) {
+      if (decryptResults.some((result: DecryptForTxResult | null) => !result)) {
         throw new Error('CipherRoll could not prepare one or more batch decrypt proofs for the selected metrics.')
       }
 
@@ -836,8 +837,8 @@ export default function AuditorPage() {
                   <p className="font-mono text-white">{formatBytes32Preview(orgId)}</p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">Treasury route</p>
-                  <p className="text-white">{summary.treasuryRouteConfigured ? formatBytes32Preview(summary.treasuryRouteId) : 'Not configured'}</p>
+                  <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">Treasury path</p>
+                  <p className="text-white">{summary.treasuryRouteConfigured ? 'Configured' : 'Not configured'}</p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">Last payroll issued</p>
@@ -1021,7 +1022,13 @@ export default function AuditorPage() {
           </div>
         </GlassCard>
         ) : null}
+
       </div>
+      <CipherBotWidget
+        scope="auditor"
+        headline="Your contextual guide for CipherRoll auditor review."
+        intro="I can help with permit import, aggregate-only review, verify versus publish receipts, disclosure boundaries, and common auditor-side refresh errors. Ask me what you need."
+      />
     </div>
   )
 }

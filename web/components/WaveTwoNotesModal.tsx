@@ -11,56 +11,56 @@ import {
   Wallet
 } from "lucide-react";
 
-const STORAGE_KEY = "cipherroll-wave2-notes-dismissed";
+const STORAGE_KEY = "cipherroll-submission-notes-dismissed";
 
 const notes = [
   {
     id: "01",
-    eyebrow: "Settlement",
-    badge: "Live",
-    title: "Treasury-backed payroll now settles into real token delivery",
+    eyebrow: "Submission",
+    badge: "Shipped",
+    title: "CipherRoll now ships a full confidential payroll path from encrypted funding to real employee payout",
     body:
-      "CipherRoll no longer stops at encrypted bookkeeping. Admins can fund treasury inventory, reserve payroll runs, activate claims, and move employee payouts into a live settlement path on Arbitrum Sepolia.",
+      "The current build is no longer just an encrypted bookkeeping demo. Admins can fund budget, reserve treasury inventory, activate runs, issue allocations, and settle payroll through direct or wrapper-backed payout paths while employees complete real claim flow from their own wallet.",
     icon: Wallet,
     accent: "from-emerald-300/18 via-emerald-300/8 to-transparent"
   },
   {
     id: "02",
-    eyebrow: "FHERC20",
-    badge: "Preferred Path",
-    title: "Official FHERC20 wrapper payouts are integrated end to end",
+    eyebrow: "Hardening",
+    badge: "Verified",
+    title: "Wrapper settlement now behaves like a real protected payout flow instead of a permissive mock",
     body:
-      "The Wave 2 build now supports the wrapper-backed request and finalize flow, so payroll can stay confidential through the settlement path instead of exposing amounts too early.",
+      "The wrapper payout route now validates finalize proofs on-chain, enforces the intended request then finalize sequence, rejects mismatched or replayed payloads, and is backed by permanent regression coverage for invalid settlement attempts.",
     icon: ShieldCheck,
     accent: "from-cyan-300/18 via-cyan-300/8 to-transparent"
   },
   {
     id: "03",
-    eyebrow: "Employee",
-    badge: "Browser Local",
-    title: "Employees decrypt privately and finalize payout from their own wallet",
+    eyebrow: "Auditing",
+    badge: "Live",
+    title: "Aggregate-first auditor review now sits beside the payroll flow as a real product surface",
     body:
-      "CipherRoll keeps salary plaintext in the browser. Employees enable privacy mode, decrypt their payroll locally, and complete claim or wrapper-finalize actions without routing salary values through the app server.",
+      "CipherRoll now supports selective disclosure for audit review with shared permits, aggregate budget and runway insight, and on-chain verify or publish receipts for narrow compliance evidence without exposing employee salary rows.",
     icon: Lock,
     accent: "from-white/14 via-white/5 to-transparent"
   },
   {
     id: "04",
-    eyebrow: "Auditor",
-    badge: "Aggregate Only",
-    title: "Auditor access ships through shared permits and aggregate review",
+    eyebrow: "Leakage",
+    badge: "Reduced",
+    title: "Public surfaces were tightened so CipherRoll reveals less convenience metadata by default",
     body:
-      "Admins can now export a non-sensitive sharing payload for a named auditor. The auditor imports that permit and reviews only organization-level budget, committed payroll, runway, and compliance-safe summaries.",
+      "CipherRoll now trims route-id exposure from auditor-facing views, narrows convenience getters, avoids unnecessary event leakage, and prefers less-guessable identifiers in key admin flows so the live product exposes less than it did before.",
     icon: Eye,
     accent: "from-violet-300/18 via-violet-300/8 to-transparent"
   },
   {
     id: "05",
-    eyebrow: "Evidence",
-    badge: "Verifiable",
-    title: "Audit receipts can be verified or published on-chain",
+    eyebrow: "Operator",
+    badge: "Phase 3",
+    title: "CipherBot now supports operators inside the product where the workflow actually happens",
     body:
-      "CipherRoll now promotes selective disclosure from viewable to provable. Auditors can generate single-metric or batched evidence using decryptForTx plus verify or publish receipt flows.",
+      "The first Phase 3 item is live as a lightweight in-product guide across docs, admin, and auditor portals. CipherBot helps explain payroll funding order, reserve behavior, wrapper finalize steps, auditor permit import, disclosure boundaries, and common failure states without pretending to execute actions autonomously.",
     icon: FileCheck2,
     accent: "from-amber-300/18 via-amber-300/8 to-transparent"
   }
@@ -80,7 +80,7 @@ export default function WaveTwoNotesModal() {
     }
   }, []);
 
-  const currentMonthLabel = useMemo(() => "APRIL 2026", []);
+  const currentMonthLabel = useMemo(() => "MAY 2026", []);
 
   if (!mounted) return null;
 
@@ -117,7 +117,7 @@ export default function WaveTwoNotesModal() {
             <div className="relative flex-1 overflow-y-auto px-5 pb-8 pt-6 md:px-8 md:pb-10 md:pt-7">
               <div className="mb-6 flex flex-wrap items-center gap-4 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/34 md:mb-8">
                 <span className="rounded-full border border-[#d6af79]/28 bg-[#d6af79]/10 px-4 py-1.5 text-[#d6af79]">
-                  Wave 2
+                  Submission
                 </span>
                 <span>{currentMonthLabel}</span>
                 <span>Platform Notes</span>
@@ -128,7 +128,7 @@ export default function WaveTwoNotesModal() {
                   CipherRoll
                 </div>
                 <div className="mt-1 text-[20px] font-medium tracking-[-0.04em] text-white/46 md:text-[30px]">
-                  Wave 2 Updates
+                  Release Notes
                 </div>
               </div>
 

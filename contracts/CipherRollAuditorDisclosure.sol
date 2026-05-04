@@ -17,7 +17,6 @@ contract CipherRollAuditorDisclosure {
     struct AuditorOrganizationSummary {
         bool treasuryRouteConfigured;
         bool supportsConfidentialSettlement;
-        bytes32 treasuryRouteId;
         address settlementAsset;
         address confidentialSettlementAsset;
         uint256 availableTreasuryFunds;
@@ -100,7 +99,7 @@ contract CipherRollAuditorDisclosure {
 
         (
             address adapter,
-            bytes32 routeId,
+            ,
             ,
             ,
             bool supportsConfidentialSettlement,
@@ -113,7 +112,6 @@ contract CipherRollAuditorDisclosure {
         return AuditorOrganizationSummary({
             treasuryRouteConfigured: adapter != address(0),
             supportsConfidentialSettlement: supportsConfidentialSettlement,
-            treasuryRouteId: routeId,
             settlementAsset: settlementAsset,
             confidentialSettlementAsset: confidentialSettlementAsset,
             availableTreasuryFunds: availableTreasuryFunds,

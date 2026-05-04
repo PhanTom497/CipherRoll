@@ -16,7 +16,7 @@ import { TARGET_CHAIN_NAME } from "@/lib/cipherroll-config";
 const title = "CipherRoll";
 const tagline = "Private Payroll. Blind Execution.";
 const description =
-  `Experience the world's first FHE-native HR protocol. Run payroll with mathematically encrypted state on ${TARGET_CHAIN_NAME} using the official CoFHE coprocessor stack.`;
+  `Run confidential payroll with encrypted state, real treasury-backed settlement, hardened wrapper verification, aggregate-first audit review, and operator-ready guidance on ${TARGET_CHAIN_NAME} using the official CoFHE coprocessor stack.`;
 
 const portals = [
   {

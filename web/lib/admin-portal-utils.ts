@@ -181,6 +181,10 @@ export function extractCipherRollErrorMessage(error: unknown): string {
     return "CipherRoll could not prepare the private amount securely. Reconnect privacy mode and try again.";
   }
 
+  if (/Failed to rehydrate keys store|Iframe storage hub did not initialize|indexDBKeyval\.get/i.test(message)) {
+    return "Privacy mode got stuck while loading its local security cache. Refresh the page and turn privacy mode on again.";
+  }
+
   if (/receipt was not observed in time/i.test(message)) {
     return "Your request may still be processing. Refresh the workspace in a few seconds to confirm the latest status.";
   }

@@ -67,6 +67,14 @@ const solutionCards = [
       "When view-only review is not enough, CipherRoll can turn selected aggregate disclosures into verifiable or published on-chain audit receipts for defensible evidence.",
     accentLine: "via-amber-300/45",
     glow: "bg-amber-500/10"
+  },
+  {
+    icon: KeyRound,
+    title: "Submission-Ready Hardening",
+    desc:
+      "The current release now pairs real payroll settlement with stronger wrapper-proof verification, reduced avoidable leakage, a published privacy matrix, safer identifier defaults, and contextual in-product guidance for operators and auditors.",
+    accentLine: "via-zinc-200/38",
+    glow: "bg-white/8"
   }
 ];
 
@@ -153,7 +161,7 @@ export default function SolutionSection() {
           <FeatureCard
             icon={Coins}
             title="FHERC20 Wrapper Payouts"
-            desc="CipherRoll’s preferred settlement path uses a treasury-backed FHERC20 wrapper route so payroll can remain confidential through request, finalize, and payout instead of falling back to plain transfers too early."
+            desc="CipherRoll’s preferred settlement path uses a treasury-backed FHERC20 wrapper route so payroll stays encrypted before wrapper-request decryption, while the request/finalize proof path is treated honestly as an on-chain disclosure point."
             accentLine="via-white/35"
             glow="bg-white/6"
             className="lg:col-span-2"
@@ -198,7 +206,9 @@ export default function SolutionSection() {
                     { label: "Encrypted state", value: "Budget + payroll handles" },
                     { label: "Claim flow", value: "Employee wallet finalizes" },
                     { label: "Audit path", value: "Permit-based summaries" },
-                    { label: "Evidence", value: "Verify / publish receipts" }
+                    { label: "Evidence", value: "Verify / publish receipts" },
+                    { label: "Hardening", value: "Truthful privacy boundary" },
+                    { label: "Support", value: "CipherBot in product" }
                   ].map((item) => (
                     <div key={item.label} className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
                       <div className="text-[10px] uppercase tracking-[0.2em] text-white/34">{item.label}</div>

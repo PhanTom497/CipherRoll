@@ -62,6 +62,37 @@ export function makeDeterministicLabel(prefix: string, suffix?: string) {
   return toBytes32Label([prefix, suffix].filter(Boolean).join(":"));
 }
 
+function makeEntropyToken(): string {
+  const cryptoObject = globalThis.crypto
+
+  if (cryptoObject && typeof cryptoObject.randomUUID === "function") {
+    return cryptoObject.randomUUID().replace(/-/g, "")
+  }
+
+  if (cryptoObject && typeof cryptoObject.getRandomValues === "function") {
+    const bytes = new Uint8Array(16)
+    cryptoObject.getRandomValues(bytes)
+    return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("")
+  }
+
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`
+}
+
+export function makeHighEntropyLabel(prefix: string, hint?: string) {
+  const normalizedHint = hint
+    ?.trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 24)
+
+  return [prefix, normalizedHint, makeEntropyToken()].filter(Boolean).join(":")
+}
+
+export function makeHighEntropyBytes32Label(prefix: string, hint?: string) {
+  return toBytes32Label(makeHighEntropyLabel(prefix, hint))
+}
+
 export function safeAddress(value: string): string | null {
   return /^0x[a-fA-F0-9]{40}$/.test(value.trim()) ? value.trim() : null;
 }

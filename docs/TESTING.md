@@ -1,6 +1,6 @@
 # CipherRoll Testing & Verification Guide
 
-This guide outlines the proper procedures for testing the CoFHE-based CipherRoll contracts and frontend integration on Arbitrum Sepolia.
+This guide outlines the current submission-readiness verification flow for the CoFHE-based CipherRoll contracts and frontend on Arbitrum Sepolia.
 
 ## 1. Smart Contract Compilation
 
@@ -16,7 +16,7 @@ npm run compile
 
 ## 2. Clean Engineering Baseline
 
-Run the full pre-milestone verification sweep from the repository root.
+Run the full submission baseline sweep from the repository root.
 
 ```bash
 npm run baseline
@@ -26,7 +26,7 @@ npm run baseline
 - `npm run compile` succeeds.
 - `npm run test` succeeds.
 - `npm run build:web` completes a production Next.js build successfully.
-- No later Phase 2 milestone is treated as complete until this full sweep is green.
+- The current submission snapshot is not treated as stable until this full sweep is green.
 
 ## 3. Protocol Deployment
 
@@ -54,26 +54,26 @@ npm run dev
 
 ## 5. End-to-End Functional Flow
 
-1. **Workspace Genesis:** Connect an admin wallet and create a new organizational workspace. Confirm the Keccak256 `orgId` deterministic label resolves properly.
+1. **Workspace Genesis:** Connect an admin wallet and create a new organizational workspace. Confirm workspace creation succeeds both with a readable label and with the safer less-guessable ID option in the admin portal.
 2. **Homomorphic Funding:** Deposit an encrypted budget amount. Ensure the transaction succeeds and the on-chain handle mapping updates without revealing the integer.
 3. **Explicit Run Lifecycle:** Create a payroll run, upload at least one allocation, fund the run from encrypted budget state, and activate the claim window. Confirm claim attempts fail before activation and succeed only after the run becomes active.
 4. **Confidential Issuance:** Issue a payroll allocation to a designated employee wallet address. Add a specific memo.
-4. **Aggregate Admin Insight:** Refresh the admin portal and confirm it shows only organization-level counters such as total payroll items, active items, claimed items, vesting items, recipient count, and budget health.
-5. **Vesting Issuance:** Issue a second payroll allocation with a future vesting window. Confirm the employee can see that it exists while the contract still blocks early claim attempts.
-6. **Local Permit-Backed Decryption:** 
+5. **Aggregate Admin Insight:** Refresh the admin portal and confirm it shows only organization-level counters such as total payroll items, active items, claimed items, vesting items, recipient count, and budget health.
+6. **Vesting Issuance:** Issue a second payroll allocation with a future vesting window. Confirm the employee can see that it exists while the contract still blocks early claim attempts.
+7. **Local Permit-Backed Decryption:** 
    - Switch your Web3 provider to the employee's wallet address.
    - Access the `/employee` portal.
    - Generate an EIP-712 security permit.
    - Validate that the browser `@cofhe/sdk` client successfully decrypts the ciphertext via `decryptForView()` and keeps plaintext local to the browser session.
    - Confirm the portal labels allocations clearly as draft/funded-awaiting-activation/claim-ready/vesting/claimed when applicable.
-7. **Claim Path:** Claim an immediate allocation successfully, then verify that the same allocation cannot be claimed twice and that a still-vesting allocation remains blocked until unlock.
-8. **Treasury-Backed Settlement Check:**
+8. **Claim Path:** Claim an immediate allocation successfully, then verify that the same allocation cannot be claimed twice and that a still-vesting allocation remains blocked until unlock.
+9. **Treasury-Backed Settlement Check:**
    - Configure a workspace treasury adapter and fund it with a real test token inventory.
    - Confirm the admin portal shows available and reserved treasury balances for the workspace before and after funding a payroll run.
    - Claim a payroll item from the employee wallet and confirm the employee receives an actual token balance increase on-chain.
    - For a wrapper-backed workspace, confirm the employee first requests payout and then finalizes the wrapper claim before the underlying token balance increases.
    - Confirm a workspace without treasury configuration still falls back to claim-state-only behavior.
-9. **Auditor Selective-Disclosure Check:**
+10. **Auditor Selective-Disclosure Check:**
    - From the admin portal, create an auditor sharing permit for a named recipient wallet and copy the exported non-sensitive payload.
    - From the auditor portal, import that payload into the recipient wallet, activate the recipient permit, and refresh the workspace.
    - Confirm the auditor can decrypt only the aggregate budget / committed / available values while the portal continues to show public compliance-safe summary fields.
@@ -83,10 +83,10 @@ npm run dev
    - Confirm the evidence flow stays narrow: one aggregate metric at a time, no employee salary rows, and no broader disclosure than the chosen budget / committed / available value.
    - Confirm the auditor can also choose a batch of aggregate metrics and submit one batched verify receipt or one batched publish receipt without revealing employee-level encrypted state.
    - Confirm the portal clearly shows when the auditor is only reviewing permit-based data locally versus when they are producing an on-chain receipt.
-10. **Privacy Boundary Check:**
+11. **Privacy Boundary Check:**
    - Confirm encrypted values stay private: budget, committed amount, available amount, and employee allocation amounts.
    - Confirm public metadata is still visible by design: wallet addresses, workspace ids, payment ids, memo hashes, vesting timestamps, payroll-run status, and claim/finalization transactions.
-   - Confirm the current product documents the wrapper privacy boundary honestly: confidential balances stay private before unshield finalization, while the underlying payout amount becomes public at final claim time.
+   - Confirm the current product documents the wrapper privacy boundary honestly: confidential balances stay private before wrapper-request decryption, while the wrapper settlement amount becomes public once the on-chain `decryptForTx` finalize proof is submitted.
    - Confirm the product documents the shared-permit prerequisite honestly: the auditor flow depends on prior on-chain `FHE.allow(...)` access granted by the data owner to the aggregate handles exposed for audit review.
    - Confirm the product distinguishes clearly between a view-only aggregate disclosure and a provable on-chain audit receipt, including the extra publicity tradeoff of publishing decrypt results.
    - Confirm the product explains that batch receipts still remain aggregate-only and are built from the same shared-permit organization metrics rather than payroll-row disclosures.
@@ -104,4 +104,4 @@ npm run test
 - Hardhat runs with `@cofhe/hardhat-plugin` on the in-process `hardhat` network.
 - CoFHE mock contracts are auto-deployed for local test runs.
 - Tests create batteries-included CoFHE clients via `hre.cofhe.createClientWithBatteries(...)`.
-- The suite currently covers encrypted multi-deposit budget math, confidential payroll issuance, explicit payroll-run lifecycle gating, privacy-safe organization insights, over-capacity zero-allocation behavior, employee-only reads, vesting metadata and claim enforcement, permit-enabled decrypt flows, admin/employee access control, and malformed or duplicate request failure handling.
+- The suite currently covers encrypted multi-deposit budget math, confidential payroll issuance, explicit payroll-run lifecycle gating, privacy-safe organization insights, over-capacity zero-allocation behavior, employee-only reads, vesting metadata and claim enforcement, permit-enabled decrypt flows, admin/employee access control, wrapper-finalize proof verification, and malformed, mismatched, replayed, or duplicate request failure handling.

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, Cpu, Lock, Map as MapIcon, Shield, Rocket, Terminal } from "lucide-react";
+import CipherBotWidget from "@/components/CipherBotWidget";
 import GlassCard from "@/components/GlassCard";
 import {
   CONTRACT_ADDRESS,
@@ -22,7 +23,7 @@ const timelinePhases = [
     id: "wave1",
     wave: "Phase 1: Core Privacy Protocol",
     description: <>The currently shipped admin and employee payroll flow running on the <span className="font-bold text-white">CoFHE coprocessor</span> stack for <span className="font-bold text-white">{TARGET_CHAIN_NAME}</span>.</>,
-    status: "LIVE",
+    status: "COMPLETE",
     tags: ["CoFHE Coprocessor", TARGET_CHAIN_NAME, "WASM Decryption", "EIP-712 Permits"],
     milestones: [
       <>Workspace creation, encrypted budget funding, and single-admin payroll issuance are implemented in the current contract and frontend.</>,
@@ -31,36 +32,68 @@ const timelinePhases = [
       <>Current encrypted state, handles, and tests align with the official CoFHE <span className="font-bold text-white">TaskManager</span> workflow.</>,
       <>The production build, compile step, and automated contract tests all pass from the root baseline command.</>
     ],
-    callout: <>This is the verified product surface today: admin operations, employee reads, and the docs needed to run the flow end to end.</>,
-    isCurrent: true
+    callout: <>This foundation established the private-by-default payroll model: encrypted values on-chain, wallet-local decrypts in the browser, and a working admin plus employee surface.</>,
+    isCurrent: false
   },
   {
     id: "wave2",
-    wave: "Phase 2: Wave 2 Submission Scope",
-    description: <>Phase 2 is the currently completed Wave 2 delivery: treasury-backed settlement, FHERC20 wrapper payouts, aggregate-first auditor review, and verifiable audit receipts on <span className="font-bold text-white">{TARGET_CHAIN_NAME}</span>.</>,
+    wave: "Phase 2: Confidential Settlement Foundation",
+    description: <>Phase 2 established the real confidential payroll core: treasury-backed settlement, FHERC20 wrapper payouts, aggregate-first auditor review, and verifiable audit receipts on <span className="font-bold text-white">{TARGET_CHAIN_NAME}</span>.</>,
     status: "COMPLETE",
     tags: ["Treasury Settlement", "FHERC20 Wrapper", "Auditor Portal", "Audit Receipts"],
     milestones: [
       <>Standardized end to end on <span className="font-bold text-white">@cofhe/sdk</span> builder APIs including `encryptInputs`, `decryptForView`, and `decryptForTx`.</>,
       <>Shipped a real treasury-backed payroll lifecycle with explicit create, fund, activate, claim, and finalize steps.</>,
-      <>Integrated the preferred <span className="font-bold text-white">FHERC20 wrapper</span> settlement path so employees can request and finalize confidential payout release on-chain.</>,
+      <>Integrated the preferred <span className="font-bold text-white">FHERC20 wrapper</span> settlement path so employees can request payout confidentially, then finalize through an on-chain proof flow with an explicit disclosure tradeoff.</>,
       <>Delivered an aggregate-first auditor portal with shared permits, single-metric evidence receipts, and batched compliance receipts.</>
     ],
-    callout: <>This is the current Wave 2 submission surface: real confidential payroll settlement plus selective-disclosure audit evidence.</>,
+    callout: <>This is the completed confidential settlement layer: real payroll payout infrastructure plus selective-disclosure audit evidence.</>,
     isCurrent: false
   },
   {
     id: "wave3",
-    wave: "Phase 3: Total Compliance Integration",
-    description: <>Broadening CipherRoll into a fuller compliance and settlement layer once the core payroll workflow is complete.</>,
-    status: "FUTURE",
-    tags: ["Tax Authority Flows", "Advanced Analytics", "Fiat On-Ramps", "Compliance"],
+    wave: "Phase 3: Hardening & Operator Support",
+    description: <>The current submission snapshot layers hardening and operator support on top of the Phase 2 core: truthful privacy boundaries, reduced avoidable leakage, safer identifiers, stronger wrapper verification, and a lightweight in-product CipherBot across docs, admin, and auditor surfaces.</>,
+    status: "ACTIVE",
+    tags: ["Submission Hardening", "Privacy Matrix", "CipherBot", "Operator Support"],
     milestones: [
-      <>Automated <span className="font-bold text-white">tax provisioning</span> with explicit government-role access controls once those compliance workflows are implemented for real.</>,
-      <>Expanding <span className="font-bold text-white">aggregate analytics</span> to include richer organization-level reporting while preserving PII privacy.</>,
-      <>Automated <span className="font-bold text-white">Fiat On-Ramps</span> allowing organizations to seamlessly convert corporate fiat into encrypted stablecoins.</>
+      <>Patched the wrapper-finalize path so the final unshield release no longer accepts proof-shaped payloads without on-chain verification.</>,
+      <>Locked the wrapper settlement path with permanent regression tests covering wrong plaintext, mismatched request id, replay attempts, and missing pending-request cases.</>,
+      <>Published a clear <span className="font-bold text-white">privacy matrix</span>, corrected misleading disclosure language, trimmed convenience-only leakage, and reduced unnecessary identifier inference where practical.</>,
+      <>Shipped a lightweight <span className="font-bold text-white">CipherBot</span> across docs, admin, and auditor portals for product-specific onboarding, explanation, and operator support.</>,
+      <>Deferred larger platform work such as SDK extraction, operator exports, backend/indexing, and deeper compliance surfaces to later waves so the current submission stays stable and truthful.</>
     ],
-    callout: <>Driving the final vision for autonomous, private corporate operations.</>,
+    callout: <>This is the current submission-ready layer: not a new backend platform yet, but a materially more truthful, stable, and operator-friendly CipherRoll.</>,
+    isCurrent: true
+  },
+  {
+    id: "wave4",
+    wave: "Phase 4: Backend Foundation & Product Data Plane",
+    description: <>Phase 4 is where CipherRoll grows beyond a contracts-plus-frontend submission into a more complete application platform with read models, backend APIs, reporting infrastructure, and a real retrieval-backed assistant.</>,
+    status: "PLANNED",
+    tags: ["Backend", "Indexer", "Reporting APIs", "Real CipherBot"],
+    milestones: [
+      <>Stand up the first real backend service with health checks, structured config, and authenticated API routes where appropriate.</>,
+      <>Add event ingestion and normalized read models so organizations, runs, claims, finalizations, and receipts can be queried cleanly.</>,
+      <>Move heavier exports and reporting into backend-safe APIs instead of asking the browser to reconstruct everything ad hoc.</>,
+      <>Expand <span className="font-bold text-white">CipherBot</span> into a real retrieval-backed assistant that can answer free-form product questions from indexed docs and portal-aware guidance.</>
+    ],
+    callout: <>This is the next serious product layer: better data plumbing, better reporting, and a more capable support surface without centralizing sensitive decrypt paths.</>,
+    isCurrent: false
+  },
+  {
+    id: "wave5",
+    wave: "Phase 5: Advanced Operations, Governance & Compliance Expansion",
+    description: <>Later waves are reserved for heavier execution boundaries such as real on-chain governance, deeper integrations, notification surfaces, tax workflows, and larger compliance or ecosystem expansion.</>,
+    status: "FUTURE",
+    tags: ["Governance", "Integrations", "Notifications", "Tax Workflows"],
+    milestones: [
+      <>Turn reserved quorum metadata into real on-chain multi-admin governance and controlled execution gating.</>,
+      <>Add backend-powered integrations, notifications, and cleaner external API boundaries for enterprise workflows.</>,
+      <>Expand the tax-authority roadmap into real encrypted tax provisioning, regulator-specific disclosure, and policy-driven reporting.</>,
+      <>Revisit larger assistant and communication surfaces only after backend and governance boundaries are mature enough to support them safely.</>
+    ],
+    callout: <>These items are intentionally deferred. They matter, but they are not part of the current submission snapshot and should not be presented as already shipped capability.</>,
     isCurrent: false
   }
 ];
@@ -192,7 +225,7 @@ export default function DocsPage() {
                       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
                         <p className="text-xs uppercase tracking-[0.2em] text-white/55 font-bold mb-3">Settlement</p>
                         <p className="text-[#c9c9d0]">
-                          The app currently tracks encrypted payroll allocations inside CipherRoll and can now settle them through a treasury-backed payout path. If a workspace uses the FHERC20 wrapper route, payroll first moves through a confidential wrapper balance, then the employee finishes an <span className="font-bold text-white">unshield + claim</span> step to release the underlying payout token on-chain.
+                          The app currently tracks encrypted payroll allocations inside CipherRoll and can now settle them through a treasury-backed payout path. If a workspace uses the FHERC20 wrapper route, payroll first moves through a confidential wrapper balance, then the employee finishes an <span className="font-bold text-white">request + finalize + unshield</span> flow. The balance stays confidential before wrapper-request decryption, but the on-chain finalize proof can reveal the amount before the last token-release step completes.
                         </p>
                       </div>
                       <div className="rounded-2xl border border-white/10 bg-white/5 p-5 md:col-span-3">
@@ -206,6 +239,26 @@ export default function DocsPage() {
                         <p className="mt-4 text-[#c9c9d0]">
                           In plain language: <span className="font-bold text-white">view-only review</span> keeps the decrypted aggregate values local to the auditor browser, while <span className="font-bold text-white">receipt mode</span> records evidence on-chain for the selected metric or batch.
                         </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 md:col-span-3">
+                        <p className="text-xs uppercase tracking-[0.2em] text-white/55 font-bold mb-3">Current privacy matrix</p>
+                        <div className="space-y-3 text-[#c9c9d0]">
+                          <p>
+                            <span className="font-bold text-white">Encrypted on-chain:</span> budget handles, committed/available summary handles, employee allocation amounts, auditor aggregate handles, and wrapper balances before wrapper-request decryption.
+                          </p>
+                          <p>
+                            <span className="font-bold text-white">Public by Arbitrum / EVM design:</span> transaction calldata, logs, wallet addresses, timestamps, ERC20 transfers, and wrapper settlement amounts once the <span className="font-bold text-white">decryptForTx</span> finalize proof is posted on-chain.
+                          </p>
+                          <p>
+                            <span className="font-bold text-white">Public because CipherRoll stores or emits them:</span> workspace metadata hashes, treasury route ids, payment ids, memo hashes, payroll-run metadata, lifecycle counters, settlement request metadata, and settlement events.
+                          </p>
+                          <p>
+                            <span className="font-bold text-white">Inferable because the current frontend hashes predictable strings:</span> many `bytes32` labels such as workspace ids, payroll-run ids, route ids, and readable memo labels can still be guessed if operators keep mnemonic names, even though the admin flow now prefers higher-entropy generation where practical.
+                          </p>
+                          <p>
+                            The full matrix is published in <span className="font-bold text-white">docs/PRIVACY_MATRIX.md</span> in the repository.
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </GlassCard>
@@ -322,8 +375,39 @@ export default function DocsPage() {
                       <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Timeline</span>
                     </h2>
                     <p className="text-[#a1a1aa] text-lg max-w-2xl md:mx-auto">
-                      This timeline separates the currently shipped payroll flow from the later compliance and settlement work so the product boundary stays explicit.
+                      This timeline now separates what CipherRoll has already shipped, what was hardened for the current submission, and what is intentionally deferred to future waves so the product boundary stays explicit.
                     </p>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-4 mb-14">
+                    {[
+                      {
+                        label: "Completed Layers",
+                        value: "Phase 1 + 2",
+                        text: "Private payroll core plus real settlement and audit evidence are already shipped."
+                      },
+                      {
+                        label: "Current Focus",
+                        value: "Phase 3",
+                        text: "Hardening, truthful privacy boundaries, reduced leakage, and operator support."
+                      },
+                      {
+                        label: "Submission State",
+                        value: "Ready",
+                        text: "Compile, tests, and production web build are green for the current snapshot."
+                      },
+                      {
+                        label: "Deferred Work",
+                        value: "Phase 4 + 5",
+                        text: "Backend, indexing, exports, tax workflows, and deeper governance stay in later waves."
+                      }
+                    ].map((item) => (
+                      <GlassCard key={item.label} className="rounded-3xl border-white/8 bg-[#0a0a0a] p-5">
+                        <p className="text-[10px] uppercase tracking-[0.22em] text-white/45 font-bold mb-3">{item.label}</p>
+                        <p className="text-2xl font-black tracking-tight text-white mb-2">{item.value}</p>
+                        <p className="text-sm leading-relaxed text-[#a1a1aa]">{item.text}</p>
+                      </GlassCard>
+                    ))}
                   </div>
 
                   <div className="h-px w-full bg-white/8 mb-16" />
@@ -397,8 +481,13 @@ cd web && npm install</pre>
 # Essential for CoFHE interactions:
 ARBITRUM_SEPOLIA_RPC_URL=your_rpc_here
 DEPLOYER_PRIVATE_KEY=your_key_here
-# Frontend uses @cofhe/sdk for local encryption and decryptForView():
-NEXT_PUBLIC_CIPHERROLL_CONTRACT_ADDRESS=0x8227...</pre>
+# Frontend uses @cofhe/sdk for local encryption and decrypt flows:
+NEXT_PUBLIC_CIPHERROLL_CONTRACT_ADDRESS=0xAeCaDDa189f35EfB69C2dCc37688030A9Af58DC3
+NEXT_PUBLIC_CIPHERROLL_AUDITOR_DISCLOSURE_ADDRESS=0x328Fe7B46ddf38888978C3f6CDC49233810ccE49
+NEXT_PUBLIC_CIPHERROLL_DIRECT_SETTLEMENT_ADAPTER=0x4d0EbdE132402145D464089Fd7bE7362dec6f428
+NEXT_PUBLIC_CIPHERROLL_WRAPPER_SETTLEMENT_ADAPTER=0x892DEaAaf13fb4a5a57288bB6089565c3cdB95e0
+NEXT_PUBLIC_DEFAULT_ORG_ID=cipherroll-default-org
+NEXT_PUBLIC_CIPHERROLL_TARGET_CHAIN=arb-sepolia</pre>
                       </div>
                       <div className="rounded-3xl border border-white/10 bg-black/40 p-6">
                         <p className="text-xs uppercase tracking-[0.2em] text-white/55 font-bold mb-3">3. Deploy and run</p>
@@ -431,6 +520,11 @@ cd web && npm run dev</pre>
           </AnimatePresence>
         </div>
       </main>
+      <CipherBotWidget
+        scope="docs"
+        headline="Your contextual guide for CipherRoll documentation."
+        intro="I can help explain the current CipherRoll docs, payroll flow, wrapper settlement steps, auditor permit behavior, disclosure boundaries, and common operator mistakes. What are you looking for?"
+      />
     </div>
   );
 }

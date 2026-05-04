@@ -60,7 +60,6 @@ export type OrganizationInsightsView = {
 export type AuditorOrganizationSummaryView = {
   treasuryRouteConfigured: boolean;
   supportsConfidentialSettlement: boolean;
-  treasuryRouteId: string;
   settlementAsset: string;
   confidentialSettlementAsset: string;
   availableTreasuryFunds: string;

@@ -21,7 +21,7 @@ CipherRoll is a confidential payroll system built on the official Fhenix CoFHE s
 
 Instead of writing salaries, payroll balances, and payroll commitments to a transparent ledger, CipherRoll keeps those values encrypted on-chain as FHE handles. Admins can create a workspace, fund encrypted payroll budgets, create explicit payroll runs, reserve treasury inventory, activate claimability, and let employees complete payout from their own wallet.
 
-Wave 2 extends CipherRoll from encrypted bookkeeping into a **real settlement system** with:
+The current submission snapshot extends CipherRoll from encrypted bookkeeping into a **real settlement system** with:
 
 - **Treasury-backed payroll funding**
 - **Explicit payroll-run lifecycle management**
@@ -30,6 +30,19 @@ Wave 2 extends CipherRoll from encrypted bookkeeping into a **real settlement sy
 - **Employee local decrypt + claim/finalize flow**
 - **Aggregate-only auditor permit review**
 - **Verifiable and publishable audit receipts**
+- **Submission-readiness hardening and operator support**
+
+### Submission snapshot
+
+The current build is not just feature-complete at the happy-path level. It also includes the hardening work completed before and during the start of Phase 3:
+
+- wrapper-finalize proof verification is enforced on-chain
+- wrapper settlement regressions now cover wrong plaintext, mismatched request ids, replay attempts, and missing pending requests
+- privacy wording now matches the real host-chain disclosure boundary
+- a published privacy matrix explains encrypted values, intentionally public values, and inferable labels
+- safer identifiers and clearer operator warnings reduce avoidable inference
+- convenience-only route-id and metadata leakage were trimmed where practical
+- `CipherBot` now ships as a lightweight contextual guide in docs, admin, and auditor portals
 
 ---
 
@@ -44,14 +57,14 @@ Payroll is one of the most sensitive workflows inside any company, but tradition
 
 CipherRoll is designed to solve that problem with a practical privacy boundary:
 
-- **Private:** salary allocations, budget summaries, payroll commitments, aggregate runway values, wrapper-backed confidential balances before final claim
-- **Public:** wallet addresses involved in transactions, organization ids, payroll-run states, funding deadlines, claim/finalization txs, and final unshielded payout amounts when wrapper settlement is claimed
+- **Private:** salary allocations, budget summaries, payroll commitments, aggregate runway values, and wrapper-backed confidential balances before the wrapper request is decrypted for an on-chain finalize
+- **Public:** wallet addresses involved in transactions, organization ids, payroll-run states, funding deadlines, claim/finalization txs, and wrapper settlement amounts once the `decryptForTx` request/finalize proof is submitted on-chain
 
 The goal is not to claim that “everything is hidden.” The goal is to keep the sensitive financial core encrypted while remaining honest about what the host chain still exposes.
 
 ---
 
-## Wave 2 Ships
+## Current Release
 
 ### 1. Real payroll settlement
 
@@ -71,7 +84,7 @@ Payroll is modeled as a real workflow, not a vague “payroll action”:
 
 ### 3. FHERC20 wrapper path
 
-The preferred Phase 2 settlement path uses the official FHERC20 wrapper model so payroll can remain confidential deeper into the payout lifecycle.
+The preferred Phase 2 settlement path uses the official FHERC20 wrapper model so payroll can stay encrypted before the wrapper request is opened for on-chain finalization, instead of falling back to plain transfers immediately.
 
 ### 4. Aggregate-only auditor review
 
@@ -204,16 +217,16 @@ sequenceDiagram
 
 ### Contract Links
 
-Wave 2 deployment on **Arbitrum Sepolia (chain id 421614)**:
+Current deployment on **Arbitrum Sepolia (chain id 421614)**:
 
 | Contract | Address | Explorer |
 | --- | --- | --- |
-| CipherRollPayroll | `0x387E9B1c6464A68243CaeB498d58C1dc4Bc096d2` | [Arbiscan](https://sepolia.arbiscan.io/address/0x387E9B1c6464A68243CaeB498d58C1dc4Bc096d2) |
-| CipherRollAuditorDisclosure | `0xe202F82b6F897e16A298C970E94b525B8B888550` | [Arbiscan](https://sepolia.arbiscan.io/address/0xe202F82b6F897e16A298C970E94b525B8B888550) |
-| MockSettlementToken | `0xdFaa338653731E8b55f2Bf02584B7e1762256512` | [Arbiscan](https://sepolia.arbiscan.io/address/0xdFaa338653731E8b55f2Bf02584B7e1762256512) |
-| DirectSettlementAdapter | `0x7C439fC47d13221cDDF9f1956c7fbeEc2840C4D0` | [Arbiscan](https://sepolia.arbiscan.io/address/0x7C439fC47d13221cDDF9f1956c7fbeEc2840C4D0) |
-| MockConfidentialPayrollToken | `0x87b2C4C8d33e08B16ee6fAE06d4b0625d8E76EE4` | [Arbiscan](https://sepolia.arbiscan.io/address/0x87b2C4C8d33e08B16ee6fAE06d4b0625d8E76EE4) |
-| WrapperSettlementAdapter | `0x808B62EEEa65611B39DB1614A389b2796680ea3e` | [Arbiscan](https://sepolia.arbiscan.io/address/0x808B62EEEa65611B39DB1614A389b2796680ea3e) |
+| CipherRollPayroll | `0xAeCaDDa189f35EfB69C2dCc37688030A9Af58DC3` | [Arbiscan](https://sepolia.arbiscan.io/address/0xAeCaDDa189f35EfB69C2dCc37688030A9Af58DC3) |
+| CipherRollAuditorDisclosure | `0x328Fe7B46ddf38888978C3f6CDC49233810ccE49` | [Arbiscan](https://sepolia.arbiscan.io/address/0x328Fe7B46ddf38888978C3f6CDC49233810ccE49) |
+| MockSettlementToken | `0x494C3D9c5A3ADbef894c405bf14C7e3d1fBc3614` | [Arbiscan](https://sepolia.arbiscan.io/address/0x494C3D9c5A3ADbef894c405bf14C7e3d1fBc3614) |
+| DirectSettlementAdapter | `0x4d0EbdE132402145D464089Fd7bE7362dec6f428` | [Arbiscan](https://sepolia.arbiscan.io/address/0x4d0EbdE132402145D464089Fd7bE7362dec6f428) |
+| MockConfidentialPayrollToken | `0x808aB6Bc09f2Af062f2ce2aFd4549A4578aEB689` | [Arbiscan](https://sepolia.arbiscan.io/address/0x808aB6Bc09f2Af062f2ce2aFd4549A4578aEB689) |
+| WrapperSettlementAdapter | `0x892DEaAaf13fb4a5a57288bB6089565c3cdB95e0` | [Arbiscan](https://sepolia.arbiscan.io/address/0x892DEaAaf13fb4a5a57288bB6089565c3cdB95e0) |
 
 Deployment artifact:
 
@@ -251,7 +264,7 @@ CipherRoll supports:
 - **Direct treasury settlement adapter**
 - **FHERC20 wrapper-backed settlement adapter**
 
-The wrapper path is the preferred Wave 2 settlement route.
+The wrapper path is the preferred current settlement route.
 
 ---
 
@@ -266,7 +279,7 @@ The following values are intended to remain confidential:
 - available runway amount
 - employee allocation amounts
 - aggregate auditor summary handles
-- confidential balances prior to wrapper unshield finalization
+- confidential balances prior to wrapper request decryption for on-chain finalization
 
 ### Public on the host chain
 
@@ -277,7 +290,7 @@ The following are still public or inferable:
 - payroll-run state transitions
 - funding deadlines and timestamps
 - claim/finalization transaction activity
-- final underlying amount revealed at wrapper unshield claim time
+- wrapper settlement amount once the `decryptForTx` finalize proof is submitted on-chain
 
 ### Auditor boundary
 
@@ -294,6 +307,19 @@ Auditors **cannot** review:
 - raw employee allocation handles
 - admin-only salary getters
 - unnecessary PII
+
+---
+
+## Current Privacy Matrix
+
+CipherRoll now publishes a current-product privacy matrix in [docs/PRIVACY_MATRIX.md](./docs/PRIVACY_MATRIX.md).
+
+The short version is:
+
+- `Encrypted on-chain:` budget handles, committed/available summary handles, employee allocation amounts, auditor aggregate handles, and wrapper balances before wrapper-request decryption.
+- `Public by Arbitrum/EVM design:` transaction calldata, logs, wallet addresses, timestamps, ERC20 transfers, and wrapper settlement amounts once the `decryptForTx` finalize proof is submitted on-chain.
+- `Public because CipherRoll stores or emits them:` org metadata hashes, route ids, payment ids, memo hashes, payroll-run metadata, lifecycle counters, settlement request metadata, and settlement events.
+- `Inferable because the frontend hashes predictable strings:` many `bytes32` labels such as workspace ids, payroll-run ids, route ids, and readable memo labels can still be guessed if operators keep mnemonic names, even though the admin flow now prefers higher-entropy generation where practical.
 
 ---
 
@@ -430,7 +456,7 @@ Detailed guides live here:
 - [docs/ROADMAP.md](./docs/ROADMAP.md)
 
 
-Wave 2 verification includes:
+Current verification includes:
 
 - payroll-run lifecycle checks
 - treasury-backed funding and activation gating
@@ -463,7 +489,7 @@ If you deploy your own instance, ensure:
 
 ## Innovation Summary
 
-CipherRoll’s Wave 2 contribution is not just “private payroll” in the abstract. It combines:
+CipherRoll’s current submission contribution is not just “private payroll” in the abstract. It combines:
 
 - **CoFHE-native encrypted payroll accounting**
 - **Explicit treasury-backed settlement**
@@ -483,7 +509,7 @@ CipherRoll is still a buildathon-stage system and should be described honestly:
 - **Active target** is Arbitrum Sepolia only
 - **Deployed assets** are testnet assets
 - **Tax authority portal** is still status-oriented, not a full compliance workflow
-- **Wrapper-backed final payout amounts** become public at final unshield claim time
+- **Wrapper-backed payout amounts** can become public during the request/finalize proof flow, not only after the last token-release step
 - **Local/browser permit revocation** is a session-level aid, not a universal remote revoke
 
 ---
@@ -492,7 +518,7 @@ CipherRoll is still a buildathon-stage system and should be described honestly:
 
 - [Fhenix](https://www.fhenix.io/)
 - [CoFHE docs](https://docs.fhenix.zone/)
-- [Wave 2 roadmap](./docs/ROADMAP.md)
+- [Current roadmap](./docs/ROADMAP.md)
 - [Architecture notes](./docs/ARCHITECTURE.md)
 
 ---

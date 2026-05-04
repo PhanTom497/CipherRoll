@@ -346,9 +346,9 @@ export default function EmployeePage() {
         title: 'Claim submitted',
         detail: hasSettlementAsset
           ? treasury.supportsConfidentialSettlement
-            ? allocation.settlementRequestId
-              ? 'The wallet sent your wrapper claim finalization to the network. Waiting for confirmation...'
-              : 'The wallet requested a confidential wrapper payout. Once confirmed, finalize the wrapper claim to release the underlying settlement token.'
+              ? allocation.settlementRequestId
+                ? 'The wallet sent your wrapper claim finalization to the network. Waiting for confirmation...'
+              : 'The wallet requested a confidential wrapper payout. Once confirmed, finalize the wrapper claim. That on-chain proof step can reveal the amount before the underlying settlement token is released.'
             : 'The wallet sent your claim and token-settlement proof to the network. Waiting for confirmation...'
           : 'The wallet sent your claim to the network. Waiting for confirmation...'
       })
@@ -539,7 +539,7 @@ export default function EmployeePage() {
                                 : allocation.isClaimed
                                   ? 'This item is complete for your wallet.'
                                   : needsFinalizeSettlement
-                                    ? 'Finalize the wrapper claim now to release the underlying settlement token to your wallet.'
+                                    ? 'Finalize the wrapper claim now. That on-chain proof step can reveal the amount before the underlying settlement token reaches your wallet.'
                                   : canClaim
                                     ? 'You can submit the claim transaction now.'
                                     : 'This item will become claimable after its vesting window ends.'}

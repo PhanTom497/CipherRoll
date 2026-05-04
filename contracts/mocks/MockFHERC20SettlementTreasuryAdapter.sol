@@ -5,8 +5,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-import {FHE} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
-import {IFHERC20ERC20Wrapper} from "fhenix-confidential-contracts/contracts/interfaces/IFHERC20ERC20Wrapper.sol";
+import {euint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
+import {IMockFHERC20ERC20Wrapper} from "./interfaces/IMockFHERC20ERC20Wrapper.sol";
 import {ITreasuryAdapter} from "../interfaces/ITreasuryAdapter.sol";
 
 contract MockFHERC20SettlementTreasuryAdapter is ITreasuryAdapter {
@@ -25,7 +25,7 @@ contract MockFHERC20SettlementTreasuryAdapter is ITreasuryAdapter {
     }
 
     IERC20 public immutable payrollToken;
-    IFHERC20ERC20Wrapper public immutable confidentialPayrollToken;
+    IMockFHERC20ERC20Wrapper public immutable confidentialPayrollToken;
     address public immutable payrollContract;
 
     mapping(bytes32 => uint256) private _availablePayrollFunds;
@@ -38,7 +38,7 @@ contract MockFHERC20SettlementTreasuryAdapter is ITreasuryAdapter {
     constructor(
         address payrollContract_,
         IERC20 payrollToken_,
-        IFHERC20ERC20Wrapper confidentialPayrollToken_
+        IMockFHERC20ERC20Wrapper confidentialPayrollToken_
     ) {
         payrollContract = payrollContract_;
         payrollToken = payrollToken_;
@@ -130,7 +130,7 @@ contract MockFHERC20SettlementTreasuryAdapter is ITreasuryAdapter {
         require(cleartextAmount % rate == 0, "CipherRoll: settlement amount not wrapper-aligned");
 
         uint64 wrappedAmount = SafeCast.toUint64(cleartextAmount / rate);
-        requestId = FHE.unwrap(confidentialPayrollToken.unshield(address(this), employee, wrappedAmount));
+        requestId = euint64.unwrap(confidentialPayrollToken.unshield(address(this), employee, wrappedAmount));
 
         _pendingSettlements[paymentId] = PendingSettlement({
             requestId: requestId,

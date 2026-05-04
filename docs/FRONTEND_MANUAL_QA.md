@@ -19,6 +19,7 @@ Use this master checklist to manually verify the CipherRoll web application prio
 
 ## 4. Admin Execution Validation
 - [ ] **Onboarding Modal:** Ensure the Admin portal triggers the interactive walkthrough modal solely on the first visit (utilizing `localStorage`).
+- [ ] **CipherBot Help:** Confirm the Admin portal shows `CipherBot`, that its suggested questions change meaningfully with the active portal, and that it explains payroll order, treasury reserve behavior, wrapper finalize, auditor sharing, and common failure states in product-specific language.
 - [ ] **Organization Lifecycle:** Create a distinct workspace. Confirm real-time updates transition the UI to the active dashboard.
 - [ ] **Payroll Run Lifecycle:** In the payroll tab, confirm the portal shows a real run lifecycle: create run, fund run, activate claim window, then upload allocations against that run.
 - [ ] **Activation Gate:** Confirm employee claims stay blocked until the selected payroll run is both funded and activated.
@@ -31,10 +32,11 @@ Use this master checklist to manually verify the CipherRoll web application prio
 - [ ] **Zero-Leakage:** Verify that the employee view completely strips away all organizational admin controls, displaying only specific, isolated payment allocations directly mapped to their signature.
 - [ ] **Status Clarity:** Confirm each allocation clearly reads as draft, awaiting activation, immediate, vesting-locked, claim-ready, or already claimed without forcing the employee to infer contract behavior from raw hashes.
 - [ ] **Claim Behavior:** Confirm an immediate payroll item can be claimed from the employee portal, a vesting-locked item stays blocked until unlock, and a claimed item visibly moves into a completed state instead of remaining actionable.
-- [ ] **Boundary Language:** Confirm the employee portal explains that claim can release a real token balance when treasury settlement is configured, and that wrapper-backed payouts become public only when the employee finalizes the unshield claim.
+- [ ] **Boundary Language:** Confirm the employee portal explains that claim can release a real token balance when treasury settlement is configured, and that the wrapper request/finalize proof flow can reveal the amount on-chain before or during final unshield release.
 
 ## 6. Auditor Portal Validation
 - [ ] **Import Flow:** Confirm the auditor can enable CoFHE, paste the admin-exported sharing payload, and import it as a recipient permit for the connected wallet.
+- [ ] **CipherBot Help:** Confirm the Auditor portal shows `CipherBot`, that its prompts stay scoped to permit import, aggregate-only review, verify vs publish receipts, and auditor troubleshooting, and that it never implies employee-level access.
 - [ ] **Aggregate-Only Review:** Confirm the auditor portal shows only organization-level balances, commitments, runway, run counts, and treasury/funding status rather than employee-by-employee salary rows or allocation handles.
 - [ ] **Active Permit Selection:** Confirm switching the active imported recipient permit changes which disclosure session is used for decrypting the aggregate handles.
 - [ ] **Provable Evidence Flow:** Confirm the auditor portal can take one selected aggregate metric through `decryptForTx`, then submit either a verify receipt or a publish receipt on-chain.
@@ -52,7 +54,8 @@ Use this master checklist to manually verify the CipherRoll web application prio
 ## 8. Privacy Boundary Validation
 - [ ] **Private Values:** Confirm encrypted budget summaries and encrypted employee allocation amounts remain hidden until the correct permit-backed decrypt flow runs locally.
 - [ ] **Public Metadata:** Confirm the docs and UI do not overstate privacy and clearly acknowledge that wallet addresses, ids, timestamps, payroll-run states, and claim/finalization transactions remain visible on-chain.
-- [ ] **Asset Precision:** Confirm the docs and UI state which payout asset is being released, which confidential wrapper is in use when applicable, and which payout details become public only at final claim time.
+- [ ] **Asset Precision:** Confirm the docs and UI state which payout asset is being released, which confidential wrapper is in use when applicable, and that wrapper settlement amounts can become public in the on-chain request/finalize proof flow rather than only at the last token-release step.
 - [ ] **Selective Disclosure Precision:** Confirm the docs and UI explain that auditor recipient permits unlock only aggregate handles already exposed for audit review and do not bypass admin-only salary getters.
 - [ ] **Verify vs Publish Precision:** Confirm the docs and UI explain the difference between a view-only disclosure, a verified on-chain receipt, and a published decrypt result.
 - [ ] **Plain-Language Boundary:** Confirm the docs and UI explain plainly that view mode keeps plaintext local to the auditor browser while receipt mode records evidence on-chain.
+- [ ] **Docs CipherBot:** Confirm the docs page includes `CipherBot` and that its answers match the current shipped flow for payroll funding, wrapper request plus finalize, auditor import, and disclosure boundaries.

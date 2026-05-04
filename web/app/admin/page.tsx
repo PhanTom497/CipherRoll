@@ -19,6 +19,7 @@ import {
   X,
   Zap
 } from 'lucide-react'
+import CipherBotWidget from '@/components/CipherBotWidget'
 import GlassCard from '@/components/GlassCard'
 import { motion, AnimatePresence } from 'framer-motion'
 import NetworkStatus from '@/components/NetworkStatus'
@@ -29,6 +30,8 @@ import {
   DEFAULT_ORG_ID,
   DIRECT_SETTLEMENT_ADAPTER_ADDRESS,
   formatBytes32Preview,
+  makeHighEntropyBytes32Label,
+  makeHighEntropyLabel,
   makeDeterministicLabel,
   safeAddress,
   TARGET_CHAIN_ID,
@@ -213,6 +216,18 @@ export default function AdminPage() {
     setShowGuide(false)
   }
 
+  const assignHighEntropyOrgLabel = () => {
+    setOrgIdInput(makeHighEntropyLabel('org', workspaceName.trim() || 'cipherroll-workspace'))
+  }
+
+  const assignHighEntropyRouteLabel = () => {
+    setTreasuryRouteLabel(makeHighEntropyLabel('route', treasuryRouteMode))
+  }
+
+  const assignHighEntropyPayrollRunLabel = () => {
+    setSelectedPayrollRunInput(makeHighEntropyLabel('run', 'payroll'))
+  }
+
   const dismissGuideForever = () => {
     try {
       localStorage.setItem('cipherroll-admin-guide-dismissed', 'true')
@@ -339,7 +354,7 @@ export default function AdminPage() {
     selectedTreasuryAdapterAddress !== '0x0000000000000000000000000000000000000000'
   )
   const payrollSettlementAssetId = useMemo(
-    () => makeDeterministicLabel('settlement-asset', hasTreasuryRoute ? treasuryRouteMode : 'cipherroll-payroll'),
+    () => makeHighEntropyBytes32Label('settlement-asset', hasTreasuryRoute ? treasuryRouteMode : 'cipherroll-payroll'),
     [hasTreasuryRoute, treasuryRouteMode]
   )
   const payrollWouldZeroOut = Boolean(
@@ -805,7 +820,7 @@ export default function AdminPage() {
       const contract = getCipherRollContract(signer!)
       return contract.createOrganization(
         orgId,
-        makeDeterministicLabel('workspace', workspaceName.trim() || 'CipherRoll Core'),
+        makeHighEntropyBytes32Label('workspace', workspaceName.trim() || 'CipherRoll Core'),
         3,
         2
       )
@@ -1111,8 +1126,10 @@ export default function AdminPage() {
       return
     }
 
-    const paymentId = makeDeterministicLabel('payment', `${employee}:${Date.now()}`)
-    const memoHash = makeDeterministicLabel('memo', paymentMemo.trim() || 'cipherroll-payroll')
+    const paymentId = makeHighEntropyBytes32Label('payment', employee)
+    const memoHash = paymentMemo.trim()
+      ? makeDeterministicLabel('memo', paymentMemo.trim())
+      : makeHighEntropyBytes32Label('memo', 'cipherroll-payroll')
 
     await withTransaction(
       'Payroll issuance',
@@ -1156,6 +1173,7 @@ export default function AdminPage() {
     { label: 'Committed', value: summaryValues.committed, handle: summaryHandles?.committed ?? null },
     { label: 'Available', value: summaryValues.available, handle: summaryHandles?.available ?? null }
   ]
+
 
   const budgetNumber = Number(summaryValues.budget ?? '0')
   const committedNumber = Number(summaryValues.committed ?? '0')
@@ -1518,6 +1536,18 @@ export default function AdminPage() {
                   className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
                   placeholder="Organization id"
                 />
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-[#a1a1aa]">
+                  <p>
+                    Simple workspace names are easy to use, but easier for outsiders to guess. For a safer setup, switch to a harder-to-guess workspace ID.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={assignHighEntropyOrgLabel}
+                    className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-white transition-colors hover:bg-white/10"
+                  >
+                    Use safer ID
+                  </button>
+                </div>
                 <button
                   onClick={createOrganization}
                   disabled={!canSubmitTransactions || isBusy || organization.exists || !workspaceName.trim()}
@@ -1573,6 +1603,18 @@ export default function AdminPage() {
                   className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
                   placeholder="Treasury route label"
                 />
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-[#a1a1aa]">
+                  <p>
+                    A simple route name is easier to guess. If you do not need a memorable label, switch to a safer route name.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={assignHighEntropyRouteLabel}
+                    className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-white transition-colors hover:bg-white/10"
+                  >
+                    Use safer name
+                  </button>
+                </div>
 
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-[#c9c9d0] space-y-2">
                   <p className="text-white font-semibold">
@@ -1580,7 +1622,7 @@ export default function AdminPage() {
                   </p>
                   <p>
                     {treasuryRouteMode === 'wrapper'
-                      ? 'Employees will request payout first, then finalize the wrapper claim to release the underlying token.'
+                      ? 'Employees will request payout first, then finalize the wrapper claim with an on-chain proof flow that can reveal the amount before the underlying token is released.'
                       : 'Employees will claim once and receive the treasury payout token immediately.'}
                   </p>
                   <p className="font-mono break-all text-xs text-white/55">
@@ -1906,6 +1948,18 @@ export default function AdminPage() {
                       placeholder="may-2026-payroll"
                     />
                   </label>
+                  <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-xs text-[#a1a1aa]">
+                    <p>
+                      A simple run name like a month is easy to follow, but also easier to guess. For a safer setup, switch to a harder-to-guess run ID.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={assignHighEntropyPayrollRunLabel}
+                      className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-white transition-colors hover:bg-white/10"
+                    >
+                      Use safer run ID
+                    </button>
+                  </div>
                   <label className="space-y-2 text-sm block">
                     <span className="text-white/70">Funding deadline</span>
                     <input
@@ -1964,6 +2018,9 @@ export default function AdminPage() {
                       className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
                       placeholder="Optional memo"
                     />
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-xs text-[#a1a1aa]">
+                    Payment IDs are now made harder to guess automatically. If you type a very readable memo, though, someone may still be able to guess it later, so leave it blank or use a less obvious note when that matters.
                   </div>
                   {payrollMode === 'vesting' && (
                     <div className="grid gap-4 md:grid-cols-2">
@@ -2098,7 +2155,6 @@ export default function AdminPage() {
           </div>
         )}
 
-
       </div>
 
       <AnimatePresence>
@@ -2172,6 +2228,11 @@ export default function AdminPage() {
           </div>
         )}
       </AnimatePresence>
+      <CipherBotWidget
+        scope="admin"
+        headline="Your contextual guide for CipherRoll admin operations."
+        intro="I can help with workspace setup, budget versus treasury funding, reserve behavior, wrapper request plus finalize, auditor sharing flow, and common admin-side mistakes. Ask me what you are trying to do."
+      />
     </main>
   )
 }

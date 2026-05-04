@@ -74,12 +74,6 @@ export const CIPHERROLL_ABI = [
         "internalType": "address",
         "name": "employee",
         "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes32",
-        "name": "memoHash",
-        "type": "bytes32"
       }
     ],
     "name": "ConfidentialPayrollIssued",
@@ -99,12 +93,6 @@ export const CIPHERROLL_ABI = [
         "internalType": "address",
         "name": "admin",
         "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes32",
-        "name": "metadataHash",
-        "type": "bytes32"
       },
       {
         "indexed": false,
@@ -189,21 +177,9 @@ export const CIPHERROLL_ABI = [
       },
       {
         "indexed": false,
-        "internalType": "bytes32",
-        "name": "settlementAssetId",
-        "type": "bytes32"
-      },
-      {
-        "indexed": false,
         "internalType": "uint64",
         "name": "fundingDeadline",
         "type": "uint64"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint32",
-        "name": "plannedHeadcount",
-        "type": "uint32"
       }
     ],
     "name": "PayrollRunCreated",
@@ -390,12 +366,6 @@ export const CIPHERROLL_ABI = [
         "internalType": "address",
         "name": "treasuryAdapter",
         "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes32",
-        "name": "treasuryRouteId",
-        "type": "bytes32"
       }
     ],
     "name": "TreasuryConfigured",
@@ -1697,11 +1667,6 @@ export const CIPHERROLL_AUDITOR_ABI = [
             "internalType": "bool",
             "name": "supportsConfidentialSettlement",
             "type": "bool"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "treasuryRouteId",
-            "type": "bytes32"
           },
           {
             "internalType": "address",

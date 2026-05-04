@@ -303,7 +303,7 @@ describe("CipherRollPayroll", function () {
       vestingEnd
     );
 
-    const meta = await payroll.getPayrollAllocationMeta(paymentId);
+    const meta = await payroll.connect(employee).getPayrollAllocationMeta(paymentId);
     const employeeAllocations = await payroll
       .connect(employee)
       .getEmployeeAllocations(orgId, employee.address);
@@ -445,7 +445,6 @@ describe("CipherRollPayroll", function () {
 
     expect(auditorSummary.treasuryRouteConfigured).to.equal(true);
     expect(auditorSummary.supportsConfidentialSettlement).to.equal(false);
-    expect(auditorSummary.treasuryRouteId).to.equal(ethers.id("route:auditor-summary"));
     expect(auditorSummary.settlementAsset).to.equal(await settlementToken.getAddress());
     expect(auditorSummary.confidentialSettlementAsset).to.equal(ethers.ZeroAddress);
     expect(auditorSummary.availableTreasuryFunds).to.equal(0n);
@@ -831,7 +830,7 @@ describe("CipherRollPayroll", function () {
     )
       .to.emit(payroll, "PayrollSettlementRequested");
 
-    const settlementRequest = await payroll.getPayrollSettlementRequest(paymentId);
+    const settlementRequest = await payroll.connect(employee).getPayrollSettlementRequest(paymentId);
     expect(settlementRequest.exists).to.equal(true);
     expect(settlementRequest.payoutAsset).to.equal(await settlementToken.getAddress());
     expect(settlementRequest.confidentialAsset).to.equal(await confidentialSettlementToken.getAddress());
@@ -856,9 +855,379 @@ describe("CipherRollPayroll", function () {
 
     expect(await payroll.isPayrollClaimed(paymentId)).to.equal(true);
     expect(await settlementToken.balanceOf(employee.address)).to.equal(startingBalance + settlementAmount);
-    expect((await payroll.getPayrollSettlementRequest(paymentId)).exists).to.equal(false);
+    expect((await payroll.connect(employee).getPayrollSettlementRequest(paymentId)).exists).to.equal(false);
     expect(await confidentialSettlementAdapter.availablePayrollFunds(orgId)).to.equal(0n);
     expect(await confidentialSettlementAdapter.reservedPayrollFunds(orgId)).to.equal(0n);
+  });
+
+  it("supports fractional wrapper payroll amounts with standard token decimals", async function () {
+    const orgId = ethers.id("org:fherc20-fractional-settlement");
+    const metadataHash = ethers.id("meta:fherc20-fractional-settlement");
+    const payrollRunId = ethers.id("run:fherc20-fractional-settlement");
+    const paymentId = ethers.id("payment:fherc20-fractional-settlement");
+    const memoHash = ethers.id("memo:fherc20-fractional-settlement");
+    const latestBlock = await time.latest();
+    const settlementAmount = ethers.parseEther("3.5");
+
+    await payroll.connect(admin).createOrganization(orgId, metadataHash, 3, 2);
+    await payroll.connect(admin).configureTreasury(
+      orgId,
+      await confidentialSettlementAdapter.getAddress(),
+      ethers.id("route:fherc20-fractional-settlement")
+    );
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, settlementAmount));
+    await payroll.connect(admin).createPayrollRun(
+      orgId,
+      payrollRunId,
+      ethers.id("asset:ccpusd-fractional"),
+      latestBlock + 1000,
+      1
+    );
+
+    await payroll.connect(admin).issueConfidentialPayrollToRun(
+      orgId,
+      payrollRunId,
+      employee.address,
+      await encryptUint128(adminClient, settlementAmount),
+      paymentId,
+      memoHash
+    );
+
+    await settlementToken.connect(admin).approve(await confidentialSettlementAdapter.getAddress(), settlementAmount);
+    await confidentialSettlementAdapter.connect(admin).depositPayrollFunds(orgId, settlementAmount);
+
+    await payroll.connect(admin).fundPayrollRunFromTreasury(orgId, payrollRunId, settlementAmount);
+    await payroll.connect(admin).activatePayrollRun(orgId, payrollRunId);
+
+    const employeeAllocations = await payroll
+      .connect(employee)
+      .getEmployeeAllocations(orgId, employee.address);
+    const allocationDecryptResult = await employeeClient
+      .decryptForTx(employeeAllocations[3][0])
+      .withPermit(await employeeClient.permits.getOrCreateSelfPermit())
+      .execute();
+
+    await payroll.connect(employee).requestPayrollSettlement(
+      orgId,
+      paymentId,
+      allocationDecryptResult.decryptedValue,
+      allocationDecryptResult.signature
+    );
+
+    const settlementRequest = await payroll.connect(employee).getPayrollSettlementRequest(paymentId);
+    const requestDecryptResult = await employeeClient
+      .decryptForTx(settlementRequest.requestId)
+      .withoutPermit()
+      .execute();
+
+    const startingBalance = await settlementToken.balanceOf(employee.address);
+
+    await payroll.connect(employee).finalizePayrollSettlement(
+      orgId,
+      paymentId,
+      requestDecryptResult.decryptedValue,
+      requestDecryptResult.signature
+    );
+
+    expect(await payroll.isPayrollClaimed(paymentId)).to.equal(true);
+    expect(await settlementToken.balanceOf(employee.address)).to.equal(startingBalance + settlementAmount);
+    expect((await payroll.connect(employee).getPayrollSettlementRequest(paymentId)).exists).to.equal(false);
+  });
+
+  it("rejects wrapper finalize payloads with the wrong plaintext for the unshield request", async function () {
+    const orgId = ethers.id("org:fherc20-wrong-plaintext");
+    const metadataHash = ethers.id("meta:fherc20-wrong-plaintext");
+    const payrollRunId = ethers.id("run:fherc20-wrong-plaintext");
+    const paymentId = ethers.id("payment:fherc20-wrong-plaintext");
+    const memoHash = ethers.id("memo:fherc20-wrong-plaintext");
+    const latestBlock = await time.latest();
+    const settlementAmount = 9n * 10n ** 18n;
+
+    await payroll.connect(admin).createOrganization(orgId, metadataHash, 3, 2);
+    await payroll.connect(admin).configureTreasury(
+      orgId,
+      await confidentialSettlementAdapter.getAddress(),
+      ethers.id("route:fherc20-wrong-plaintext")
+    );
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, settlementAmount));
+    await payroll.connect(admin).createPayrollRun(
+      orgId,
+      payrollRunId,
+      ethers.id("asset:ccpusd-wrong-plaintext"),
+      latestBlock + 1000,
+      1
+    );
+
+    await payroll.connect(admin).issueConfidentialPayrollToRun(
+      orgId,
+      payrollRunId,
+      employee.address,
+      await encryptUint128(adminClient, settlementAmount),
+      paymentId,
+      memoHash
+    );
+
+    await settlementToken.connect(admin).approve(await confidentialSettlementAdapter.getAddress(), settlementAmount);
+    await confidentialSettlementAdapter.connect(admin).depositPayrollFunds(orgId, settlementAmount);
+
+    await payroll.connect(admin).fundPayrollRunFromTreasury(orgId, payrollRunId, settlementAmount);
+    await payroll.connect(admin).activatePayrollRun(orgId, payrollRunId);
+
+    const employeeAllocations = await payroll
+      .connect(employee)
+      .getEmployeeAllocations(orgId, employee.address);
+    const allocationDecryptResult = await employeeClient
+      .decryptForTx(employeeAllocations[3][0])
+      .withPermit(await employeeClient.permits.getOrCreateSelfPermit())
+      .execute();
+
+    await payroll.connect(employee).requestPayrollSettlement(
+      orgId,
+      paymentId,
+      allocationDecryptResult.decryptedValue,
+      allocationDecryptResult.signature
+    );
+
+    const settlementRequest = await payroll.connect(employee).getPayrollSettlementRequest(paymentId);
+    const requestDecryptResult = await employeeClient
+      .decryptForTx(settlementRequest.requestId)
+      .withoutPermit()
+      .execute();
+
+    await expect(
+      payroll.connect(employee).finalizePayrollSettlement(
+        orgId,
+        paymentId,
+        requestDecryptResult.decryptedValue + 1n,
+        requestDecryptResult.signature
+      )
+    ).to.be.revertedWith("CipherRoll: invalid wrapper settlement proof");
+
+    expect(await payroll.isPayrollClaimed(paymentId)).to.equal(false);
+    expect((await payroll.connect(employee).getPayrollSettlementRequest(paymentId)).exists).to.equal(true);
+  });
+
+  it("rejects wrapper finalize payloads whose decrypt proof belongs to a different unshield request", async function () {
+    const orgId = ethers.id("org:fherc20-mismatched-request");
+    const metadataHash = ethers.id("meta:fherc20-mismatched-request");
+    const payrollRunId = ethers.id("run:fherc20-mismatched-request");
+    const firstPaymentId = ethers.id("payment:fherc20-mismatched-request:1");
+    const secondPaymentId = ethers.id("payment:fherc20-mismatched-request:2");
+    const latestBlock = await time.latest();
+    const firstSettlementAmount = 4n * 10n ** 18n;
+    const secondSettlementAmount = 5n * 10n ** 18n;
+    const totalFunding = firstSettlementAmount + secondSettlementAmount;
+
+    await payroll.connect(admin).createOrganization(orgId, metadataHash, 3, 2);
+    await payroll.connect(admin).configureTreasury(
+      orgId,
+      await confidentialSettlementAdapter.getAddress(),
+      ethers.id("route:fherc20-mismatched-request")
+    );
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, totalFunding));
+    await payroll.connect(admin).createPayrollRun(
+      orgId,
+      payrollRunId,
+      ethers.id("asset:ccpusd-mismatched-request"),
+      latestBlock + 1000,
+      2
+    );
+
+    await payroll.connect(admin).issueConfidentialPayrollToRun(
+      orgId,
+      payrollRunId,
+      employee.address,
+      await encryptUint128(adminClient, firstSettlementAmount),
+      firstPaymentId,
+      ethers.id("memo:fherc20-mismatched-request:1")
+    );
+    await payroll.connect(admin).issueConfidentialPayrollToRun(
+      orgId,
+      payrollRunId,
+      employee.address,
+      await encryptUint128(adminClient, secondSettlementAmount),
+      secondPaymentId,
+      ethers.id("memo:fherc20-mismatched-request:2")
+    );
+
+    await settlementToken.connect(admin).approve(await confidentialSettlementAdapter.getAddress(), totalFunding);
+    await confidentialSettlementAdapter.connect(admin).depositPayrollFunds(orgId, totalFunding);
+
+    await payroll.connect(admin).fundPayrollRunFromTreasury(orgId, payrollRunId, totalFunding);
+    await payroll.connect(admin).activatePayrollRun(orgId, payrollRunId);
+
+    const employeeAllocations = await payroll
+      .connect(employee)
+      .getEmployeeAllocations(orgId, employee.address);
+    const firstAllocationDecryptResult = await employeeClient
+      .decryptForTx(employeeAllocations[3][0])
+      .withPermit(await employeeClient.permits.getOrCreateSelfPermit())
+      .execute();
+    const secondAllocationDecryptResult = await employeeClient
+      .decryptForTx(employeeAllocations[3][1])
+      .withPermit(await employeeClient.permits.getOrCreateSelfPermit())
+      .execute();
+
+    await payroll.connect(employee).requestPayrollSettlement(
+      orgId,
+      firstPaymentId,
+      firstAllocationDecryptResult.decryptedValue,
+      firstAllocationDecryptResult.signature
+    );
+    await payroll.connect(employee).requestPayrollSettlement(
+      orgId,
+      secondPaymentId,
+      secondAllocationDecryptResult.decryptedValue,
+      secondAllocationDecryptResult.signature
+    );
+
+    const firstSettlementRequest = await payroll.connect(employee).getPayrollSettlementRequest(firstPaymentId);
+    const secondSettlementRequest = await payroll.connect(employee).getPayrollSettlementRequest(secondPaymentId);
+    expect(firstSettlementRequest.requestId).to.not.equal(secondSettlementRequest.requestId);
+
+    const secondRequestDecryptResult = await employeeClient
+      .decryptForTx(secondSettlementRequest.requestId)
+      .withoutPermit()
+      .execute();
+
+    await expect(
+      payroll.connect(employee).finalizePayrollSettlement(
+        orgId,
+        firstPaymentId,
+        secondRequestDecryptResult.decryptedValue,
+        secondRequestDecryptResult.signature
+      )
+    ).to.be.revertedWith("CipherRoll: invalid wrapper settlement proof");
+
+    expect(await payroll.isPayrollClaimed(firstPaymentId)).to.equal(false);
+    expect((await payroll.connect(employee).getPayrollSettlementRequest(firstPaymentId)).exists).to.equal(true);
+    expect((await payroll.connect(employee).getPayrollSettlementRequest(secondPaymentId)).exists).to.equal(true);
+  });
+
+  it("rejects replayed wrapper finalize attempts after a successful claim", async function () {
+    const orgId = ethers.id("org:fherc20-replayed-finalize");
+    const metadataHash = ethers.id("meta:fherc20-replayed-finalize");
+    const payrollRunId = ethers.id("run:fherc20-replayed-finalize");
+    const paymentId = ethers.id("payment:fherc20-replayed-finalize");
+    const memoHash = ethers.id("memo:fherc20-replayed-finalize");
+    const latestBlock = await time.latest();
+    const settlementAmount = 9n * 10n ** 18n;
+
+    await payroll.connect(admin).createOrganization(orgId, metadataHash, 3, 2);
+    await payroll.connect(admin).configureTreasury(
+      orgId,
+      await confidentialSettlementAdapter.getAddress(),
+      ethers.id("route:fherc20-replayed-finalize")
+    );
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, settlementAmount));
+    await payroll.connect(admin).createPayrollRun(
+      orgId,
+      payrollRunId,
+      ethers.id("asset:ccpusd-replayed-finalize"),
+      latestBlock + 1000,
+      1
+    );
+
+    await payroll.connect(admin).issueConfidentialPayrollToRun(
+      orgId,
+      payrollRunId,
+      employee.address,
+      await encryptUint128(adminClient, settlementAmount),
+      paymentId,
+      memoHash
+    );
+
+    await settlementToken.connect(admin).approve(await confidentialSettlementAdapter.getAddress(), settlementAmount);
+    await confidentialSettlementAdapter.connect(admin).depositPayrollFunds(orgId, settlementAmount);
+
+    await payroll.connect(admin).fundPayrollRunFromTreasury(orgId, payrollRunId, settlementAmount);
+    await payroll.connect(admin).activatePayrollRun(orgId, payrollRunId);
+
+    const employeeAllocations = await payroll
+      .connect(employee)
+      .getEmployeeAllocations(orgId, employee.address);
+    const allocationDecryptResult = await employeeClient
+      .decryptForTx(employeeAllocations[3][0])
+      .withPermit(await employeeClient.permits.getOrCreateSelfPermit())
+      .execute();
+
+    await payroll.connect(employee).requestPayrollSettlement(
+      orgId,
+      paymentId,
+      allocationDecryptResult.decryptedValue,
+      allocationDecryptResult.signature
+    );
+
+    const settlementRequest = await payroll.connect(employee).getPayrollSettlementRequest(paymentId);
+    const requestDecryptResult = await employeeClient
+      .decryptForTx(settlementRequest.requestId)
+      .withoutPermit()
+      .execute();
+
+    await payroll.connect(employee).finalizePayrollSettlement(
+      orgId,
+      paymentId,
+      requestDecryptResult.decryptedValue,
+      requestDecryptResult.signature
+    );
+
+    await expect(
+      payroll.connect(employee).finalizePayrollSettlement(
+        orgId,
+        paymentId,
+        requestDecryptResult.decryptedValue,
+        requestDecryptResult.signature
+      )
+    ).to.be.revertedWith("CipherRoll: already claimed");
+  });
+
+  it("rejects wrapper finalize calls when no settlement request is pending", async function () {
+    const orgId = ethers.id("org:fherc20-no-pending-request");
+    const metadataHash = ethers.id("meta:fherc20-no-pending-request");
+    const payrollRunId = ethers.id("run:fherc20-no-pending-request");
+    const paymentId = ethers.id("payment:fherc20-no-pending-request");
+    const memoHash = ethers.id("memo:fherc20-no-pending-request");
+    const latestBlock = await time.latest();
+    const settlementAmount = 9n * 10n ** 18n;
+
+    await payroll.connect(admin).createOrganization(orgId, metadataHash, 3, 2);
+    await payroll.connect(admin).configureTreasury(
+      orgId,
+      await confidentialSettlementAdapter.getAddress(),
+      ethers.id("route:fherc20-no-pending-request")
+    );
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, settlementAmount));
+    await payroll.connect(admin).createPayrollRun(
+      orgId,
+      payrollRunId,
+      ethers.id("asset:ccpusd-no-pending-request"),
+      latestBlock + 1000,
+      1
+    );
+
+    await payroll.connect(admin).issueConfidentialPayrollToRun(
+      orgId,
+      payrollRunId,
+      employee.address,
+      await encryptUint128(adminClient, settlementAmount),
+      paymentId,
+      memoHash
+    );
+
+    await settlementToken.connect(admin).approve(await confidentialSettlementAdapter.getAddress(), settlementAmount);
+    await confidentialSettlementAdapter.connect(admin).depositPayrollFunds(orgId, settlementAmount);
+
+    await payroll.connect(admin).fundPayrollRunFromTreasury(orgId, payrollRunId, settlementAmount);
+    await payroll.connect(admin).activatePayrollRun(orgId, payrollRunId);
+
+    await expect(
+      payroll.connect(employee).finalizePayrollSettlement(
+        orgId,
+        paymentId,
+        1n,
+        "0x"
+      )
+    ).to.be.revertedWith("CipherRoll: settlement request missing");
   });
 
   it("rejects invalid admin actions and malformed issuance requests", async function () {

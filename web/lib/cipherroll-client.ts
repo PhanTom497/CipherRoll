@@ -620,7 +620,6 @@ export function getCipherRollAuditorContract(runner: BrowserProvider | JsonRpcSi
       return {
         treasuryRouteConfigured: result.treasuryRouteConfigured as boolean,
         supportsConfidentialSettlement: result.supportsConfidentialSettlement as boolean,
-        treasuryRouteId: result.treasuryRouteId as string,
         settlementAsset: result.settlementAsset as string,
         confidentialSettlementAsset: result.confidentialSettlementAsset as string,
         availableTreasuryFunds: String(result.availableTreasuryFunds as bigint),

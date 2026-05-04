@@ -12,7 +12,7 @@ The core design goal is straightforward:
 - let auditors review only aggregate disclosures
 - let compliance evidence become provable when needed
 
-CipherRoll is no longer just an encrypted bookkeeping demo. In the current Wave 2 submission, it supports real treasury-backed settlement, the official FHERC20 wrapper payout path, local employee decrypts, aggregate auditor permits, and on-chain audit receipts.
+CipherRoll is no longer just an encrypted bookkeeping demo. In the current submission snapshot, it supports real treasury-backed settlement, the official FHERC20 wrapper payout path, local employee decrypts, aggregate auditor permits, on-chain audit receipts, and a first operator-support layer through CipherBot.
 
 ---
 
@@ -117,7 +117,25 @@ The auditor portal is an aggregate-first review surface for:
 
 ### Tax Status / Docs
 
-These are explanatory and documentation-facing surfaces. They are not full tax automation or full regulator workflow products in the current Wave 2 submission.
+These are explanatory and documentation-facing surfaces. They are not full tax automation or full regulator workflow products in the current submission.
+
+The docs/admin/auditor surfaces now also include a lightweight CipherBot. It is intentionally narrow: product explanation, workflow support, and privacy-boundary guidance rather than autonomous execution.
+
+---
+
+## Submission-Readiness Hardening
+
+Before the Phase 3 work began in earnest, CipherRoll completed a deliberate hardening pass so the shipped product would be more truthful and more stable:
+
+- wrapper-finalize proof verification now happens on-chain instead of accepting proof-shaped payloads without validation
+- wrapper settlement regression coverage now includes wrong plaintext, mismatched request ids, replay attempts, and finalize calls with no pending request
+- `allowPublic(...)` naming is aligned with the current CoFHE docs
+- privacy wording now matches the real host-chain disclosure boundary for wrapper request/finalize settlement
+- a published privacy matrix explains encrypted values, public metadata, explicit product disclosures, and inferable identifiers
+- identifier inference was reduced where practical and remaining tradeoffs are called out plainly
+- convenience-only route-id and metadata leakage were trimmed before submission
+
+This hardening work matters architecturally because it closes the gap between "what the product says" and "what the contracts and portals actually do."
 
 ---
 
@@ -151,7 +169,7 @@ The employee wallet can decrypt only the values intentionally exposed to it.
 
 ## Payroll Lifecycle
 
-Wave 2 makes payroll an explicit state machine rather than a single vague action.
+The current shipped payroll system is an explicit state machine rather than a single vague action.
 
 ```mermaid
 sequenceDiagram
@@ -214,7 +232,7 @@ Useful when:
 
 ### FHERC20 Wrapper Settlement Route
 
-This is the preferred Wave 2 path.
+This is the preferred current settlement path.
 
 Useful when:
 
@@ -230,7 +248,7 @@ High-level flow:
 5. Employee finalizes payout through the unshield/claim flow
 6. Underlying token is released
 
-This keeps confidential balances private until the final unshield claim step.
+This keeps confidential wrapper balances private before the request is decrypted, but once the employee submits the `decryptForTx` finalize proof on-chain the amount is no longer only a local secret.
 
 ---
 
@@ -271,7 +289,7 @@ depending on the evidence mode selected in the auditor portal.
 
 ## Auditor Architecture
 
-Wave 2 introduces a real selective-disclosure architecture rather than a placeholder auditor page.
+The current product introduces a real selective-disclosure architecture rather than a placeholder auditor page.
 
 ### Admin sharing path
 
@@ -333,7 +351,7 @@ The following values are designed to stay encrypted:
 - available runway
 - employee allocation amounts
 - aggregate auditor summary handles
-- wrapper-backed confidential balances before final claim
+- wrapper-backed confidential balances before wrapper-request decryption
 
 ### Public
 
@@ -345,7 +363,7 @@ The following remain public or inferable on the host chain:
 - funding deadlines
 - claim and finalization activity
 - timestamps
-- final underlying payout amount when a wrapper-backed unshield claim is finalized
+- wrapper settlement amount once the wrapper request/finalize decrypt proof is submitted on-chain
 
 ### Practical interpretation
 
@@ -383,9 +401,9 @@ The primary practical controls remain:
 
 ---
 
-## What Wave 2 Specifically Adds
+## What The Current Submission Specifically Adds
 
-Compared with the earlier state of the project, Wave 2 now includes:
+Compared with the earlier state of the project, the current submission now includes:
 
 - real payroll settlement instead of bookkeeping-only payroll
 - explicit payroll lifecycle states

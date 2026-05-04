@@ -86,8 +86,9 @@ async function main() {
   const paymentId = ethers.id(`smoke:fherc20:payment:${seed}`);
   const memoHash = ethers.id(`smoke:fherc20:memo:${seed}`);
   const treasuryRouteId = ethers.id(`smoke:fherc20:route:${seed}`);
-  const budgetAmount = ethers.parseUnits("1.5", 18);
-  const payrollAmount = ethers.parseUnits("0.4", 18);
+  const budgetAmount = ethers.parseUnits("3.0", 18);
+  // The local FHERC20-style mock wrapper only accepts whole wrapped units at a 1e18 rate.
+  const payrollAmount = ethers.parseUnits("1.0", 18);
 
   const [encryptedBudget] = await liveClient.encryptInputs([Encryptable.uint128(budgetAmount)]).execute();
   const [encryptedPayroll] = await liveClient.encryptInputs([Encryptable.uint128(payrollAmount)]).execute();
