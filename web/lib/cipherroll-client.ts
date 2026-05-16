@@ -1,6 +1,17 @@
 'use client'
 
 import {
+  AUDITOR_DISCLOSURE_METRIC_INDEX,
+  formatCiphertextHandle,
+  mapAdminBudgetHandlesResult,
+  mapAuditorOrganizationSummaryResult,
+  mapOrganizationInsightsResult,
+  mapOrganizationResult,
+  mapPayrollAllocationMetaResult,
+  mapPayrollRunIdResult,
+  mapPayrollRunResult,
+  mapPayrollSettlementRequestResult,
+  mapTreasuryAdapterDetailsResult,
   AUDITOR_DISCLOSURE_CONTRACT_ADDRESS,
   CONTRACT_ADDRESS,
   TARGET_CHAIN_KEY,
@@ -16,6 +27,11 @@ import { Contract, BrowserProvider as EthersBrowserProvider, JsonRpcProvider } f
 import type {
   AuditorAggregateDisclosureMetric,
   AuditorOrganizationSummaryView,
+  PayrollAllocationMetaView,
+  PayrollSettlementRequestView,
+  OrganizationView,
+  OrganizationInsightsView,
+  PayrollRunView,
   TreasuryAdapterConfig
 } from "./cipherroll-types";
 
@@ -128,12 +144,6 @@ export class JsonRpcSigner {
     throw new Error("Transaction receipt was not observed in time.");
   }
 }
-
-const AUDITOR_DISCLOSURE_METRIC_INDEX: Record<AuditorAggregateDisclosureMetric, number> = {
-  budget: 0,
-  committed: 1,
-  available: 2
-};
 
 export async function createBrowserProvider() {
   if (!hasEthereumProvider()) {
@@ -419,36 +429,16 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
 
-    async getOrganization(orgId: string) {
+    async getOrganization(orgId: string): Promise<OrganizationView> {
       const contract = await getEthersContract();
       const result = await contract.getOrganization(orgId);
-      return {
-        admin: result.admin,
-        treasuryAdapter: result.treasuryAdapter,
-        metadataHash: result.metadataHash,
-        treasuryRouteId: result.treasuryRouteId,
-        reservedAdminSlots: Number(result.reservedAdminSlots),
-        reservedQuorum: Number(result.reservedQuorum),
-        createdAt: Number(result.createdAt),
-        updatedAt: Number(result.updatedAt),
-        exists: result.exists
-      };
+      return mapOrganizationResult(result);
     },
 
     async getTreasuryAdapterDetails(orgId: string): Promise<TreasuryAdapterConfig> {
       const contract = await getEthersContract();
       const result = await contract.getTreasuryAdapterDetails(orgId);
-      return {
-        adapter: result[0] as string,
-        routeId: result[1] as string,
-        adapterId: result[2] as string,
-        adapterName: result[3] as string,
-        supportsConfidentialSettlement: result[4] as boolean,
-        settlementAsset: result[5] as string,
-        confidentialSettlementAsset: result[6] as string,
-        availablePayrollFunds: String(result[7] as bigint),
-        reservedPayrollFunds: String(result[8] as bigint)
-      };
+      return mapTreasuryAdapterDetailsResult(result);
     },
 
     async approveSettlementToken(tokenAddress: string, spender: string, amount: bigint) {
@@ -467,18 +457,10 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
 
-    async getOrganizationInsights(orgId: string) {
+    async getOrganizationInsights(orgId: string): Promise<OrganizationInsightsView> {
       const contract = await getEthersContract();
       const result = await contract.getOrganizationInsights(orgId);
-      return {
-        totalPayrollItems: Number(result.totalPayrollItems),
-        activePayrollItems: Number(result.activePayrollItems),
-        claimedPayrollItems: Number(result.claimedPayrollItems),
-        vestingPayrollItems: Number(result.vestingPayrollItems),
-        employeeRecipients: Number(result.employeeRecipients),
-        lastIssuedAt: Number(result.lastIssuedAt),
-        lastClaimedAt: Number(result.lastClaimedAt)
-      };
+      return mapOrganizationInsightsResult(result);
     },
 
     /**
@@ -488,11 +470,7 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
     async getAdminBudgetHandles(orgId: string) {
       const contract = await getEthersContract();
       const result = await contract.getAdminBudgetHandles(orgId);
-      return {
-        budget: result[0] as CiphertextHandle,
-        committed: result[1] as CiphertextHandle,
-        available: result[2] as CiphertextHandle
-      };
+      return mapAdminBudgetHandlesResult(result);
     },
 
     /**
@@ -510,38 +488,16 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
       };
     },
 
-    async getPayrollAllocationMeta(paymentId: string) {
+    async getPayrollAllocationMeta(paymentId: string): Promise<PayrollAllocationMetaView> {
       const contract = await getEthersContract();
       const result = await contract.getPayrollAllocationMeta(paymentId);
-      return {
-        employee: result.employee as string,
-        paymentId: result.paymentId as string,
-        memoHash: result.memoHash as string,
-        createdAt: Number(result.createdAt),
-        isVesting: result.isVesting as boolean,
-        vestingStart: Number(result.vestingStart),
-        vestingEnd: Number(result.vestingEnd),
-        exists: result.exists as boolean
-      };
+      return mapPayrollAllocationMetaResult(result);
     },
 
-    async getPayrollRun(payrollRunId: string) {
+    async getPayrollRun(payrollRunId: string): Promise<PayrollRunView> {
       const contract = await getEthersContract();
       const result = await contract.getPayrollRun(payrollRunId);
-      return {
-        orgId: result.orgId as string,
-        settlementAssetId: result.settlementAssetId as string,
-        fundingDeadline: Number(result.fundingDeadline),
-        plannedHeadcount: Number(result.plannedHeadcount),
-        allocationCount: Number(result.allocationCount),
-        claimedCount: Number(result.claimedCount),
-        createdAt: Number(result.createdAt),
-        fundedAt: Number(result.fundedAt),
-        activatedAt: Number(result.activatedAt),
-        finalizedAt: Number(result.finalizedAt),
-        status: Number(result.status),
-        exists: result.exists as boolean
-      };
+      return mapPayrollRunResult(result);
     },
 
     async getOrganizationPayrollRunIds(orgId: string) {
@@ -551,20 +507,16 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
 
     async getPayrollRunForPayment(paymentId: string) {
       const contract = await getEthersContract();
-      const result = (await contract.getPayrollRunForPayment(paymentId)) as string;
-      return result === "0x0000000000000000000000000000000000000000000000000000000000000000" ? null : result;
+      const result = await contract.getPayrollRunForPayment(paymentId);
+      return mapPayrollRunIdResult(result);
     },
 
-    async getPayrollSettlementRequest(paymentId: string) {
+    async getPayrollSettlementRequest(
+      paymentId: string
+    ): Promise<PayrollSettlementRequestView> {
       const contract = await getEthersContract();
       const result = await contract.getPayrollSettlementRequest(paymentId);
-      return {
-        requestId: result.requestId as string,
-        payoutAsset: result.payoutAsset as string,
-        confidentialAsset: result.confidentialAsset as string,
-        requestedAt: Number(result.requestedAt),
-        exists: result.exists as boolean
-      };
+      return mapPayrollSettlementRequestResult(result);
     },
 
     async isPayrollClaimed(paymentId: string) {
@@ -617,26 +569,7 @@ export function getCipherRollAuditorContract(runner: BrowserProvider | JsonRpcSi
     async getAuditorOrganizationSummary(orgId: string): Promise<AuditorOrganizationSummaryView> {
       const contract = await getEthersContract();
       const result = await contract.getAuditorOrganizationSummary(orgId);
-      return {
-        treasuryRouteConfigured: result.treasuryRouteConfigured as boolean,
-        supportsConfidentialSettlement: result.supportsConfidentialSettlement as boolean,
-        settlementAsset: result.settlementAsset as string,
-        confidentialSettlementAsset: result.confidentialSettlementAsset as string,
-        availableTreasuryFunds: String(result.availableTreasuryFunds as bigint),
-        reservedTreasuryFunds: String(result.reservedTreasuryFunds as bigint),
-        totalPayrollRuns: Number(result.totalPayrollRuns),
-        draftPayrollRuns: Number(result.draftPayrollRuns),
-        fundedPayrollRuns: Number(result.fundedPayrollRuns),
-        activePayrollRuns: Number(result.activePayrollRuns),
-        finalizedPayrollRuns: Number(result.finalizedPayrollRuns),
-        totalPayrollItems: Number(result.totalPayrollItems),
-        activePayrollItems: Number(result.activePayrollItems),
-        claimedPayrollItems: Number(result.claimedPayrollItems),
-        vestingPayrollItems: Number(result.vestingPayrollItems),
-        employeeRecipients: Number(result.employeeRecipients),
-        lastIssuedAt: Number(result.lastIssuedAt),
-        lastClaimedAt: Number(result.lastClaimedAt)
-      };
+      return mapAuditorOrganizationSummaryResult(result);
     },
 
     async getAuditorEncryptedSummaryHandles(orgId: string) {
@@ -729,8 +662,5 @@ export function getCipherRollAuditorContract(runner: BrowserProvider | JsonRpcSi
 }
 
 export function formatHandle(handle: CiphertextHandle | bigint | null | undefined) {
-  if (!handle) return "Unavailable";
-  const raw = typeof handle === "string" ? handle : handle.toString(16);
-  if (raw.length < 20) return raw;
-  return `${raw.slice(0, 12)}...${raw.slice(-8)}`;
+  return formatCiphertextHandle(handle);
 }

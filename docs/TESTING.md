@@ -105,3 +105,33 @@ npm run test
 - CoFHE mock contracts are auto-deployed for local test runs.
 - Tests create batteries-included CoFHE clients via `hre.cofhe.createClientWithBatteries(...)`.
 - The suite currently covers encrypted multi-deposit budget math, confidential payroll issuance, explicit payroll-run lifecycle gating, privacy-safe organization insights, over-capacity zero-allocation behavior, employee-only reads, vesting metadata and claim enforcement, permit-enabled decrypt flows, admin/employee access control, wrapper-finalize proof verification, and malformed, mismatched, replayed, or duplicate request failure handling.
+
+## 7. Backend Reporting & Export Verification
+
+Once the Phase 4 backend is running, verify the indexed operator layer as well:
+
+1. Open `GET /api/status` and confirm indexer progress plus object counts.
+2. Open `GET /api/reports/organizations/:orgId/summary` for a real workspace and confirm it returns aggregate-only payroll, treasury, and claim posture.
+3. Open `GET /api/notifications?orgId=:orgId` and confirm the feed includes funded runs, activated claims, employee claims, wrapper settlement requests/finalizations, and audit receipt events when applicable.
+4. Open `GET /api/reports/organizations/:orgId/export` and confirm the JSON package contains:
+   - summary
+   - payroll runs
+   - audit receipts
+   - notifications
+5. Open `GET /api/reports/organizations/:orgId/export?format=csv` and confirm the CSV downloads successfully.
+6. Post to `POST /api/cipherbot/query` with a free-form question such as "Why can a later payroll run still show zero available treasury funds?" and confirm the answer cites current CipherRoll funding behavior rather than a generic chatbot response.
+7. In the docs, admin, and auditor portals, confirm CipherBot accepts free-form questions and returns portal-aware answers plus follow-up prompts.
+8. In the admin portal overview, confirm the backend operations panel shows:
+   - indexer status
+   - active payroll runs
+   - pending employee claims
+   - wrapper finalize backlog
+   - filterable workflow notifications
+9. In the auditor portal receipts tab, confirm the backend evidence package shows:
+   - verified receipt stream
+   - published receipt stream
+   - packaged notification trail
+
+Expected boundary:
+- backend reporting should improve operator visibility
+- employee plaintext salary rows must still remain out of backend reports and exports

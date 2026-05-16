@@ -119,7 +119,18 @@ The auditor portal is an aggregate-first review surface for:
 
 These are explanatory and documentation-facing surfaces. They are not full tax automation or full regulator workflow products in the current submission.
 
-The docs/admin/auditor surfaces now also include a lightweight CipherBot. It is intentionally narrow: product explanation, workflow support, and privacy-boundary guidance rather than autonomous execution.
+The docs/admin/auditor/employee surfaces now also include a retrieval-backed CipherBot. It is still intentionally narrow in scope: product explanation, workflow support, and privacy-boundary guidance rather than autonomous execution, but it now answers free-form questions from indexed CipherRoll knowledge instead of relying only on preset answers.
+
+### Phase 4 Backend Reporting Layer
+
+CipherRoll now also includes the first backend-powered operator layer:
+
+- indexed public read models for organizations, payroll runs, payments, receipts, and raw workflow events
+- aggregate-first reporting summaries for admins and auditors
+- notification materialization from meaningful payroll and audit events
+- export packaging for operator JSON/CSV handoff
+
+This backend layer is intentionally limited to public or compliance-safe projections. It does not replace wallet-local decrypts and it does not centralize employee payroll plaintext.
 
 ---
 

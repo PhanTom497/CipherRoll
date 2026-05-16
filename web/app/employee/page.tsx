@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import GlassCard from '@/components/GlassCard'
+import CipherBotWidget from '@/components/CipherBotWidget'
 import NetworkStatus from '@/components/NetworkStatus'
 import { WalletConnectButton } from '@/components/WalletConnectButton'
 import { useCipherRollWallet } from '@/components/EvmWalletProvider'
@@ -135,6 +136,35 @@ export default function EmployeePage() {
 
   const orgId = useMemo(() => toBytes32Label(orgIdInput), [orgIdInput])
   const isTargetChain = chainId === TARGET_CHAIN_ID
+  const claimableCount = useMemo(
+    () =>
+      allocations.filter((allocation) => {
+        const runClaimOpen = allocation.payrollRunStatus === null || allocation.payrollRunStatus === 2
+        const needsFinalizeSettlement = Boolean(allocation.settlementRequestId)
+        return (
+          runClaimOpen &&
+          !allocation.isClaimed &&
+          (needsFinalizeSettlement ||
+            !allocation.isVesting ||
+            Math.floor(Date.now() / 1000) >= allocation.vestingEnd)
+        )
+      }).length,
+    [allocations]
+  )
+  const finalizeCount = useMemo(
+    () => allocations.filter((allocation) => Boolean(allocation.settlementRequestId) && !allocation.isClaimed).length,
+    [allocations]
+  )
+  const vestingCount = useMemo(
+    () =>
+      allocations.filter(
+        (allocation) =>
+          allocation.isVesting &&
+          !allocation.isClaimed &&
+          Math.floor(Date.now() / 1000) < allocation.vestingEnd
+      ).length,
+    [allocations]
+  )
 
   useEffect(() => {
     setCofheReady(false)
@@ -575,6 +605,20 @@ export default function EmployeePage() {
           </div>
         </div>
       </div>
+      <CipherBotWidget
+        scope="employee"
+        headline="Your contextual guide for CipherRoll employee claims."
+        intro="Ask about privacy mode, claim readiness, wrapper finalize, vesting, or settlement visibility. I will keep the guidance simple and focused on the current employee flow."
+        organizationId={orgId}
+        liveContext={{
+          portalSummary: [
+            `${allocations.length} payroll item(s) currently loaded for this wallet.`,
+            `${claimableCount} item(s) look claim-ready right now.`,
+            `${finalizeCount} item(s) still need wrapper finalization.`,
+            `${vestingCount} item(s) are still locked by vesting.`
+          ]
+        }}
+      />
     </main>
   )
 }

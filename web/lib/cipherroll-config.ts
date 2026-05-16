@@ -1,103 +1,62 @@
-import { keccak256, toUtf8Bytes } from "ethers";
+import {
+  AUDITOR_DISCLOSURE_METRIC_INDEX,
+  formatBytes32Preview,
+  formatCiphertextHandle,
+  getCipherRollRuntimeConfig,
+  makeDeterministicLabel,
+  makeHighEntropyBytes32Label,
+  makeHighEntropyLabel,
+  mapAdminBudgetHandlesResult,
+  mapAuditorOrganizationSummaryResult,
+  mapOrganizationInsightsResult,
+  mapOrganizationResult,
+  mapPayrollAllocationMetaResult,
+  mapPayrollRunIdResult,
+  mapPayrollRunResult,
+  mapPayrollSettlementRequestResult,
+  mapTreasuryAdapterDetailsResult,
+  safeAddress,
+  SUPPORTED_CHAIN_CONFIG,
+  toBytes32Label,
+  type SupportedChainKey
+} from "../../packages/cipherroll-sdk/src";
 
-const SUPPORTED_CHAIN_CONFIG = {
-  "arb-sepolia": {
-    chainId: 421614,
-    name: "Arbitrum Sepolia",
-    chainIdHex: "0x66eee",
-    nativeCurrency: {
-      name: "ETH",
-      symbol: "ETH",
-      decimals: 18
-    },
-    rpcUrls: ["https://arbitrum-sepolia-rpc.publicnode.com"],
-    blockExplorerUrls: ["https://sepolia.arbiscan.io"]
-  }
-} as const;
+export {
+  AUDITOR_DISCLOSURE_METRIC_INDEX,
+  formatBytes32Preview,
+  formatCiphertextHandle,
+  getCipherRollRuntimeConfig,
+  mapAdminBudgetHandlesResult,
+  mapAuditorOrganizationSummaryResult,
+  makeDeterministicLabel,
+  makeHighEntropyBytes32Label,
+  makeHighEntropyLabel,
+  mapOrganizationInsightsResult,
+  mapOrganizationResult,
+  mapPayrollAllocationMetaResult,
+  mapPayrollRunIdResult,
+  mapPayrollRunResult,
+  mapPayrollSettlementRequestResult,
+  mapTreasuryAdapterDetailsResult,
+  safeAddress,
+  SUPPORTED_CHAIN_CONFIG,
+  toBytes32Label,
+  type SupportedChainKey
+};
 
-export type SupportedChainKey = "arb-sepolia";
+const runtime = getCipherRollRuntimeConfig(process.env as Record<string, string | undefined>);
 
-export const CONTRACT_ADDRESS =
-  process.env.NEXT_PUBLIC_CIPHERROLL_CONTRACT_ADDRESS || "";
-
-export const AUDITOR_DISCLOSURE_CONTRACT_ADDRESS =
-  process.env.NEXT_PUBLIC_CIPHERROLL_AUDITOR_DISCLOSURE_ADDRESS || "";
-
-export const DIRECT_SETTLEMENT_ADAPTER_ADDRESS =
-  process.env.NEXT_PUBLIC_CIPHERROLL_DIRECT_SETTLEMENT_ADAPTER || "";
-
-export const WRAPPER_SETTLEMENT_ADAPTER_ADDRESS =
-  process.env.NEXT_PUBLIC_CIPHERROLL_WRAPPER_SETTLEMENT_ADAPTER || "";
-
-export const DEFAULT_ORG_ID =
-  process.env.NEXT_PUBLIC_DEFAULT_ORG_ID || "cipherroll-default-org";
-
-export const TARGET_CHAIN_KEY: SupportedChainKey = "arb-sepolia";
-
-export const TARGET_CHAIN_NAME = SUPPORTED_CHAIN_CONFIG[TARGET_CHAIN_KEY].name;
-export const TARGET_CHAIN_ID = SUPPORTED_CHAIN_CONFIG[TARGET_CHAIN_KEY].chainId;
-export const TARGET_CHAIN_HEX = SUPPORTED_CHAIN_CONFIG[TARGET_CHAIN_KEY].chainIdHex;
-export const TARGET_CHAIN_RPC_URL = SUPPORTED_CHAIN_CONFIG[TARGET_CHAIN_KEY].rpcUrls[0];
-export const TARGET_CHAIN_PARAMS = {
-  chainId: SUPPORTED_CHAIN_CONFIG[TARGET_CHAIN_KEY].chainIdHex,
-  chainName: SUPPORTED_CHAIN_CONFIG[TARGET_CHAIN_KEY].name,
-  nativeCurrency: SUPPORTED_CHAIN_CONFIG[TARGET_CHAIN_KEY].nativeCurrency,
-  rpcUrls: SUPPORTED_CHAIN_CONFIG[TARGET_CHAIN_KEY].rpcUrls,
-  blockExplorerUrls: SUPPORTED_CHAIN_CONFIG[TARGET_CHAIN_KEY].blockExplorerUrls
-} as const;
-
-export const SUPPORTED_CHAIN_IDS: number[] = Object.values(SUPPORTED_CHAIN_CONFIG).map(
-  (chain) => chain.chainId
-);
-
-export const SUPPORTED_CHAIN_NAMES = TARGET_CHAIN_NAME;
-
-export function toBytes32Label(input: string): string {
-  const value = input.trim();
-  if (!value) return keccak256(toUtf8Bytes("wave1"));
-  return keccak256(toUtf8Bytes(value));
-}
-
-export function makeDeterministicLabel(prefix: string, suffix?: string) {
-  return toBytes32Label([prefix, suffix].filter(Boolean).join(":"));
-}
-
-function makeEntropyToken(): string {
-  const cryptoObject = globalThis.crypto
-
-  if (cryptoObject && typeof cryptoObject.randomUUID === "function") {
-    return cryptoObject.randomUUID().replace(/-/g, "")
-  }
-
-  if (cryptoObject && typeof cryptoObject.getRandomValues === "function") {
-    const bytes = new Uint8Array(16)
-    cryptoObject.getRandomValues(bytes)
-    return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("")
-  }
-
-  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`
-}
-
-export function makeHighEntropyLabel(prefix: string, hint?: string) {
-  const normalizedHint = hint
-    ?.trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 24)
-
-  return [prefix, normalizedHint, makeEntropyToken()].filter(Boolean).join(":")
-}
-
-export function makeHighEntropyBytes32Label(prefix: string, hint?: string) {
-  return toBytes32Label(makeHighEntropyLabel(prefix, hint))
-}
-
-export function safeAddress(value: string): string | null {
-  return /^0x[a-fA-F0-9]{40}$/.test(value.trim()) ? value.trim() : null;
-}
-
-export function formatBytes32Preview(value: string): string {
-  if (!value) return "Not set";
-  return `${value.slice(0, 10)}...${value.slice(-8)}`;
-}
+export const CONTRACT_ADDRESS = runtime.contractAddress;
+export const AUDITOR_DISCLOSURE_CONTRACT_ADDRESS = runtime.auditorDisclosureAddress;
+export const DIRECT_SETTLEMENT_ADAPTER_ADDRESS = runtime.directSettlementAdapterAddress;
+export const WRAPPER_SETTLEMENT_ADAPTER_ADDRESS = runtime.wrapperSettlementAdapterAddress;
+export const BACKEND_BASE_URL = runtime.backendBaseUrl;
+export const DEFAULT_ORG_ID = runtime.defaultOrgId;
+export const TARGET_CHAIN_KEY = runtime.targetChainKey;
+export const TARGET_CHAIN_NAME = runtime.targetChainName;
+export const TARGET_CHAIN_ID = runtime.targetChainId;
+export const TARGET_CHAIN_HEX = runtime.targetChainHex;
+export const TARGET_CHAIN_RPC_URL = runtime.targetChainRpcUrl;
+export const TARGET_CHAIN_PARAMS = runtime.targetChainParams;
+export const SUPPORTED_CHAIN_IDS = runtime.supportedChainIds;
+export const SUPPORTED_CHAIN_NAMES = runtime.supportedChainNames;

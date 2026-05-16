@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Building2,
+  Download,
   Eye,
   FileKey2,
   KeyRound,
@@ -26,6 +27,7 @@ import {
   toBytes32Label
 } from '@/lib/cipherroll-config'
 import { extractCipherRollErrorMessage, shortHash } from '@/lib/admin-portal-utils'
+import { getCipherRollBackendClient } from '@/lib/cipherroll-backend'
 import { getCipherRollAuditorContract } from '@/lib/cipherroll-client'
 import {
   decryptUint128ForTx,
@@ -38,12 +40,15 @@ import {
   selectAuditorRecipientPermit
 } from '@/lib/fhenix-permits'
 import type {
+  AuditReceiptRecord,
   AuditorAggregateDisclosureMetric,
   AuditorBatchEvidenceReceiptView,
   AuditorEvidenceMode,
   AuditorEvidenceReceiptView,
   AuditorOrganizationSummaryView,
-  AuditorRecipientPermitView
+  AuditorRecipientPermitView,
+  NotificationRecord,
+  OrganizationAuditPackage
 } from '@/lib/cipherroll-types'
 
 type AuditorStatusTone = 'neutral' | 'info' | 'success' | 'error'
@@ -158,6 +163,12 @@ export default function AuditorPage() {
   ])
   const [lastEvidenceReceipt, setLastEvidenceReceipt] = useState<AuditorEvidenceReceiptView | null>(null)
   const [lastBatchEvidenceReceipt, setLastBatchEvidenceReceipt] = useState<AuditorBatchEvidenceReceiptView | null>(null)
+  const [backendAuditPackage, setBackendAuditPackage] = useState<OrganizationAuditPackage | null>(null)
+  const [backendAuditNotifications, setBackendAuditNotifications] = useState<NotificationRecord[]>([])
+  const [backendVerifiedReceipts, setBackendVerifiedReceipts] = useState<AuditReceiptRecord[]>([])
+  const [backendPublishedReceipts, setBackendPublishedReceipts] = useState<AuditReceiptRecord[]>([])
+  const [backendAuditError, setBackendAuditError] = useState<string | null>(null)
+  const [isBackendAuditLoading, setIsBackendAuditLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<AuditorPortalTab>('access')
   const [status, setStatus] = useState<AuditorStatus>({
     tone: 'neutral',
@@ -196,11 +207,62 @@ export default function AuditorPage() {
     })
     setLastEvidenceReceipt(null)
     setLastBatchEvidenceReceipt(null)
+    setBackendAuditPackage(null)
+    setBackendAuditNotifications([])
+    setBackendVerifiedReceipts([])
+    setBackendPublishedReceipts([])
+    setBackendAuditError(null)
   }, [address, chainId])
 
   useEffect(() => {
     loadRecipientPermits()
   }, [loadRecipientPermits])
+
+  const loadBackendAuditPackage = useCallback(async () => {
+    setIsBackendAuditLoading(true)
+    setBackendAuditError(null)
+
+    try {
+      const backend = getCipherRollBackendClient()
+      const [auditPackage, verifiedReceipts, publishedReceipts] = await Promise.all([
+        backend.getOrganizationAuditPackage(orgId),
+        backend.getAuditReceipts({ orgId, published: false, limit: 6 }),
+        backend.getAuditReceipts({ orgId, published: true, limit: 6 })
+      ])
+      setBackendAuditPackage(auditPackage)
+      setBackendAuditNotifications(auditPackage.recentNotifications)
+      setBackendVerifiedReceipts(verifiedReceipts)
+      setBackendPublishedReceipts(publishedReceipts)
+    } catch (error) {
+      const message = extractCipherRollErrorMessage(error)
+      setBackendAuditError(message)
+    } finally {
+      setIsBackendAuditLoading(false)
+    }
+  }, [orgId])
+
+  useEffect(() => {
+    if (activeTab !== 'receipts') return
+    void loadBackendAuditPackage()
+  }, [activeTab, loadBackendAuditPackage])
+
+  const downloadBackendAuditPackage = async () => {
+    try {
+      const backend = getCipherRollBackendClient()
+      const auditPackage = await backend.getOrganizationAuditPackage(orgId)
+      const blob = new Blob([JSON.stringify(auditPackage, null, 2)], {
+        type: 'application/json;charset=utf-8'
+      })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `cipherroll-${orgId}-audit-package.json`
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      toast.error(extractCipherRollErrorMessage(error))
+    }
+  }
 
   const initializeCofhe = async () => {
     if (!signer) {
@@ -1019,6 +1081,124 @@ export default function AuditorPage() {
                 </div>
               </div>
             ) : null}
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-[#c9c9d0]">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="font-semibold text-white">Backend evidence package</p>
+                  <p className="mt-2">
+                    Aggregate-only audit export from the indexed backend, including recent receipts and workflow notifications.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void loadBackendAuditPackage()}
+                    disabled={isBackendAuditLoading}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                  >
+                    {isBackendAuditLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    {isBackendAuditLoading ? 'Refreshing…' : 'Refresh Package'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void downloadBackendAuditPackage()}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-gray-200"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export JSON
+                  </button>
+                </div>
+              </div>
+
+              {backendAuditError ? (
+                <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-amber-50">
+                  Backend audit package unavailable right now: {backendAuditError}
+                </div>
+              ) : null}
+
+              <div className="mt-4 grid gap-4 md:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Verified receipts</p>
+                  <p className="mt-2 text-2xl font-black text-white">
+                    {backendAuditPackage ? String(backendVerifiedReceipts.length) : '—'}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Published receipts</p>
+                  <p className="mt-2 text-2xl font-black text-white">
+                    {backendAuditPackage ? String(backendPublishedReceipts.length) : '—'}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Recent notifications</p>
+                  <p className="mt-2 text-2xl font-black text-white">{backendAuditPackage ? String(backendAuditNotifications.length) : '—'}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-6 lg:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Verified receipt stream</p>
+                  <div className="mt-3 space-y-3">
+                    {backendVerifiedReceipts.length === 0 ? (
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#a1a1aa]">
+                        No verified receipts are currently indexed for this workspace.
+                      </div>
+                    ) : (
+                      backendVerifiedReceipts.map((receipt) => (
+                        <div key={receipt.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                          <p className="font-semibold text-white">{receipt.receiptKind === 'batch' ? 'Batch receipt' : 'Single-metric receipt'}</p>
+                          <p className="mt-2 text-sm text-[#c9c9d0]">Block {receipt.blockNumber}</p>
+                          <p className="mt-2 text-xs font-mono text-white/45">{shortHash(receipt.txHash) ?? receipt.txHash}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Published receipt stream</p>
+                  <div className="mt-3 space-y-3">
+                    {backendPublishedReceipts.length === 0 ? (
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#a1a1aa]">
+                        No published receipts are currently indexed for this workspace.
+                      </div>
+                    ) : (
+                      backendPublishedReceipts.map((receipt) => (
+                        <div key={receipt.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                          <p className="font-semibold text-white">{receipt.receiptKind === 'batch' ? 'Published batch' : 'Published metric'}</p>
+                          <p className="mt-2 text-sm text-[#c9c9d0]">Block {receipt.blockNumber}</p>
+                          <p className="mt-2 text-xs font-mono text-white/45">{shortHash(receipt.txHash) ?? receipt.txHash}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Notification trail</p>
+                  <div className="mt-3 space-y-3">
+                    {backendAuditNotifications.length === 0 ? (
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#a1a1aa]">
+                        No recent backend notifications are packaged for this workspace yet.
+                      </div>
+                    ) : (
+                      backendAuditNotifications.slice(0, 4).map((notification) => (
+                        <div key={notification.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="font-semibold text-white">{notification.title}</p>
+                            <span className="text-[11px] uppercase tracking-[0.16em] text-white/45">
+                              {new Date(notification.createdAt * 1000).toLocaleString()}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm text-[#c9c9d0]">{notification.detail}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </GlassCard>
         ) : null}
@@ -1027,7 +1207,8 @@ export default function AuditorPage() {
       <CipherBotWidget
         scope="auditor"
         headline="Your contextual guide for CipherRoll auditor review."
-        intro="I can help with permit import, aggregate-only review, verify versus publish receipts, disclosure boundaries, and common auditor-side refresh errors. Ask me what you need."
+        intro="Ask about permit import, aggregate-only review, verify versus publish receipts, or disclosure boundaries. I will keep the answer focused on the current auditor workflow."
+        organizationId={orgId}
       />
     </div>
   )

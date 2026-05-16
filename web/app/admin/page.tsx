@@ -7,6 +7,7 @@ import {
   Building2,
   CheckCircle2,
   Copy,
+  Download,
   FileKey2,
   FolderCog,
   KeyRound,
@@ -26,6 +27,7 @@ import NetworkStatus from '@/components/NetworkStatus'
 import { useCipherRollWallet } from '@/components/EvmWalletProvider'
 import { getCipherRollContract, formatHandle } from '@/lib/cipherroll-client'
 import {
+  BACKEND_BASE_URL,
   CONTRACT_ADDRESS,
   DEFAULT_ORG_ID,
   DIRECT_SETTLEMENT_ADAPTER_ADDRESS,
@@ -39,6 +41,7 @@ import {
   WRAPPER_SETTLEMENT_ADAPTER_ADDRESS,
   toBytes32Label
 } from '@/lib/cipherroll-config'
+import { getCipherRollBackendClient } from '@/lib/cipherroll-backend'
 import {
   extractCipherRollErrorMessage,
   parseDecimalAmountToWei,
@@ -54,22 +57,16 @@ import {
 } from '@/lib/fhenix-permits'
 import type {
   AuditorSharingPermitView,
+  IndexerStatus,
+  NotificationRecord,
+  OrganizationView,
   OrganizationInsightsView,
+  OrganizationReportSummary,
+  PaymentRecord,
+  PayrollRunRecord,
   PayrollRunView,
   TreasuryAdapterConfig
 } from '@/lib/cipherroll-types'
-
-type OrganizationView = {
-  admin: string
-  treasuryAdapter: string
-  metadataHash: string
-  treasuryRouteId: string
-  reservedAdminSlots: number
-  reservedQuorum: number
-  createdAt: number
-  updatedAt: number
-  exists: boolean
-}
 
 type AdminPortal = 'overview' | 'setup' | 'budget' | 'payroll' | 'auditor'
 
@@ -161,6 +158,11 @@ function formatDateTimeLocalInput(date: Date): string {
   return `${year}-${month}-${day}T${hours}:${minutes}`
 }
 
+function formatUnixTimestamp(value?: number | null): string {
+  if (!value) return 'Not recorded'
+  return new Date(value * 1000).toLocaleString()
+}
+
 export default function AdminPage() {
   const { address, signer, provider, chainId, isInstalled, switchToTargetChain } = useCipherRollWallet()
   const [activePortal, setActivePortal] = useState<AdminPortal>('overview')
@@ -185,6 +187,15 @@ export default function AdminPage() {
     detail: 'Connect the admin wallet, confirm the target network, and refresh the workspace state.'
   })
   const [showGuide, setShowGuide] = useState(false)
+  const [backendReport, setBackendReport] = useState<OrganizationReportSummary | null>(null)
+  const [backendNotifications, setBackendNotifications] = useState<NotificationRecord[]>([])
+  const [backendStatus, setBackendStatus] = useState<IndexerStatus | null>(null)
+  const [backendActiveRuns, setBackendActiveRuns] = useState<PayrollRunRecord[]>([])
+  const [backendPendingClaims, setBackendPendingClaims] = useState<PaymentRecord[]>([])
+  const [backendPendingFinalizations, setBackendPendingFinalizations] = useState<PaymentRecord[]>([])
+  const [backendNotificationCategory, setBackendNotificationCategory] = useState<'all' | 'payroll_run' | 'claim' | 'settlement' | 'audit_receipt'>('all')
+  const [backendReportError, setBackendReportError] = useState<string | null>(null)
+  const [isBackendReportLoading, setIsBackendReportLoading] = useState(false)
 
   useEffect(() => {
     try {
@@ -214,6 +225,46 @@ export default function AdminPage() {
 
   const remindGuideLater = () => {
     setShowGuide(false)
+  }
+
+  const downloadBackendJsonExport = async () => {
+    try {
+      const backend = getCipherRollBackendClient()
+      const exportPackage = await backend.getOrganizationExportPackage(orgId)
+      const blob = new Blob([JSON.stringify(exportPackage, null, 2)], {
+        type: 'application/json;charset=utf-8'
+      })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `cipherroll-${orgId}-operations.json`
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      toast.error(extractCipherRollErrorMessage(error))
+    }
+  }
+
+  const downloadBackendCsvExport = async () => {
+    try {
+      const response = await fetch(
+        `${BACKEND_BASE_URL}/api/reports/organizations/${encodeURIComponent(orgId)}/export?format=csv`
+      )
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { detail?: string; error?: string } | null
+        throw new Error(payload?.detail || payload?.error || 'CipherRoll could not generate the CSV export.')
+      }
+
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `cipherroll-${orgId}-operations.csv`
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      toast.error(extractCipherRollErrorMessage(error))
+    }
   }
 
   const assignHighEntropyOrgLabel = () => {
@@ -312,6 +363,60 @@ export default function AdminPage() {
     const value = Math.floor(new Date(auditorPermitExpirationInput).getTime() / 1000)
     return Number.isFinite(value) && value > 0 ? value : null
   }, [auditorPermitExpirationInput])
+
+  const loadBackendOperatorOutputs = useCallback(async () => {
+    if (!organization.exists) return
+
+    setIsBackendReportLoading(true)
+    setBackendReportError(null)
+
+    try {
+      const backend = getCipherRollBackendClient()
+      const [status, report, notifications, activeRuns, pendingClaims, pendingFinalizations] = await Promise.all([
+        backend.getStatus(),
+        backend.getOrganizationReportSummary(orgId),
+        backend.getNotifications({
+          orgId,
+          limit: 8,
+          category: backendNotificationCategory === 'all' ? undefined : backendNotificationCategory
+        }),
+        backend.getOrganizationRuns(orgId, { status: 2, limit: 5 }),
+        backend.getOrganizationPayments(orgId, { claimState: 'pending', limit: 5 }),
+        backend.getOrganizationPayments(orgId, { settlementState: 'requested', limit: 5 })
+      ])
+
+      setBackendStatus(status)
+      setBackendReport(report)
+      setBackendNotifications(notifications)
+      setBackendActiveRuns(activeRuns)
+      setBackendPendingClaims(pendingClaims)
+      setBackendPendingFinalizations(pendingFinalizations)
+    } catch (error) {
+      const message = extractCipherRollErrorMessage(error)
+      setBackendReportError(message)
+    } finally {
+      setIsBackendReportLoading(false)
+    }
+  }, [backendNotificationCategory, orgId, organization.exists])
+
+  useEffect(() => {
+    if (!organization.exists) {
+      setBackendReport(null)
+      setBackendNotifications([])
+      setBackendStatus(null)
+      setBackendActiveRuns([])
+      setBackendPendingClaims([])
+      setBackendPendingFinalizations([])
+      setBackendReportError(null)
+      return
+    }
+
+    if (activePortal !== 'overview' && activePortal !== 'auditor') {
+      return
+    }
+
+    void loadBackendOperatorOutputs()
+  }, [activePortal, organization.exists, loadBackendOperatorOutputs])
   const vestingWindowInvalid = Boolean(
     payrollMode === 'vesting' &&
     (!vestingStartTimestamp || !vestingEndTimestamp || vestingEndTimestamp <= vestingStartTimestamp)
@@ -1512,6 +1617,216 @@ export default function AdminPage() {
               ))}
             </div>
           </GlassCard>
+
+          <GlassCard className="mt-8 p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white/60">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Backend Operations
+                </div>
+                <h2 className="mt-4 text-2xl font-bold text-white">Reporting, exports, and workflow feed</h2>
+                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[#c9c9d0]">
+                  Aggregate-only reporting from the indexed backend: treasury posture, run-state counts, pending actions, and recent workflow notifications.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => void loadBackendOperatorOutputs()}
+                  disabled={!organization.exists || isBackendReportLoading}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                >
+                  {isBackendReportLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                  {isBackendReportLoading ? 'Refreshing…' : 'Refresh Feed'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void downloadBackendJsonExport()}
+                  disabled={!organization.exists}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-gray-200 disabled:opacity-50"
+                >
+                  <Download className="h-4 w-4" />
+                  Export JSON
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void downloadBackendCsvExport()}
+                  disabled={!organization.exists}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                >
+                  <Download className="h-4 w-4" />
+                  Export CSV
+                </button>
+              </div>
+            </div>
+
+            {backendReportError ? (
+              <div className="mt-6 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-50">
+                Backend report unavailable right now: {backendReportError}
+              </div>
+            ) : null}
+
+            <div className="mt-6 grid gap-4 xl:grid-cols-4">
+              {[
+                { label: 'Pending claims', value: backendReport ? String(backendReport.pendingClaims) : '—', detail: 'Allocations still waiting for employee action.' },
+                { label: 'Pending wrapper finalizes', value: backendReport ? String(backendReport.pendingSettlementRequests) : '—', detail: 'Settlement requests that still need a finalize leg.' },
+                { label: 'Settled payouts', value: backendReport ? String(backendReport.settledPayments) : '—', detail: 'Payroll items that reached a final payout state.' },
+                { label: 'Backend feed', value: backendReport ? String(backendNotifications.length) : '—', detail: 'Recent workflow notifications in the indexed backend feed.' }
+              ].map((item) => (
+                <div key={item.label} className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-5">
+                  <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold mb-3">{item.label}</p>
+                  <p className="text-3xl font-black text-white break-words">{item.value}</p>
+                  <p className="mt-2 text-sm text-[#a1a1aa]">{item.detail}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 grid gap-4 xl:grid-cols-4">
+              {[
+                { label: 'Indexed block', value: backendStatus ? String(backendStatus.latestIndexedBlock) : '—', detail: 'Latest block stored in the backend index.' },
+                { label: 'Known chain head', value: backendStatus ? String(backendStatus.latestKnownBlock) : '—', detail: 'Latest chain height seen during backend sync.' },
+                { label: 'Organizations', value: backendStatus ? String(backendStatus.organizations) : '—', detail: 'Workspace records currently indexed.' },
+                { label: 'Notifications', value: backendStatus ? String(backendStatus.notifications) : '—', detail: 'Workflow notifications materialized from chain events.' }
+              ].map((item) => (
+                <div key={item.label} className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-5">
+                  <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold mb-3">{item.label}</p>
+                  <p className="text-3xl font-black text-white break-words">{item.value}</p>
+                  <p className="mt-2 text-sm text-[#a1a1aa]">{item.detail}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 grid gap-6 lg:grid-cols-[0.95fr,1.05fr]">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold">Run-state summary</p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {[
+                    ['Draft runs', backendReport?.draftPayrollRuns ?? 0],
+                    ['Funded runs', backendReport?.fundedPayrollRuns ?? 0],
+                    ['Active runs', backendReport?.activePayrollRuns ?? 0],
+                    ['Finalized runs', backendReport?.finalizedPayrollRuns ?? 0]
+                  ].map(([label, value]) => (
+                    <div key={String(label)} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">{label}</p>
+                      <p className="mt-2 text-2xl font-black text-white">{String(value)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold">Recent workflow notifications</p>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      ['all', 'All'],
+                      ['payroll_run', 'Runs'],
+                      ['claim', 'Claims'],
+                      ['settlement', 'Settlements'],
+                      ['audit_receipt', 'Receipts']
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setBackendNotificationCategory(value as typeof backendNotificationCategory)}
+                        className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                          backendNotificationCategory === value
+                            ? 'bg-white text-black'
+                            : 'border border-white/10 bg-black/20 text-white/70 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {backendNotifications.length === 0 ? (
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#a1a1aa]">
+                      No backend notifications are cached for this workspace yet.
+                    </div>
+                  ) : (
+                    backendNotifications.map((notification) => (
+                      <div key={notification.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="font-semibold text-white">{notification.title}</p>
+                          <span className="text-[11px] uppercase tracking-[0.16em] text-white/45">
+                            {new Date(notification.createdAt * 1000).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-sm text-[#c9c9d0]">{notification.detail}</p>
+                        <p className="mt-2 text-xs font-mono text-white/45">{notification.eventName}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-6 lg:grid-cols-3">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold">Active payroll runs</p>
+                <div className="mt-4 space-y-3">
+                  {backendActiveRuns.length === 0 ? (
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#a1a1aa]">
+                      No active payroll runs are currently indexed for this workspace.
+                    </div>
+                  ) : (
+                    backendActiveRuns.map((run) => (
+                      <div key={run.payrollRunId} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                        <p className="font-semibold text-white">{formatBytes32Preview(run.payrollRunId)}</p>
+                        <p className="mt-2 text-sm text-[#c9c9d0]">
+                          Claims active since {formatUnixTimestamp(run.activatedAt)}
+                        </p>
+                        <p className="mt-2 text-xs text-white/45">
+                          {run.claimedCount}/{run.allocationCount} claims completed
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold">Pending employee claims</p>
+                <div className="mt-4 space-y-3">
+                  {backendPendingClaims.length === 0 ? (
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#a1a1aa]">
+                      No pending employee claims are currently indexed.
+                    </div>
+                  ) : (
+                    backendPendingClaims.map((payment) => (
+                      <div key={payment.paymentId} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                        <p className="font-semibold text-white">{formatBytes32Preview(payment.paymentId)}</p>
+                        <p className="mt-2 text-sm text-[#c9c9d0]">Issued {formatUnixTimestamp(payment.issuedAt)}</p>
+                        <p className="mt-2 text-xs font-mono text-white/45">{payment.employee}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold">Wrapper finalize backlog</p>
+                <div className="mt-4 space-y-3">
+                  {backendPendingFinalizations.length === 0 ? (
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#a1a1aa]">
+                      No pending wrapper settlement finalizations are currently indexed.
+                    </div>
+                  ) : (
+                    backendPendingFinalizations.map((payment) => (
+                      <div key={payment.paymentId} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                        <p className="font-semibold text-white">{formatBytes32Preview(payment.paymentId)}</p>
+                        <p className="mt-2 text-sm text-[#c9c9d0]">Requested {formatUnixTimestamp(payment.requestedAt)}</p>
+                        <p className="mt-2 text-xs text-white/45">Waiting for finalize step</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </GlassCard>
           </div>
         )}
 
@@ -1686,7 +2001,7 @@ export default function AdminPage() {
                     type="datetime-local"
                     value={auditorPermitExpirationInput}
                     onChange={(event) => setAuditorPermitExpirationInput(event.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                    className="cipherroll-date-input w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
                   />
                 </div>
               </div>
@@ -1966,7 +2281,7 @@ export default function AdminPage() {
                       type="datetime-local"
                       value={payrollFundingDeadlineInput}
                       onChange={(event) => setPayrollFundingDeadlineInput(event.target.value)}
-                      className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white"
+                      className="cipherroll-date-input w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white"
                     />
                   </label>
                   <button
@@ -2030,7 +2345,7 @@ export default function AdminPage() {
                           type="datetime-local"
                           value={vestingStartInput}
                           onChange={(event) => setVestingStartInput(event.target.value)}
-                          className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                          className="cipherroll-date-input w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
                         />
                       </label>
                       <label className="space-y-2 text-sm">
@@ -2039,7 +2354,7 @@ export default function AdminPage() {
                           type="datetime-local"
                           value={vestingEndInput}
                           onChange={(event) => setVestingEndInput(event.target.value)}
-                          className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
+                          className="cipherroll-date-input w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white"
                         />
                       </label>
                     </div>
@@ -2231,7 +2546,8 @@ export default function AdminPage() {
       <CipherBotWidget
         scope="admin"
         headline="Your contextual guide for CipherRoll admin operations."
-        intro="I can help with workspace setup, budget versus treasury funding, reserve behavior, wrapper request plus finalize, auditor sharing flow, and common admin-side mistakes. Ask me what you are trying to do."
+        intro="Ask about workspace setup, treasury funding, payroll activation, wrapper settlement, or auditor sharing. I will keep the answer practical and aligned with the current admin flow."
+        organizationId={orgId}
       />
     </main>
   )

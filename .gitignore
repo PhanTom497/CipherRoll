@@ -23,5 +23,8 @@ Thumbs.db
 
 # Node
 node_modules/
+backend/dist/
+backend/data/*.sqlite
+packages/*/dist/
 
 account.txt

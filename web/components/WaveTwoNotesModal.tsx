@@ -60,7 +60,7 @@ const notes = [
     badge: "Phase 3",
     title: "CipherBot now supports operators inside the product where the workflow actually happens",
     body:
-      "The first Phase 3 item is live as a lightweight in-product guide across docs, admin, and auditor portals. CipherBot helps explain payroll funding order, reserve behavior, wrapper finalize steps, auditor permit import, disclosure boundaries, and common failure states without pretending to execute actions autonomously.",
+      "CipherBot now supports free-form product questions across docs, admin, and auditor portals. It helps explain payroll funding order, reserve behavior, wrapper finalize steps, auditor permit import, disclosure boundaries, and common failure states without pretending to execute actions autonomously.",
     icon: FileCheck2,
     accent: "from-amber-300/18 via-amber-300/8 to-transparent"
   }

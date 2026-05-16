@@ -361,6 +361,8 @@ The short version is:
 ```text
 CipherRoll/
 ├── contracts/                 # Solidity contracts
+├── backend/                   # Phase 4 backend foundation + indexed read layer
+├── packages/                  # Shared CipherRoll SDK and future reusable packages
 ├── scripts/                   # Deploy and smoke scripts
 ├── test/                      # Hardhat contract tests
 ├── outputs/                   # Deployment artifacts and smoke outputs
@@ -402,6 +404,7 @@ Typical values used by the project include:
 - Arbitrum Sepolia RPC URL
 - deployer private key
 - frontend contract address / chain config
+- optional backend indexer settings such as local DB path, poll interval, and admin token
 
 ### Run frontend
 
@@ -410,11 +413,23 @@ cd web
 npm run dev
 ```
 
+### Run backend
+
+```bash
+npm run dev:backend
+```
+
 ### Build frontend
 
 ```bash
 cd web
 npm run build
+```
+
+### Build backend
+
+```bash
+npm run build:backend
 ```
 
 ---
@@ -443,6 +458,12 @@ npm run deploy:arb-sepolia
 
 ```bash
 npm run smoke:arb-sepolia:wrapper
+```
+
+### Backend one-shot index sync
+
+```bash
+npm run sync:backend
 ```
 
 ---

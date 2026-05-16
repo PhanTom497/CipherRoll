@@ -53,14 +53,14 @@ const timelinePhases = [
   {
     id: "wave3",
     wave: "Phase 3: Submission Hardening & Operator Support",
-    description: <>Phase 3 is now the completed submission-readiness layer on top of the Phase 2 core: stronger wrapper verification, truthful privacy boundaries, reduced avoidable leakage, safer identifiers, a published privacy matrix, and a lightweight in-product CipherBot across docs, admin, and auditor surfaces.</>,
+    description: <>Phase 3 is now the completed submission-readiness layer on top of the Phase 2 core: stronger wrapper verification, truthful privacy boundaries, reduced avoidable leakage, safer identifiers, a published privacy matrix, and the first in-product CipherBot layer across docs, admin, and auditor surfaces.</>,
     status: "COMPLETE",
     tags: ["Submission Hardening", "Privacy Matrix", "CipherBot", "Complete"],
     milestones: [
       <>Patched the wrapper-finalize path so the final unshield release no longer accepts proof-shaped payloads without on-chain verification.</>,
       <>Locked the wrapper settlement path with permanent regression tests covering wrong plaintext, mismatched request id, replay attempts, and missing pending-request cases.</>,
       <>Published a clear <span className="font-bold text-white">privacy matrix</span>, corrected misleading disclosure language, trimmed convenience-only leakage, and reduced unnecessary identifier inference where practical.</>,
-      <>Shipped a lightweight <span className="font-bold text-white">CipherBot</span> across docs, admin, and auditor portals for product-specific onboarding, explanation, and operator support.</>
+      <>Shipped the first in-product <span className="font-bold text-white">CipherBot</span> layer across docs, admin, and auditor portals for product-specific onboarding, explanation, and operator support.</>
     ],
     callout: <>This is the completed submission-ready layer: not a new backend platform yet, but a materially more truthful, stable, and operator-friendly CipherRoll.</>,
     isCurrent: false
@@ -68,22 +68,22 @@ const timelinePhases = [
   {
     id: "wave4",
     wave: "Phase 4: Backend Foundation, Reporting & Real CipherBot",
-    description: <>Phase 4 is where CipherRoll grows beyond a contracts-plus-frontend submission into a more complete application platform with read models, backend APIs, operator exports, richer analytics, and a real retrieval-backed assistant.</>,
-    status: "NEXT",
-    tags: ["Backend", "Indexer", "Reporting", "Real CipherBot"],
+    description: <>Phase 4 is now the completed application-platform wave that moves CipherRoll beyond a contracts-plus-frontend submission into a fuller product system with indexed read models, backend APIs, operator exports, richer analytics, and a real retrieval-backed assistant.</>,
+    status: "COMPLETE",
+    tags: ["Backend", "Indexer", "Reporting", "Real CipherBot", "Complete"],
     milestones: [
-      <>Stand up the first real backend service with health checks, structured config, and authenticated API routes where appropriate.</>,
-      <>Add event ingestion and normalized read models so organizations, runs, claims, finalizations, and receipts can be queried cleanly.</>,
-      <>Move the deferred SDK, export, and operator analytics work into a reusable platform layer instead of keeping it stuck in frontend-only helpers.</>,
-      <>Expand <span className="font-bold text-white">CipherBot</span> into a real retrieval-backed assistant that can answer free-form product questions from indexed docs and portal-aware guidance.</>
+      <>Stand up the first real backend service with health checks, structured config, authenticated reindex support, and indexed read models for organizations, runs, payments, receipts, and workflow events.</>,
+      <>Move shared runtime config, contract-view shaping, and backend query methods into a reusable <span className="font-bold text-white">CipherRoll SDK</span> instead of keeping them trapped in frontend-only helpers.</>,
+      <>Ship the first operator reporting layer with aggregate-only summaries, JSON/CSV exports, run-state views, wrapper-finalize backlog tracking, and workflow notifications for admins and auditors.</>,
+      <>Expand <span className="font-bold text-white">CipherBot</span> into a real retrieval-backed assistant that answers free-form product questions across docs, admin, auditor, and employee workflows.</>
     ],
-    callout: <>This is the next serious product layer: better data plumbing, better reporting, and a more capable support surface without centralizing sensitive decrypt paths.</>,
-    isCurrent: true
+    callout: <>Phase 4 is complete: CipherRoll now has a real backend foundation, shared SDK slices, operator reporting/exports, and a retrieval-backed CipherBot across the main product portals.</>,
+    isCurrent: false
   },
   {
     id: "wave5",
     wave: "Phase 5: Advanced Operations, Governance & Compliance Expansion",
-    description: <>Later waves are reserved for heavier execution boundaries such as real on-chain governance, deeper integrations, notification surfaces, tax workflows, and larger compliance or ecosystem expansion.</>,
+    description: <>Later waves are reserved for heavier execution boundaries such as real on-chain governance, deeper integrations, notification surfaces, tax workflows, larger compliance or ecosystem expansion, plus any non-blocking backend/CipherBot polish that naturally belongs in the next platform wave.</>,
     status: "FUTURE",
     tags: ["Governance", "Integrations", "Notifications", "Tax Workflows"],
     milestones: [
@@ -92,7 +92,7 @@ const timelinePhases = [
       <>Expand the tax-authority roadmap into real encrypted tax provisioning, regulator-specific disclosure, and policy-driven reporting.</>,
       <>Revisit larger assistant and communication surfaces only after backend and governance boundaries are mature enough to support them safely.</>
     ],
-    callout: <>These items are intentionally deferred. They matter, but they are not part of the current submission snapshot and should not be presented as already shipped capability.</>,
+    callout: <>These items are intentionally deferred. They matter, but they are not part of the current shipped Phase 4 snapshot and should not be presented as already shipped capability.</>,
     isCurrent: false
   }
 ];
@@ -388,7 +388,7 @@ export default function DocsPage() {
                       {
                         label: "Current Focus",
                         value: "Phase 4",
-                        text: "Backend foundation, reporting, deferred SDK work, and a real retrieval-backed CipherBot."
+                        text: "Backend foundation, shared SDK, operator reporting, and a real retrieval-backed CipherBot."
                       },
                       {
                         label: "Submission State",
@@ -522,7 +522,7 @@ cd web && npm run dev</pre>
       <CipherBotWidget
         scope="docs"
         headline="Your contextual guide for CipherRoll documentation."
-        intro="I can help explain the current CipherRoll docs, payroll flow, wrapper settlement steps, auditor permit behavior, disclosure boundaries, and common operator mistakes. What are you looking for?"
+        intro="Ask about the live CipherRoll product, payroll flow, settlement steps, privacy boundaries, auditor access, or roadmap status. I will answer from the current documentation and shipped behavior."
       />
     </div>
   );

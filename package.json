@@ -5,14 +5,19 @@
   "description": "CipherRoll — confidential payroll on Arbitrum Sepolia via the CoFHE coprocessor stack",
   "scripts": {
     "baseline": "npm run compile && npm run test && npm run build:web",
+    "build:sdk": "tsc -p packages/cipherroll-sdk/tsconfig.json",
     "compile": "npx hardhat compile",
     "test": "npx hardhat test",
+    "build:backend": "npm run build:sdk && tsc -p backend/tsconfig.json",
+    "dev:backend": "npm run build:sdk && ts-node --project backend/tsconfig.json backend/src/server.ts",
+    "start:backend": "npm run build:sdk && node backend/dist/server.js",
+    "sync:backend": "npm run build:sdk && ts-node --project backend/tsconfig.json backend/src/sync-once.ts",
     "sync:interfaces": "ts-node ./scripts/sync-interfaces.ts",
     "deploy:arb-sepolia": "npx hardhat run ./scripts/deploy.ts --network arb-sepolia",
     "deploy:base-sepolia": "npx hardhat run ./scripts/deploy.ts --network base-sepolia",
     "smoke:arb-sepolia:wrapper": "npx hardhat run ./scripts/live-smoke-wrapper-arb-sepolia.ts --network arb-sepolia",
     "lint:web": "npm --prefix web run lint",
-    "build:web": "npm --prefix web run build"
+    "build:web": "npm run build:sdk && npm --prefix web run build"
   },
   "devDependencies": {
     "@cofhe/hardhat-plugin": "0.5.1",

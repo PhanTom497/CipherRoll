@@ -26,6 +26,42 @@ type WalletContextValue = {
 
 const WalletContext = createContext<WalletContextValue | undefined>(undefined);
 
+function normalizeWalletError(error: unknown): Error {
+  const rawMessage =
+    typeof error === "string"
+      ? error
+      : error instanceof Error
+        ? error.message
+        : typeof error === "object" && error !== null && "message" in error
+          ? String((error as { message?: unknown }).message ?? "")
+          : "";
+  const message = rawMessage.trim();
+  const code =
+    typeof error === "object" && error !== null && "code" in error
+      ? (error as { code?: unknown }).code
+      : null;
+
+  if (code === 4001 || /user rejected|user denied|rejected the request/i.test(message)) {
+    return new Error("Wallet connection was canceled.");
+  }
+
+  if (/failed to connect to metamask/i.test(message)) {
+    return new Error(
+      "MetaMask could not open the connection prompt. Unlock MetaMask, close any pending wallet popups, and try again."
+    );
+  }
+
+  if (/already processing eth_requestAccounts|request of type 'wallet_requestPermissions' already pending/i.test(message)) {
+    return new Error("MetaMask already has a wallet approval prompt open. Complete or close it, then try again.");
+  }
+
+  if (/disconnected|provider disconnected|no active provider/i.test(message)) {
+    return new Error("The wallet provider disconnected. Refresh the page and reconnect MetaMask.");
+  }
+
+  return error instanceof Error ? error : new Error(message || "Wallet connection failed.");
+}
+
 async function hydrateWalletState() {
   const provider = await createBrowserProvider();
   const accounts = (await provider.send("eth_accounts", [])) as string[];
@@ -82,19 +118,27 @@ export default function EvmWalletProvider({
     if (!window.ethereum?.on) return;
 
     const onAccountsChanged = async () => {
-      const state = await hydrateWalletState();
-      setAddress(state.address);
-      setChainId(state.chainId);
-      setProvider(state.provider);
-      setSigner(state.signer);
+      try {
+        const state = await hydrateWalletState();
+        setAddress(state.address);
+        setChainId(state.chainId);
+        setProvider(state.provider);
+        setSigner(state.signer);
+      } catch (error) {
+        console.warn("Unable to refresh wallet after account change", error);
+      }
     };
 
     const onChainChanged = async () => {
-      const state = await hydrateWalletState();
-      setAddress(state.address);
-      setChainId(state.chainId);
-      setProvider(state.provider);
-      setSigner(state.signer);
+      try {
+        const state = await hydrateWalletState();
+        setAddress(state.address);
+        setChainId(state.chainId);
+        setProvider(state.provider);
+        setSigner(state.signer);
+      } catch (error) {
+        console.warn("Unable to refresh wallet after chain change", error);
+      }
     };
 
     window.ethereum.on("accountsChanged", onAccountsChanged);
@@ -127,6 +171,8 @@ export default function EvmWalletProvider({
           setSigner(nextSigner);
           setAddress(await nextSigner.getAddress());
           setChainId(Number(network.chainId));
+        } catch (error) {
+          throw normalizeWalletError(error);
         } finally {
           setIsConnecting(false);
         }
@@ -148,7 +194,7 @@ export default function EvmWalletProvider({
             code === 4902 || /wallet_addEthereumChain|unrecognized chain id/i.test(message);
 
           if (!shouldAddChain) {
-            throw error;
+            throw normalizeWalletError(error);
           }
 
           await window.ethereum.request({

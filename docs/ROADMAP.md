@@ -102,28 +102,69 @@ Phase 3 is complete for the current submission. It should be understood as the w
 
 These are not rejected forever. They are deliberately deferred so Phase 3 stays realistic and shippable.
 
-## Phase 4: Backend Foundation, Data Plane & Reporting
+## Phase 4: Backend Foundation, Shared Platform Layer & Real Product Copilot
 
-Phase 4 is where CipherRoll should stop being only a contracts-plus-frontend product and become an actual application platform. This is also where the remaining non-submission Phase 3 ambitions should now live: reusable SDK work, exports, richer analytics, and a real retrieval-backed assistant.
+Phase 4 is now complete as the first real application-platform wave on top of CipherRoll's submission-ready payroll core. It was intentionally executed as a small number of larger work packages rather than many tiny chores, so the result is a coherent backend, shared SDK layer, operator reporting surface, and real retrieval-backed CipherBot instead of fragmented partial work.
 
-- **Priority 11: Stand up the first real CipherRoll backend**
-  Build a small but disciplined backend service that sits beside the frontend and contracts. At minimum it should provide authenticated API routes, normalized read models, environment-based config, structured logs, and health checks. This backend should support the product; it should not replace the wallet-local privacy model.
-- **Priority 12: Create a read-model/indexing layer**
-  Add contract event ingestion and a normalized database so the product can query organizations, payroll runs, funding events, claim events, finalize events, and audit receipts without asking the browser to reconstruct everything ad hoc. This is the foundation for search, reporting, analytics, notifications, and future integrations.
-- **Priority 12A: Extract a small reusable CipherRoll SDK**
-  Pull stable frontend contract helpers into a typed SDK layer that can be reused by the web app, scripts, and future backend services. The first version should focus on organization reads, payroll-run reads, treasury-route reads, permit/disclosure helpers, and well-scoped write helpers rather than trying to become a giant product SDK immediately.
-- **Priority 13: Introduce backend-safe reporting APIs**
-  Move heavy export generation and organization-level reporting into backend endpoints where appropriate. The backend should serve aggregate and operational views, while any privacy-sensitive decrypt path remains permit-gated and user-authorized.
-- **Priority 13A: Add operator-grade exports and reporting**
-  Package the existing disclosure and payroll state into clean exports for admins and auditors. The emphasis should be practical reviewability: payroll-run summary export, organization budget/committed/available snapshots, employee-count summaries, treasury-route configuration evidence, and audit receipt packaging.
-- **Priority 14: Build notification infrastructure**
-  Add event-driven notifications for important workflow moments such as payroll run funded, payroll run activated, employee claimed, wrapper payout finalized, auditor permit shared, and audit receipt published. Start with email or simple dashboard notifications before considering chat surfaces.
-- **Priority 15: Add integration-ready API boundaries**
-  Define stable API surfaces for HR systems, finance dashboards, internal admin tooling, and compliance consumers. This can later support webhooks, scheduled exports, or partner integrations, but the first step is simply making the data plane clean and deliberate.
-- **Priority 15A: Expand CipherBot into a real retrieval-backed assistant**
-  The current Phase 3 `CipherBot` is intentionally lightweight and button-driven. In Phase 4, expand it into a real chat-style assistant backed by indexed docs, product state guidance, and portal-aware retrieval so it can answer free-form user questions more flexibly without pretending to execute sensitive actions autonomously.
-- **Priority 15B: Improve aggregate-only operator analytics**
-  Extend the current admin portal with better organization-level metrics and searchability, but keep the privacy boundary intact. Focus on run counts, funding state, claimed vs unclaimed counts, treasury availability, recent actions, and organization health summaries instead of exposing employee-level payroll rows.
+**Implementation inspiration for all Phase 4 work**
+
+Take inspiration from the stronger product-platform patterns already proven in NullPay's backend, SDK, docs, and copilot layers: a small but disciplined backend, normalized indexed reads, typed reusable helpers, clean API boundaries, and a docs-aware product assistant. Do **not** copy branding, product assumptions, or non-CipherRoll workflows. Adapt the architecture to CipherRoll's privacy model, Arbitrum Sepolia deployment, wallet-local decrypt flows, aggregate-only disclosure rules, and payroll/auditor-specific product surfaces.
+
+**External infrastructure stance for Phase 4**
+
+CipherRoll does **not** need Supabase specifically in order to complete Phase 4. The requirement is a reliable backend plus a database-backed indexed read layer, not any one vendor. For a simpler first implementation, prefer a backend that we can stand up and understand fully inside this repo:
+
+- backend service: Node.js + TypeScript
+- API layer: lightweight REST routes
+- indexed storage: PostgreSQL if available, or SQLite for a simpler first pass
+- scheduled/event ingestion: backend worker or polling/indexing loop inside the same service
+- notifications: start with in-app/dashboard events or simple email/webhook-style hooks later
+
+Supabase remains an optional later convenience if we decide we want hosted PostgreSQL, realtime subscriptions, or managed auth faster. It is **not** a blocker and should not be treated as mandatory for CipherRoll's backend, SDK, reporting, or copilot work.
+
+**Plain-language summary for non-backend operators**
+
+Phase 4 does not require you to know backend, SDK, API, database, or indexing details up front. The practical meaning is:
+
+- we add one server that helps the frontend
+- we add one database that remembers payroll events cleanly
+- we move repeated contract logic into one reusable code package
+- we use that cleaner data to power reports, exports, notifications, and a smarter CipherBot
+
+If a future implementation needs an external service, that choice can be made during execution. It does not have to be decided before Phase 4 starts.
+
+- **Priority 11: Build the first real CipherRoll backend and indexed data layer**
+  This priority should be treated as one connected backend foundation project, not as separate server and database chores. Stand up a small backend service beside the current frontend and contracts, add environment-based config, health checks, structured logs, and a clean project structure, then connect it to an indexed read-model layer that ingests contract events into a normalized database. When this priority is complete, CipherRoll should no longer depend on the browser reconstructing everything ad hoc from chain reads. The backend should be able to serve clean organization, payroll-run, funding, claim, finalize, settlement-request, and audit-receipt data for later reporting, analytics, notifications, and integrations. This backend supports the product; it must not replace wallet-local privacy or centralize private payroll plaintext.
+
+- **Priority 12: Extract a reusable CipherRoll SDK and stable API surface**
+  This priority should turn today's scattered frontend helpers into a shared platform layer that both the frontend and future backend/integration code can rely on. Pull stable contract reads, payroll-run reads, treasury-route reads, permit/disclosure helpers, and well-scoped write helpers into a typed CipherRoll SDK, then define clean backend/API boundaries on top of that SDK so future tools do not have to duplicate chain logic. The outcome should be simple to understand even for a non-backend operator: one reusable code layer for "how CipherRoll talks to contracts" and one clean API layer for "how products and integrations consume that data." Keep the SDK narrow and disciplined rather than trying to make it a giant everything-library in one pass.
+
+- **Priority 13: Ship operator reporting, exports, analytics, and notification workflows**
+  This priority should package the indexed backend data into practical product outputs for admins and auditors instead of leaving the new backend as invisible plumbing. Add backend-safe reporting APIs, export generation, aggregate-only organization analytics, treasury and run-state summaries, audit-receipt packaging, and notification triggers for meaningful workflow events such as funded runs, activated claims, employee claims, wrapper finalizations, shared auditor permits, and published receipts. The main idea is simple: once Phase 4 is done, CipherRoll operators should have a much better operational surface for understanding what happened, what is pending, what was disclosed, and what evidence can be exported, without exposing employee-level private data.
+
+- **Priority 14: Turn CipherBot into a real retrieval-backed CipherRoll copilot**
+  This priority is now complete for its first real shipped version. The original Phase 3 CipherBot was intentionally lightweight and button-driven; the Phase 4 upgrade turns it into a real chat-style product copilot that answers free-form questions from indexed docs, roadmap context, product guidance, and portal-aware workflow knowledge. It is now live in the docs, admin, auditor, and employee portals as a support-oriented assistant rather than an action-taking agent.
+
+### Phase 4 Follow-Up Note
+
+Phase 4 is complete, but a few worthwhile polish items remain and should be treated as later follow-up work rather than blockers:
+
+- broaden the retrieval corpus with even more product docs, troubleshooting notes, and portal-state examples
+- improve CipherBot ranking, context windows, and answer composition over time
+- deepen backend search/filter/report ergonomics where useful for operators
+- revisit production hosting, persistence, and auth hardening once the next platform wave begins
+
+### Recommended first-pass Phase 4 stack
+
+Unless there is a strong reason to do otherwise, the default implementation path should be:
+
+- `backend/` service in Node.js + TypeScript
+- PostgreSQL if the environment already supports it, otherwise SQLite for the first working version
+- simple REST API routes before adding anything more complex
+- one reusable `packages/cipherroll-sdk` package for shared chain and product helpers
+- retrieval-backed CipherBot that reads local docs/indexed product content before considering any larger hosted AI platform
+
+This keeps the first real CipherRoll platform layer understandable, portable, and inexpensive to evolve.
 
 ### Backend responsibilities in Phase 4
 
@@ -144,6 +185,8 @@ CipherRoll's backend should **not** casually centralize secrets or private payro
 ## Phase 5: Advanced Operations, Governance & Ecosystem Expansion
 
 Once the backend foundation exists, CipherRoll can safely take on the heavier features that are meaningful but not lightweight.
+
+Phase 5 should also absorb the remaining non-blocking Phase 4 polish where it naturally fits, especially deeper copilot retrieval quality, stronger backend operational hardening, and richer search/report ergonomics.
 
 - **Priority 16: Real on-chain governance (M-of-N admins)**
   Turn reserved quorum metadata into actual execution gating with proposal hashing, approval state, threshold checks, and controlled execution. This should be treated as a protocol upgrade, not just a UI checklist.
@@ -178,10 +221,10 @@ gantt
     Submission Hardening :done, p9, 2026-08, 2026-09
     CipherBot + Operator Support :done, p10, 2026-08, 2026-09
     section Phase 4
-    Backend Foundation : p11, 2026-10, 2026-11
-    Indexer + Read Models : p12, 2026-10, 2026-12
-    SDK + Reporting + Real CipherBot : p13, 2026-10, 2027-01
-    Notifications + Integrations : p14, 2026-11, 2027-01
+    Backend + Indexed Data Layer :done, p11, 2026-10, 2026-12
+    Shared SDK + Stable APIs :done, p12, 2026-11, 2027-01
+    Reporting + Analytics + Notifications :done, p13, 2026-11, 2027-02
+    Real CipherBot Copilot :done, p14, 2026-12, 2027-02
     section Phase 5
     On-Chain Governance : p15, 2027-01, 2027-03
     Compliance + Tax Authority Flows : p16, 2027-02, 2027-04
