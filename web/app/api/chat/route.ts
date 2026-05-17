@@ -230,7 +230,7 @@ async function requestGeminiReply(
   apiKey: string,
   prompt: string,
   settings: { timeoutMs: number; maxOutputTokens: number }
-) {
+) : Promise<{ text: string | null; model: string | null; reason: string }> {
   const models = getGeminiModelCandidates()
   const systemInstruction = [
     'You are CipherBot.',
@@ -299,7 +299,11 @@ async function requestGeminiReply(
           .trim()
 
         if (text) {
-          return text.trim()
+          return {
+            text: text.trim(),
+            model,
+            reason: 'gemini-success',
+          }
         }
 
         errors.push(`${model}: empty response`)
@@ -316,7 +320,11 @@ async function requestGeminiReply(
       errors.push(`${model}: ${errorMessage}`)
 
       if (!isRetryableGeminiError(response, payload)) {
-        return null
+        return {
+          text: null,
+          model,
+          reason: `gemini-non-retryable:${errorMessage}`,
+        }
       }
     } catch (error) {
       const message =
@@ -332,7 +340,11 @@ async function requestGeminiReply(
   }
 
   console.error('[cipherbot] Gemini fallback triggered:', errors.join(' | '))
-  return null
+  return {
+    text: null,
+    model: null,
+    reason: errors.length > 0 ? errors.join(' | ') : 'gemini-no-response',
+  }
 }
 
 export async function POST(request: Request) {
@@ -351,22 +363,27 @@ export async function POST(request: Request) {
       status: 200,
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
+        'X-CipherBot-Mode': 'fallback-no-key',
       },
     })
   }
 
   const { prompt } = makePrompt(message, scope, body.liveContext)
-  const geminiReply = await requestGeminiReply(
+  const geminiResult = await requestGeminiReply(
     apiKey,
     prompt,
     getGeminiGenerationSettings(message, scope)
   )
-  const answer = geminiReply || makeFallbackAnswer(message, scope, body.liveContext)
+  const answer = geminiResult.text || makeFallbackAnswer(message, scope, body.liveContext)
+  const mode = geminiResult.text ? 'gemini' : 'fallback-after-gemini'
 
   return new Response(answer, {
     status: 200,
     headers: {
       'Content-Type': 'text/plain; charset=utf-8',
+      'X-CipherBot-Mode': mode,
+      'X-CipherBot-Model': geminiResult.model || 'none',
+      'X-CipherBot-Reason': geminiResult.reason.slice(0, 180),
     },
   })
 }
