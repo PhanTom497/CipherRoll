@@ -27,11 +27,17 @@ function makeFallbackAnswer(message: string, scope: string, liveContext?: Record
   const liveContextLine = liveContext
     ? 'Live portal context was provided and should be used together with the linked workflow.'
     : ''
+  const normalizedTopContent = top.content.replace(/\s+/g, ' ').trim()
+  const sentenceMatch = normalizedTopContent.match(/(.+?[.!?])(\s|$)/g)
+  const summary =
+    sentenceMatch && sentenceMatch.length > 0
+      ? sentenceMatch.slice(0, 2).join(' ').trim()
+      : normalizedTopContent.slice(0, 520).trim()
 
   return [
     `CipherBot is running in fallback mode for the ${scope} surface.`,
     `Best match: ${top.title} from ${top.source}.`,
-    top.content.replace(/\s+/g, ' ').slice(0, 420),
+    summary,
     supportLine,
     liveContextLine,
   ]
@@ -133,7 +139,7 @@ async function requestGeminiReply(apiKey: string, prompt: string) {
 
   for (const model of models) {
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 12000)
+    const timeout = setTimeout(() => controller.abort(), 25000)
 
     try {
       const response = await fetch(
@@ -155,7 +161,7 @@ async function requestGeminiReply(apiKey: string, prompt: string) {
             ],
             generationConfig: {
               temperature: 0.2,
-              maxOutputTokens: 220,
+              maxOutputTokens: 480,
             },
           }),
           signal: controller.signal,
@@ -183,7 +189,7 @@ async function requestGeminiReply(apiKey: string, prompt: string) {
           .trim()
 
         if (text) {
-          return text
+          return text.trim()
         }
 
         errors.push(`${model}: empty response`)
