@@ -1,12 +1,10 @@
-import { backendConfig, ensureBackendDirectories } from "./config";
+import { backendConfig } from "./config";
 import { CipherRollDatabase } from "./db";
 import { createCipherRollBackendServer } from "./http";
 import { CipherRollIndexer } from "./indexer";
 
 async function main() {
-  ensureBackendDirectories();
-
-  const db = new CipherRollDatabase();
+  const db = await CipherRollDatabase.create();
   const indexer = new CipherRollIndexer(db);
 
   await indexer.syncOnce();

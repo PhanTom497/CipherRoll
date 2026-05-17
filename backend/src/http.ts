@@ -105,19 +105,19 @@ export function createCipherRollBackendServer(db: CipherRollDatabase, indexer: C
       }
 
       if (request.method === "GET" && url.pathname === "/api/status") {
-        return sendJson(response, 200, db.getIndexerStatus());
+        return sendJson(response, 200, await db.getIndexerStatus());
       }
 
       if (request.method === "GET" && url.pathname === "/api/organizations") {
         const limit = Number.parseInt(url.searchParams.get("limit") || "100", 10);
-        const rows = (db.getOrganizations(limit) as Record<string, unknown>[]).map((row) =>
+        const rows = ((await db.getOrganizations(limit)) as Record<string, unknown>[]).map((row) =>
           rowToJson(coerceRowBooleans(row as Record<string, unknown>, ["exists_flag", "supports_confidential_settlement"]))
         );
         return sendJson(response, 200, { organizations: rows });
       }
 
       if (request.method === "GET" && segments[0] === "api" && segments[1] === "organizations" && segments[2] && !segments[3]) {
-        const row = db.getOrganization(segments[2]) as Record<string, unknown> | undefined;
+        const row = (await db.getOrganization(segments[2])) as Record<string, unknown> | undefined;
         if (!row) return notFound(response);
         return sendJson(
           response,
@@ -135,10 +135,10 @@ export function createCipherRollBackendServer(db: CipherRollDatabase, indexer: C
       ) {
         const status = url.searchParams.get("status");
         const limit = Number.parseInt(url.searchParams.get("limit") || "200", 10);
-        const rows = (db.getPayrollRunsForOrganization(segments[2], {
+        const rows = ((await db.getPayrollRunsForOrganization(segments[2], {
           status: status != null && status !== "" ? Number.parseInt(status, 10) : undefined,
           limit
-        }) as PayrollRunRecord[]).map((row) =>
+        })) as PayrollRunRecord[]).map((row) =>
           rowToJson(coerceRowBooleans(row as Record<string, unknown>, ["exists_flag"]))
         );
         return sendJson(response, 200, { payrollRuns: rows });
@@ -154,7 +154,7 @@ export function createCipherRollBackendServer(db: CipherRollDatabase, indexer: C
         const limit = Number.parseInt(url.searchParams.get("limit") || "100", 10);
         const claimState = url.searchParams.get("claimState") || undefined;
         const settlementState = url.searchParams.get("settlementState") || undefined;
-        const rows = (db.getPaymentsForOrganization(segments[2], limit, {
+        const rows = ((await db.getPaymentsForOrganization(segments[2], limit, {
           claimState:
             claimState === "pending" || claimState === "claimed" ? claimState : undefined,
           settlementState:
@@ -163,20 +163,20 @@ export function createCipherRollBackendServer(db: CipherRollDatabase, indexer: C
             settlementState === "unsettled"
               ? settlementState
               : undefined
-        }) as PaymentRecord[]).map((row) =>
+        })) as PaymentRecord[]).map((row) =>
           rowToJson(coerceRowBooleans(row as Record<string, unknown>, ["is_claimed"]))
         );
         return sendJson(response, 200, { payments: rows });
       }
 
       if (request.method === "GET" && segments[0] === "api" && segments[1] === "payroll-runs" && segments[2]) {
-        const row = db.getPayrollRun(segments[2]) as Record<string, unknown> | undefined;
+        const row = (await db.getPayrollRun(segments[2])) as Record<string, unknown> | undefined;
         if (!row) return notFound(response);
         return sendJson(response, 200, rowToJson(coerceRowBooleans(row, ["exists_flag"])));
       }
 
       if (request.method === "GET" && segments[0] === "api" && segments[1] === "payments" && segments[2]) {
-        const row = db.getPayment(segments[2]) as Record<string, unknown> | undefined;
+        const row = (await db.getPayment(segments[2])) as Record<string, unknown> | undefined;
         if (!row) return notFound(response);
         return sendJson(response, 200, rowToJson(coerceRowBooleans(row, ["is_claimed"])));
       }
@@ -186,12 +186,12 @@ export function createCipherRollBackendServer(db: CipherRollDatabase, indexer: C
         const limit = Number.parseInt(url.searchParams.get("limit") || "100", 10);
         const published = url.searchParams.get("published");
         const receiptKind = url.searchParams.get("receiptKind");
-        const rows = (db.getAuditReceipts(orgId, limit, {
+        const rows = ((await db.getAuditReceipts(orgId, limit, {
           published:
             published === "true" ? true : published === "false" ? false : undefined,
           receiptKind:
             receiptKind === "single" || receiptKind === "batch" ? receiptKind : undefined
-        }) as AuditReceiptRecord[]).map((row) =>
+        })) as AuditReceiptRecord[]).map((row) =>
           rowToJson(coerceRowBooleans(row as Record<string, unknown>, ["published"]))
         );
         return sendJson(response, 200, { auditReceipts: rows });
@@ -201,7 +201,7 @@ export function createCipherRollBackendServer(db: CipherRollDatabase, indexer: C
         const orgId = url.searchParams.get("orgId") || undefined;
         const eventName = url.searchParams.get("event") || undefined;
         const limit = Number.parseInt(url.searchParams.get("limit") || "100", 10);
-        const rows = (db.getRawEvents(orgId, eventName, limit) as RawEventRecord[]).map((row) =>
+        const rows = ((await db.getRawEvents(orgId, eventName, limit)) as RawEventRecord[]).map((row) =>
           rowToJson(row as Record<string, unknown>)
         );
         return sendJson(response, 200, { events: rows });
@@ -212,13 +212,13 @@ export function createCipherRollBackendServer(db: CipherRollDatabase, indexer: C
         const limit = Number.parseInt(url.searchParams.get("limit") || "100", 10);
         const category = url.searchParams.get("category") || undefined;
         const severity = url.searchParams.get("severity") || undefined;
-        const rows = (db.getNotifications(orgId, limit, {
+        const rows = ((await db.getNotifications(orgId, limit, {
           category,
           severity:
             severity === "info" || severity === "success" || severity === "warning"
               ? severity
               : undefined
-        }) as Record<string, unknown>[]).map((row) =>
+        })) as Record<string, unknown>[]).map((row) =>
           rowToJson(row as Record<string, unknown>)
         );
         return sendJson(response, 200, { notifications: rows });
@@ -232,7 +232,7 @@ export function createCipherRollBackendServer(db: CipherRollDatabase, indexer: C
         segments[3] &&
         segments[4] === "summary"
       ) {
-        const summary = db.getOrganizationReportSummary(segments[3]);
+        const summary = await db.getOrganizationReportSummary(segments[3]);
         if (!summary) return notFound(response);
         return sendJson(response, 200, summary);
       }
@@ -245,7 +245,7 @@ export function createCipherRollBackendServer(db: CipherRollDatabase, indexer: C
         segments[3] &&
         segments[4] === "audit-package"
       ) {
-        const auditPackage = db.getOrganizationAuditPackage(segments[3]);
+        const auditPackage = await db.getOrganizationAuditPackage(segments[3]);
         if (!auditPackage) return notFound(response);
         return sendJson(response, 200, auditPackage);
       }
@@ -258,7 +258,7 @@ export function createCipherRollBackendServer(db: CipherRollDatabase, indexer: C
         segments[3] &&
         segments[4] === "export"
       ) {
-        const exportPackage = db.getOrganizationExportPackage(segments[3]);
+        const exportPackage = await db.getOrganizationExportPackage(segments[3]);
         if (!exportPackage) return notFound(response);
 
         if (url.searchParams.get("format") === "csv") {
@@ -316,7 +316,7 @@ export function createCipherRollBackendServer(db: CipherRollDatabase, indexer: C
         };
 
         if (incomingLiveContext?.organizationId) {
-          const reportSummary = db.getOrganizationReportSummary(incomingLiveContext.organizationId);
+          const reportSummary = await db.getOrganizationReportSummary(incomingLiveContext.organizationId);
           if (reportSummary) {
             liveContext.reportSummary = {
               pendingClaims: reportSummary.pendingClaims,
@@ -331,7 +331,7 @@ export function createCipherRollBackendServer(db: CipherRollDatabase, indexer: C
         }
 
         if (scope !== "docs") {
-          const status = db.getIndexerStatus();
+          const status = await db.getIndexerStatus();
           liveContext.indexerStatus = {
             latestIndexedBlock: status.latestIndexedBlock,
             organizations: status.organizations,
@@ -359,13 +359,13 @@ export function createCipherRollBackendServer(db: CipherRollDatabase, indexer: C
 
         const body = await readJsonBody(request);
         if (body && typeof body.resetToBlock === "number") {
-          db.setMetadata("indexer.latestIndexedBlock", String(body.resetToBlock - 1));
+          await db.setMetadata("indexer.latestIndexedBlock", String(body.resetToBlock - 1));
         }
 
         await indexer.syncOnce();
         return sendJson(response, 200, {
           ok: true,
-          status: db.getIndexerStatus()
+          status: await db.getIndexerStatus()
         });
       }
 

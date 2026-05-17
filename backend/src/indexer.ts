@@ -40,14 +40,14 @@ export class CipherRollIndexer {
 
   async syncOnce() {
     const now = Date.now();
-    this.db.setMetadata("indexer.lastSyncStartedAt", String(now));
-    this.db.setMetadata("indexer.lastSyncError", "");
+    await this.db.setMetadata("indexer.lastSyncStartedAt", String(now));
+    await this.db.setMetadata("indexer.lastSyncError", "");
 
     try {
       const latestKnownBlock = await provider.getBlockNumber();
-      this.db.setMetadata("indexer.latestKnownBlock", String(latestKnownBlock));
+      await this.db.setMetadata("indexer.latestKnownBlock", String(latestKnownBlock));
 
-      const storedBlock = this.db.getMetadata("indexer.latestIndexedBlock");
+      const storedBlock = await this.db.getMetadata("indexer.latestIndexedBlock");
       const startBlock = storedBlock != null ? BigInt(storedBlock) + 1n : await deriveIndexerStartBlock();
       const latestBlock = BigInt(latestKnownBlock);
 
@@ -60,17 +60,17 @@ export class CipherRollIndexer {
           const toBlock = fromBlock + BigInt(backendConfig.chunkSize - 1);
           const boundedTo = toBlock > latestBlock ? latestBlock : toBlock;
           await this.indexChunk(fromBlock, boundedTo);
-          this.db.setMetadata("indexer.latestIndexedBlock", boundedTo.toString());
+          await this.db.setMetadata("indexer.latestIndexedBlock", boundedTo.toString());
         }
       } else if (storedBlock == null) {
-        this.db.setMetadata("indexer.latestIndexedBlock", latestBlock.toString());
+        await this.db.setMetadata("indexer.latestIndexedBlock", latestBlock.toString());
       }
 
-      this.db.setMetadata("indexer.lastSyncFinishedAt", String(Date.now()));
-      this.db.setMetadata("indexer.lastSyncError", "");
+      await this.db.setMetadata("indexer.lastSyncFinishedAt", String(Date.now()));
+      await this.db.setMetadata("indexer.lastSyncError", "");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.db.setMetadata("indexer.lastSyncError", message);
+      await this.db.setMetadata("indexer.lastSyncError", message);
       throw error;
     }
   }
@@ -148,7 +148,7 @@ export class CipherRollIndexer {
     const args = parsed.args as unknown as Record<string, unknown>;
     const eventId = `${log.transactionHash}:${log.index}`;
 
-    this.db.insertRawEvent({
+    await this.db.insertRawEvent({
       id: eventId,
       chainId: backendConfig.chainId.toString(),
       contractAddress: log.address,
@@ -165,7 +165,7 @@ export class CipherRollIndexer {
 
     switch (parsed.name) {
       case "OrganizationCreated":
-        this.db.insertNotification({
+        await this.db.insertNotification({
           id: eventId,
           orgId: String(args.orgId),
           payrollRunId: null,
@@ -185,7 +185,7 @@ export class CipherRollIndexer {
         await this.refreshTreasuryRoute(String(args.orgId));
         break;
       case "TreasuryConfigured":
-        this.db.insertNotification({
+        await this.db.insertNotification({
           id: eventId,
           orgId: String(args.orgId),
           payrollRunId: null,
@@ -205,7 +205,7 @@ export class CipherRollIndexer {
         await this.refreshTreasuryRoute(String(args.orgId));
         break;
       case "BudgetDeposited":
-        this.db.insertNotification({
+        await this.db.insertNotification({
           id: eventId,
           orgId: String(args.orgId),
           payrollRunId: null,
@@ -225,7 +225,7 @@ export class CipherRollIndexer {
         await this.refreshTreasuryRoute(String(args.orgId));
         break;
       case "PayrollRunCreated":
-        this.db.insertNotification({
+        await this.db.insertNotification({
           id: eventId,
           orgId: String(args.orgId),
           payrollRunId: String(args.payrollRunId),
@@ -246,7 +246,7 @@ export class CipherRollIndexer {
         await this.refreshTreasuryRoute(String(args.orgId));
         break;
       case "PayrollRunFunded":
-        this.db.insertNotification({
+        await this.db.insertNotification({
           id: eventId,
           orgId: String(args.orgId),
           payrollRunId: String(args.payrollRunId),
@@ -267,7 +267,7 @@ export class CipherRollIndexer {
         await this.refreshTreasuryRoute(String(args.orgId));
         break;
       case "PayrollRunTreasuryFunded":
-        this.db.insertNotification({
+        await this.db.insertNotification({
           id: eventId,
           orgId: String(args.orgId),
           payrollRunId: String(args.payrollRunId),
@@ -288,7 +288,7 @@ export class CipherRollIndexer {
         await this.refreshTreasuryRoute(String(args.orgId));
         break;
       case "PayrollRunActivated":
-        this.db.insertNotification({
+        await this.db.insertNotification({
           id: eventId,
           orgId: String(args.orgId),
           payrollRunId: String(args.payrollRunId),
@@ -309,7 +309,7 @@ export class CipherRollIndexer {
         await this.refreshTreasuryRoute(String(args.orgId));
         break;
       case "PayrollRunFinalized":
-        this.db.insertNotification({
+        await this.db.insertNotification({
           id: eventId,
           orgId: String(args.orgId),
           payrollRunId: String(args.payrollRunId),
@@ -330,7 +330,7 @@ export class CipherRollIndexer {
         await this.refreshTreasuryRoute(String(args.orgId));
         break;
       case "ConfidentialPayrollIssued":
-        this.db.insertNotification({
+        await this.db.insertNotification({
           id: eventId,
           orgId: String(args.orgId),
           payrollRunId: typeof args.payrollRunId === "string" ? String(args.payrollRunId) : null,
@@ -355,7 +355,7 @@ export class CipherRollIndexer {
         await this.refreshOrganizationInsights(String(args.orgId));
         break;
       case "PayrollClaimed":
-        this.db.insertNotification({
+        await this.db.insertNotification({
           id: eventId,
           orgId: String(args.orgId),
           payrollRunId: null,
@@ -380,7 +380,7 @@ export class CipherRollIndexer {
         await this.refreshOrganizationInsights(String(args.orgId));
         break;
       case "PayrollSettled":
-        this.db.insertNotification({
+        await this.db.insertNotification({
           id: eventId,
           orgId: String(args.orgId),
           payrollRunId: null,
@@ -404,7 +404,7 @@ export class CipherRollIndexer {
         });
         break;
       case "PayrollSettlementRequested":
-        this.db.insertNotification({
+        await this.db.insertNotification({
           id: eventId,
           orgId: String(args.orgId),
           payrollRunId: null,
@@ -440,7 +440,7 @@ export class CipherRollIndexer {
     const args = parsed.args as unknown as Record<string, unknown>;
     const eventId = `${log.transactionHash}:${log.index}`;
 
-    this.db.insertRawEvent({
+    await this.db.insertRawEvent({
       id: eventId,
       chainId: backendConfig.chainId.toString(),
       contractAddress: log.address,
@@ -456,7 +456,7 @@ export class CipherRollIndexer {
     });
 
     if (parsed.name === "AuditorAggregateDisclosureRecorded") {
-      this.db.insertNotification({
+      await this.db.insertNotification({
         id: eventId,
         orgId: String(args.orgId),
         payrollRunId: null,
@@ -475,7 +475,7 @@ export class CipherRollIndexer {
         createdAt: blockTimestamp,
         metadataJson: asJson(args)
       });
-      this.db.upsertAuditReceipt({
+      await this.db.upsertAuditReceipt({
         id: eventId,
         orgId: String(args.orgId),
         txHash: log.transactionHash,
@@ -492,7 +492,7 @@ export class CipherRollIndexer {
     }
 
     if (parsed.name === "AuditorAggregateDisclosureBatchRecorded") {
-      this.db.insertNotification({
+      await this.db.insertNotification({
         id: eventId,
         orgId: String(args.orgId),
         payrollRunId: null,
@@ -511,7 +511,7 @@ export class CipherRollIndexer {
         createdAt: blockTimestamp,
         metadataJson: asJson(args)
       });
-      this.db.upsertAuditReceipt({
+      await this.db.upsertAuditReceipt({
         id: eventId,
         orgId: String(args.orgId),
         txHash: log.transactionHash,
@@ -531,7 +531,7 @@ export class CipherRollIndexer {
   private async refreshOrganization(orgId: string, lastEventBlock: number) {
     const result = await payrollContract.getOrganization(orgId);
     const organization = mapOrganizationResult(result);
-    this.db.upsertOrganization({
+    await this.db.upsertOrganization({
       orgId,
       ...organization,
       admin: normalizeAddress(organization.admin),
@@ -544,7 +544,7 @@ export class CipherRollIndexer {
   private async refreshOrganizationInsights(orgId: string) {
     const result = await payrollContract.getAuditorOrganizationInsights(orgId);
     const insights = mapOrganizationInsightsResult(result);
-    this.db.upsertOrganizationInsights({
+    await this.db.upsertOrganizationInsights({
       orgId,
       ...insights,
       syncedAt: Date.now()
@@ -554,7 +554,7 @@ export class CipherRollIndexer {
   private async refreshTreasuryRoute(orgId: string) {
     const result = await payrollContract.getTreasuryAdapterDetails(orgId);
     const treasuryRoute = mapTreasuryAdapterDetailsResult(result);
-    this.db.upsertTreasuryRoute({
+    await this.db.upsertTreasuryRoute({
       orgId,
       ...treasuryRoute,
       adapter: normalizeAddress(treasuryRoute.adapter),
@@ -569,7 +569,7 @@ export class CipherRollIndexer {
   private async refreshPayrollRun(payrollRunId: string, lastEventBlock: number) {
     const result = await payrollContract.getPayrollRun(payrollRunId);
     const payrollRun = mapPayrollRunResult(result);
-    this.db.upsertPayrollRun({
+    await this.db.upsertPayrollRun({
       payrollRunId,
       ...payrollRun,
       lastEventBlock,
@@ -590,12 +590,12 @@ export class CipherRollIndexer {
     confidentialAsset?: string;
     lastEventBlock: number;
   }) {
-    const existing = this.db.getPayment(input.paymentId) as Record<string, unknown> | undefined;
+    const existing = (await this.db.getPayment(input.paymentId)) as Record<string, unknown> | undefined;
     const normalizedExisting = coerceRowBooleans(existing, ["is_claimed"]);
     const payrollRunId = await payrollContract.getPayrollRunForPayment(input.paymentId);
     const isClaimed = await payrollContract.isPayrollClaimed(input.paymentId);
 
-    this.db.upsertPayment({
+    await this.db.upsertPayment({
       paymentId: input.paymentId,
       orgId: input.orgId,
       employee: input.employee,

@@ -37,6 +37,7 @@
     "@typechain/hardhat": "^9.1.0",
     "@types/chai": "^4.3.20",
     "@types/mocha": "^10.0.10",
+    "@types/pg": "^8.15.5",
     "chai": "^4.5.0",
     "dotenv": "^16.4.5",
     "hardhat": "2.28.6",
@@ -48,6 +49,7 @@
   },
   "dependencies": {
     "@fhenixprotocol/cofhe-contracts": "0.1.3",
-    "@openzeppelin/contracts": "^5.4.0"
+    "@openzeppelin/contracts": "^5.4.0",
+    "pg": "^8.16.3"
   }
 }

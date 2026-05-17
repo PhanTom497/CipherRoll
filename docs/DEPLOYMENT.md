@@ -38,7 +38,7 @@ Do not try to host the current backend on Vercel serverless functions. The backe
 
 - a long-running Node HTTP server
 - repeated background sync with `setInterval(...)`
-- a SQLite file that should persist across restarts
+- a persistent indexed read model stored in Postgres
 
 That is not a good match for Vercel’s serverless model.
 
@@ -51,7 +51,7 @@ Use this layout:
 1. Smart contracts on Arbitrum Sepolia
 2. Frontend on Vercel from `web/`
 3. Backend on Railway, Render, Fly.io, or a VPS
-4. Persistent disk or volume for the backend SQLite file
+4. Hosted Postgres, such as Supabase
 
 Good backend hosting choices for the current code:
 
@@ -134,17 +134,15 @@ Do not commit those secret values into GitHub.
 
 ### Do you need Supabase or another external database?
 
-No, not for the current CipherRoll codebase.
+After the Supabase migration, yes, you now need a hosted Postgres database.
 
-Right now the backend uses SQLite, so the minimum working deployment is:
+The current recommended production setup is:
 
 - Vercel for the frontend
 - one separate Node backend host
-- one persistent disk or volume for the backend database file
+- one Supabase Postgres database
 
-Supabase is optional, not required.
-
-You would only need something like Supabase, Neon, RDS, or another managed database if you decide to replace SQLite later for stronger production persistence and scaling.
+Supabase is now the intended backend database for the hosted deployment path.
 
 ### Do you only need to deploy frontend and backend and connect them?
 
@@ -161,7 +159,7 @@ So the practical answer is:
 2. deploy backend
 3. connect frontend to backend with `NEXT_PUBLIC_CIPHERROLL_BACKEND_BASE_URL`
 4. make sure both sides use the same contract addresses and chain values
-5. give the backend persistent storage
+5. give the backend a working Postgres connection string
 
 ### Will CipherBot work for public users on Vercel with your Gemini key?
 
@@ -416,10 +414,10 @@ CIPHERROLL_INDEXER_POLL_INTERVAL_MS=30000
 CIPHERROLL_INDEXER_CHUNK_SIZE=50000
 ```
 
-Recommended when using hosted persistent storage:
+Required database setting:
 
 ```bash
-CIPHERROLL_BACKEND_DB_PATH=/data/cipherroll-index.sqlite
+CIPHERROLL_DATABASE_URL=<your-supabase-session-pooler-connection-string>
 ```
 
 Usually optional on managed platforms:
@@ -480,52 +478,25 @@ npm run start:backend
 
 Render supports adding env vars in bulk from a `.env` file as well, but do not upload a file that contains secrets you do not want reused across environments.
 
-### Step 6: Attach persistent storage
+### Step 6: Connect the backend to Supabase Postgres
 
-This matters a lot.
+Use the Supabase project connection string in the backend service environment.
 
-The backend stores indexed state in SQLite. If your host wipes the filesystem on restart, the backend will rebuild from chain state repeatedly.
+Recommended for this backend:
 
-Use a persistent volume or mounted disk and point:
-
-```bash
-CIPHERROLL_BACKEND_DB_PATH=/data/cipherroll-index.sqlite
-```
-
-### Step 6A: Exactly where persistent storage is configured on Render
-
-The disk mount path is **not** put into GitHub and it is not inferred automatically by the app host. You configure it in the backend service settings.
-
-If you use Render:
-
-1. open your backend `Web Service`
-2. go to the service settings where you attach storage
-3. add a `Persistent Disk`
-4. set the disk `Mount Path` to:
+- Supabase `Session pooler` connection string
+- `SSL` enabled
 
 ```bash
-/data
+CIPHERROLL_DATABASE_URL=<your-supabase-session-pooler-connection-string>
+CIPHERROLL_DATABASE_SSL=true
 ```
 
-5. after that, go back to the same backend service `Environment` page
-6. add this environment variable:
+Because the backend now uses hosted Postgres instead of a local SQLite file:
 
-```bash
-CIPHERROLL_BACKEND_DB_PATH=/data/cipherroll-index.sqlite
-```
-
-That means:
-
-- `/data` is the disk mount path you choose in Render
-- `CIPHERROLL_BACKEND_DB_PATH` is the env var you set on that same backend service
-- together they make the SQLite file live on persistent storage
-
-If you choose a different mount path in Render, then `CIPHERROLL_BACKEND_DB_PATH` must match it.
-
-Example:
-
-- Render disk mount path: `/var/cipherroll`
-- matching env var: `CIPHERROLL_BACKEND_DB_PATH=/var/cipherroll/cipherroll-index.sqlite`
+- you do not need a Render persistent disk
+- you do not need `CIPHERROLL_BACKEND_DB_PATH`
+- the database persists in Supabase
 
 ### Step 7: Confirm backend health before touching Vercel again
 
@@ -558,7 +529,8 @@ This is the simplest way to think about the environment variables.
 
 - `ARBITRUM_SEPOLIA_RPC_URL`
 - `CIPHERROLL_BACKEND_ADMIN_TOKEN`
-- `CIPHERROLL_BACKEND_DB_PATH`
+- `CIPHERROLL_DATABASE_URL`
+- `CIPHERROLL_DATABASE_SSL`
 - `CIPHERROLL_INDEXER_POLL_INTERVAL_MS`
 - `CIPHERROLL_INDEXER_CHUNK_SIZE`
 - `CIPHERROLL_INDEXER_START_BLOCK`
@@ -600,7 +572,8 @@ NEXT_PUBLIC_CIPHERROLL_AUDITOR_DISCLOSURE_ADDRESS=0x328Fe7B46ddf38888978C3f6CDC4
 NEXT_PUBLIC_CIPHERROLL_DIRECT_SETTLEMENT_ADAPTER=0x4d0EbdE132402145D464089Fd7bE7362dec6f428
 NEXT_PUBLIC_CIPHERROLL_WRAPPER_SETTLEMENT_ADAPTER=0x892DEaAaf13fb4a5a57288bB6089565c3cdB95e0
 CIPHERROLL_BACKEND_ADMIN_TOKEN=<create a new production-only secret>
-CIPHERROLL_BACKEND_DB_PATH=/data/cipherroll-index.sqlite
+CIPHERROLL_DATABASE_URL=<your-supabase-session-pooler-connection-string>
+CIPHERROLL_DATABASE_SSL=true
 CIPHERROLL_INDEXER_POLL_INTERVAL_MS=30000
 CIPHERROLL_INDEXER_CHUNK_SIZE=50000
 ```
@@ -640,13 +613,13 @@ You said you want the deployed product to behave the same as localhost. That is 
 - correct contract addresses
 - correct backend URL in Vercel
 - working Arbitrum Sepolia RPC on the backend
-- persistent backend storage
+- working hosted Postgres connection
 - Gemini API key in Vercel
 - same chain and env values across frontend and backend
 
 ### What is not “automatic” in production
 
-- backend persistence
+- database uptime and connection limits
 - Gemini quota and rate-limit handling
 - public traffic control
 
@@ -657,12 +630,12 @@ So the honest answer is:
 
 ### The one feature-parity warning you should know now
 
-If you deploy the backend without persistent storage, some backend-driven features may still work, but the indexer state can rebuild after restart and the experience will not feel as stable as localhost.
+If you deploy the backend without a working hosted database connection, backend-driven features will fail even if the frontend is live.
 
 The solution is simple:
 
-- use a persistent disk or volume
-- point `CIPHERROLL_BACKEND_DB_PATH` at that mounted path
+- use a working Supabase Postgres connection string
+- set `CIPHERROLL_DATABASE_URL` on the backend service
 
 ---
 
@@ -754,7 +727,7 @@ NEXT_PUBLIC_CIPHERROLL_BACKEND_BASE_URL=https://your-backend.example.com
 
 ### Mistake 4: Using ephemeral backend storage
 
-If the SQLite file disappears on restart, the backend indexer has to rescan.
+This used to matter for SQLite. With the Supabase-backed backend, the equivalent mistake is forgetting to provide a valid `CIPHERROLL_DATABASE_URL`.
 
 ### Mistake 5: Forgetting to redeploy Vercel after backend URL changes
 
@@ -786,7 +759,8 @@ Check:
 Check:
 
 - platform `PORT` handling
-- persistent storage path permissions
+- `CIPHERROLL_DATABASE_URL` is set
+- `CIPHERROLL_DATABASE_SSL` matches the target database
 - contract addresses
 - Arbitrum Sepolia RPC connectivity
 - backend build actually generated `artifacts/contracts/.../*.json`
@@ -834,7 +808,7 @@ The app will still work, but answers come from local retrieval instead of hosted
 These are good next steps, but not blockers for deployment today:
 
 1. Add a backend Dockerfile
-2. Move backend persistence from SQLite to a managed database
+2. Add schema migration scripts for the Supabase Postgres backend
 3. Add a deployment validation script for required env vars
 4. Add a dedicated `.env.production.example`
 5. Add frontend health panels for backend sync status and lag

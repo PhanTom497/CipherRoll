@@ -1,11 +1,8 @@
-import { ensureBackendDirectories } from "./config";
 import { CipherRollDatabase } from "./db";
 import { CipherRollIndexer } from "./indexer";
 
 async function main() {
-  ensureBackendDirectories();
-
-  const db = new CipherRollDatabase();
+  const db = await CipherRollDatabase.create();
   const indexer = new CipherRollIndexer(db);
 
   await indexer.syncOnce();
@@ -14,7 +11,7 @@ async function main() {
     JSON.stringify(
       {
         ok: true,
-        status: db.getIndexerStatus()
+        status: await db.getIndexerStatus()
       },
       null,
       2

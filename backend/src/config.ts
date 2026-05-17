@@ -1,6 +1,5 @@
 import { config as loadDotenv } from "dotenv";
-import { existsSync, mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { resolve } from "node:path";
 import { getCipherRollRuntimeConfig } from "../../packages/cipherroll-sdk/dist";
 
 loadDotenv({ path: resolve(__dirname, "../../.env") });
@@ -35,6 +34,14 @@ function parsePort() {
   return value;
 }
 
+function parseBoolean(name: string, fallback: boolean) {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  if (raw === "true" || raw === "1") return true;
+  if (raw === "false" || raw === "0") return false;
+  throw new Error(`Invalid boolean value for ${name}: ${raw}`);
+}
+
 export const backendConfig = {
   host: process.env.CIPHERROLL_BACKEND_HOST || process.env.HOST || "0.0.0.0",
   port: parsePort(),
@@ -44,11 +51,8 @@ export const backendConfig = {
   auditorDisclosureAddress:
     runtime.auditorDisclosureAddress ||
     requireEnv("NEXT_PUBLIC_CIPHERROLL_AUDITOR_DISCLOSURE_ADDRESS"),
-  dbPath: resolve(
-    __dirname,
-    "../../",
-    process.env.CIPHERROLL_BACKEND_DB_PATH || "backend/data/cipherroll-index.sqlite"
-  ),
+  databaseUrl: requireEnv("CIPHERROLL_DATABASE_URL"),
+  databaseSsl: parseBoolean("CIPHERROLL_DATABASE_SSL", true),
   pollIntervalMs: parseInteger("CIPHERROLL_INDEXER_POLL_INTERVAL_MS", 30_000),
   chunkSize: parseInteger("CIPHERROLL_INDEXER_CHUNK_SIZE", 50_000),
   adminToken: process.env.CIPHERROLL_BACKEND_ADMIN_TOKEN || "",
@@ -56,10 +60,3 @@ export const backendConfig = {
     ? BigInt(process.env.CIPHERROLL_INDEXER_START_BLOCK)
     : null
 };
-
-export function ensureBackendDirectories() {
-  const directory = dirname(backendConfig.dbPath);
-  if (!existsSync(directory)) {
-    mkdirSync(directory, { recursive: true });
-  }
-}

@@ -5,7 +5,7 @@ This backend is the first implementation slice of Phase 4 Priority 11.
 It adds:
 
 - a small Node.js + TypeScript backend service
-- a local SQLite-backed indexed read layer
+- a Postgres-backed indexed read layer
 - normalized organization / payroll-run / payment / audit-receipt projections
 - clean REST read APIs
 - an authenticated reindex endpoint for operator/admin use
@@ -76,7 +76,8 @@ Optional backend-specific settings:
 - `CIPHERROLL_BACKEND_HOST`
 - `CIPHERROLL_BACKEND_PORT`
 - `CIPHERROLL_BACKEND_BASE_URL`
-- `CIPHERROLL_BACKEND_DB_PATH`
+- `CIPHERROLL_DATABASE_URL`
+- `CIPHERROLL_DATABASE_SSL`
 - `CIPHERROLL_INDEXER_START_BLOCK`
 - `CIPHERROLL_INDEXER_POLL_INTERVAL_MS`
 - `CIPHERROLL_INDEXER_CHUNK_SIZE`
