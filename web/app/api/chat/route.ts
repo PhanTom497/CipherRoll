@@ -151,12 +151,28 @@ function getAnswerDepthHint(message: string) {
     normalized.includes('actually') ||
     normalized.includes('workflow') ||
     normalized.includes('step by step') ||
-    normalized.includes('explain')
+    normalized.includes('explain') ||
+    normalized.includes('process')
   ) {
-    return 'Give a fuller practical answer with 5 to 8 sentences. Walk through the flow in order and name the key actions, not just the surface label.'
+    return 'Give a fuller practical answer with 6 to 10 sentences. Walk through the flow in order and name the key actions, not just the surface label.'
   }
 
   return 'Give a concise but complete answer with 3 to 5 sentences.'
+}
+
+function wantsStepByStepAnswer(message: string) {
+  const normalized = message.toLowerCase()
+  return (
+    normalized.includes('step by step') ||
+    normalized.includes('workflow') ||
+    normalized.includes('process') ||
+    normalized.includes('how do i') ||
+    normalized.includes('how should i') ||
+    normalized.includes('how does') ||
+    normalized.includes('how can i') ||
+    normalized.includes('pay my employee') ||
+    normalized.includes('sending payroll')
+  )
 }
 
 function getGeminiGenerationSettings(message: string, scope: string) {
@@ -164,22 +180,60 @@ function getGeminiGenerationSettings(message: string, scope: string) {
 
   if (complexity >= 32) {
     return {
-      timeoutMs: 40000,
-      maxOutputTokens: 900,
+      timeoutMs: 45000,
+      maxOutputTokens: 1100,
     }
   }
 
   if (complexity >= 20) {
     return {
-      timeoutMs: 32000,
-      maxOutputTokens: 700,
+      timeoutMs: 36000,
+      maxOutputTokens: 850,
     }
   }
 
   return {
-    timeoutMs: 22000,
-    maxOutputTokens: 520,
+    timeoutMs: 25000,
+    maxOutputTokens: 600,
   }
+}
+
+function buildSystemInstruction(message: string) {
+  const stepByStep = wantsStepByStepAnswer(message)
+
+  return [
+    'You are CipherBot.',
+    'You are a technical operator assistant for the Fhenix EVM payroll system, CipherRoll.',
+    'Answer only from the provided CipherRoll markdown documentation and live portal context.',
+    'Do not invent features, flows, or product behavior.',
+    'Refuse to write code.',
+    'Refuse general trivia or unrelated questions.',
+    'If the answer is not supported by the provided docs, say you can only answer from current CipherRoll documentation.',
+    'Use simple language.',
+    stepByStep
+      ? 'For workflow questions, answer as a numbered step-by-step list with 5 to 8 concrete steps.'
+      : 'Keep answers practical and operator-friendly.',
+    stepByStep
+      ? 'Each step must be a complete sentence and must mention the relevant action in order.'
+      : 'Prefer 3 to 6 complete sentences.',
+    'Never end mid-sentence. Always finish with a complete final sentence.',
+    'Do not answer with vague one-line summaries when the user asks how something works.',
+  ].join(' ')
+}
+
+function isWeakGeminiAnswer(answer: string, message: string) {
+  const normalized = answer.trim()
+  if (!normalized) return true
+  if (normalized.length < 120 && wantsStepByStepAnswer(message)) return true
+  if (wantsStepByStepAnswer(message) && !/^\s*1[\.\)]\s/m.test(normalized)) return true
+  if (!/[.!?]\s*$/.test(normalized)) return true
+  if (
+    /^the (admin|employee|auditor) portal is\b/i.test(normalized) &&
+    normalized.length < 220
+  ) {
+    return true
+  }
+  return false
 }
 
 function getGeminiModelCandidates() {
@@ -228,22 +282,12 @@ function isRetryableGeminiError(response: Response, payload: Record<string, unkn
 
 async function requestGeminiReply(
   apiKey: string,
+  message: string,
   prompt: string,
   settings: { timeoutMs: number; maxOutputTokens: number }
 ) : Promise<{ text: string | null; model: string | null; reason: string }> {
   const models = getGeminiModelCandidates()
-  const systemInstruction = [
-    'You are CipherBot.',
-    'You are a technical operator assistant for the Fhenix EVM payroll system, CipherRoll.',
-    'Answer only from the provided CipherRoll markdown documentation and live portal context.',
-    'Do not invent features, flows, or product behavior.',
-    'Refuse to write code.',
-    'Refuse general trivia or unrelated questions.',
-    'If the answer is not supported by the provided docs, say you can only answer from current CipherRoll documentation.',
-    'Use simple language.',
-    'Keep answers short, practical, and operator-friendly.',
-    'Prefer 2 to 4 short sentences over long paragraphs.',
-  ].join(' ')
+  const systemInstruction = buildSystemInstruction(message)
 
   const errors: string[] = []
 
@@ -299,6 +343,11 @@ async function requestGeminiReply(
           .trim()
 
         if (text) {
+          if (isWeakGeminiAnswer(text, message)) {
+            errors.push(`${model}: weak-or-incomplete answer`)
+            continue
+          }
+
           return {
             text: text.trim(),
             model,
@@ -371,6 +420,7 @@ export async function POST(request: Request) {
   const { prompt } = makePrompt(message, scope, body.liveContext)
   const geminiResult = await requestGeminiReply(
     apiKey,
+    message,
     prompt,
     getGeminiGenerationSettings(message, scope)
   )
