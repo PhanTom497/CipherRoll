@@ -50,6 +50,7 @@
   "dependencies": {
     "@fhenixprotocol/cofhe-contracts": "0.1.3",
     "@openzeppelin/contracts": "^5.4.0",
+    "ethers": "^6.16.0",
     "pg": "^8.16.3"
   }
 }
