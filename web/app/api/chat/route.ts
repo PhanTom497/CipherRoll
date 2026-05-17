@@ -7,8 +7,55 @@ type ChatBody = {
   liveContext?: Record<string, unknown>
 }
 
+function wantsDeploymentHelp(question: string) {
+  const normalized = question.toLowerCase()
+  return [
+    'deploy',
+    'deployment',
+    'vercel',
+    'render',
+    'env',
+    'environment',
+    'google_api_key',
+    'google api key',
+    'gemini key',
+    'api key',
+    'backend url',
+    'supabase',
+  ].some((token) => normalized.includes(token))
+}
+
+function getScopedDocChunks(message: string, scope: string, limit: number) {
+  const chunks = getRelevantCipherBotDocChunks(message, 10)
+  const allowDeploymentDocs = scope === 'docs' || wantsDeploymentHelp(message)
+
+  const filtered = chunks.filter((chunk) => {
+    const source = chunk.source.toLowerCase()
+
+    if (!allowDeploymentDocs && source.includes('deployment.md')) {
+      return false
+    }
+
+    if (scope === 'admin') {
+      return !source.includes('privacy_matrix.md') || chunk.title.toLowerCase().includes('admin')
+    }
+
+    if (scope === 'employee') {
+      return !source.includes('deployment.md')
+    }
+
+    if (scope === 'auditor') {
+      return !source.includes('deployment.md')
+    }
+
+    return true
+  })
+
+  return (filtered.length > 0 ? filtered : chunks).slice(0, limit)
+}
+
 function makeFallbackAnswer(message: string, scope: string, liveContext?: Record<string, unknown>) {
-  const chunks = getRelevantCipherBotDocChunks(message, 3)
+  const chunks = getScopedDocChunks(message, scope, 3)
 
   if (chunks.length === 0) {
     return [
@@ -35,8 +82,7 @@ function makeFallbackAnswer(message: string, scope: string, liveContext?: Record
       : normalizedTopContent.slice(0, 520).trim()
 
   return [
-    `CipherBot is running in fallback mode for the ${scope} surface.`,
-    `Best match: ${top.title} from ${top.source}.`,
+    `Based on the current CipherRoll ${scope} guidance, the closest match is ${top.title}.`,
     summary,
     supportLine,
     liveContextLine,
@@ -46,7 +92,7 @@ function makeFallbackAnswer(message: string, scope: string, liveContext?: Record
 }
 
 function makePrompt(message: string, scope: string, liveContext?: Record<string, unknown>) {
-  const chunks = getRelevantCipherBotDocChunks(message, 6)
+  const chunks = getScopedDocChunks(message, scope, 6)
   const docsContext =
     chunks.length > 0
       ? chunks
@@ -66,6 +112,8 @@ function makePrompt(message: string, scope: string, liveContext?: Record<string,
     prompt: [
       `Portal scope: ${scope}`,
       '',
+      `Answer depth target: ${getAnswerDepthHint(message)}`,
+      '',
       contextBlock,
       '',
       'Relevant local CipherRoll markdown documentation:',
@@ -73,6 +121,64 @@ function makePrompt(message: string, scope: string, liveContext?: Record<string,
       '',
       `User question: ${message}`
     ].join('\n')
+  }
+}
+
+function estimateQuestionComplexity(message: string, scope: string) {
+  const normalized = message.trim().toLowerCase()
+  const wordCount = normalized.split(/\s+/).filter(Boolean).length
+  let score = wordCount
+
+  if (wordCount >= 12) score += 6
+  if (wordCount >= 24) score += 8
+  if (normalized.includes('how')) score += 3
+  if (normalized.includes('actually')) score += 3
+  if (normalized.includes('step by step')) score += 6
+  if (normalized.includes('workflow')) score += 5
+  if (normalized.includes('difference')) score += 4
+  if (normalized.includes('why')) score += 4
+  if (normalized.includes('explain')) score += 4
+  if (normalized.includes('admin portal')) score += 4
+  if (scope !== 'docs') score += 3
+
+  return score
+}
+
+function getAnswerDepthHint(message: string) {
+  const normalized = message.toLowerCase()
+  if (
+    normalized.includes('how') ||
+    normalized.includes('actually') ||
+    normalized.includes('workflow') ||
+    normalized.includes('step by step') ||
+    normalized.includes('explain')
+  ) {
+    return 'Give a fuller practical answer with 5 to 8 sentences. Walk through the flow in order and name the key actions, not just the surface label.'
+  }
+
+  return 'Give a concise but complete answer with 3 to 5 sentences.'
+}
+
+function getGeminiGenerationSettings(message: string, scope: string) {
+  const complexity = estimateQuestionComplexity(message, scope)
+
+  if (complexity >= 32) {
+    return {
+      timeoutMs: 40000,
+      maxOutputTokens: 900,
+    }
+  }
+
+  if (complexity >= 20) {
+    return {
+      timeoutMs: 32000,
+      maxOutputTokens: 700,
+    }
+  }
+
+  return {
+    timeoutMs: 22000,
+    maxOutputTokens: 520,
   }
 }
 
@@ -120,7 +226,11 @@ function isRetryableGeminiError(response: Response, payload: Record<string, unkn
   )
 }
 
-async function requestGeminiReply(apiKey: string, prompt: string) {
+async function requestGeminiReply(
+  apiKey: string,
+  prompt: string,
+  settings: { timeoutMs: number; maxOutputTokens: number }
+) {
   const models = getGeminiModelCandidates()
   const systemInstruction = [
     'You are CipherBot.',
@@ -139,7 +249,7 @@ async function requestGeminiReply(apiKey: string, prompt: string) {
 
   for (const model of models) {
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 25000)
+    const timeout = setTimeout(() => controller.abort(), settings.timeoutMs)
 
     try {
       const response = await fetch(
@@ -161,7 +271,7 @@ async function requestGeminiReply(apiKey: string, prompt: string) {
             ],
             generationConfig: {
               temperature: 0.2,
-              maxOutputTokens: 480,
+              maxOutputTokens: settings.maxOutputTokens,
             },
           }),
           signal: controller.signal,
@@ -246,7 +356,11 @@ export async function POST(request: Request) {
   }
 
   const { prompt } = makePrompt(message, scope, body.liveContext)
-  const geminiReply = await requestGeminiReply(apiKey, prompt)
+  const geminiReply = await requestGeminiReply(
+    apiKey,
+    prompt,
+    getGeminiGenerationSettings(message, scope)
+  )
   const answer = geminiReply || makeFallbackAnswer(message, scope, body.liveContext)
 
   return new Response(answer, {
