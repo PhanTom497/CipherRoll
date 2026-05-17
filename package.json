@@ -11,7 +11,7 @@
     "build:sdk": "tsc -p packages/cipherroll-sdk/tsconfig.json",
     "compile": "npx hardhat compile",
     "test": "npx hardhat test",
-    "build:backend": "npm run build:sdk && tsc -p backend/tsconfig.json",
+    "build:backend": "npm run compile && npm run build:sdk && tsc -p backend/tsconfig.json",
     "dev:backend": "npm run build:sdk && ts-node --project backend/tsconfig.json backend/src/server.ts",
     "start:backend": "npm run build:sdk && node backend/dist/server.js",
     "sync:backend": "npm run build:sdk && ts-node --project backend/tsconfig.json backend/src/sync-once.ts",

@@ -80,6 +80,7 @@ Run these checks locally first:
 
 ```bash
 npm install
+npm run compile
 npm run build:sdk
 npm run build:backend
 npm --prefix web run build
@@ -463,6 +464,8 @@ If you use Render:
 npm install && npm run build:backend
 ```
 
+This backend build now runs the contract compile step automatically, which ensures the required Hardhat artifact JSON files exist before the backend starts.
+
 5. set the start command to:
 
 ```bash
@@ -786,6 +789,35 @@ Check:
 - persistent storage path permissions
 - contract addresses
 - Arbitrum Sepolia RPC connectivity
+- backend build actually generated `artifacts/contracts/.../*.json`
+
+### Backend fails with `ENOENT` for `artifacts/contracts/.../*.json`
+
+This means the backend tried to load a Hardhat artifact JSON file that was not present in the deployment filesystem.
+
+Current recommended fix:
+
+1. make sure the backend build command is:
+
+```bash
+npm install && npm run build:backend
+```
+
+2. make sure the repo includes the updated `build:backend` script that runs:
+
+```bash
+npm run compile && npm run build:sdk && tsc -p backend/tsconfig.json
+```
+
+3. redeploy the backend
+
+Do **not** rely on force-committing generated `artifacts/` JSON files unless you intentionally want generated build outputs in Git.
+
+Why:
+
+- `artifacts/` is generated output
+- your backend only needs the ABI files at runtime
+- generating them during the Render build is cleaner than tracking generated build artifacts in source control
 
 ### CipherBot returns fallback answers
 
