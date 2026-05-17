@@ -9,6 +9,38 @@ type ChatBody = {
   liveContext?: Record<string, unknown>
 }
 
+function makeFallbackAnswer(message: string, scope: string, liveContext?: Record<string, unknown>) {
+  const chunks = getRelevantCipherBotDocChunks(message, 3)
+
+  if (chunks.length === 0) {
+    return [
+      `CipherBot is running in fallback mode for the ${scope} surface.`,
+      'I could not find a closely matching answer in the local CipherRoll documentation.',
+      'Try asking with terms like workspace, payroll run, claim, wrapper finalization, auditor permit, or backend export.',
+    ].join(' ')
+  }
+
+  const top = chunks[0]
+  const supporting = chunks.slice(1).map((chunk) => chunk.title)
+  const supportLine =
+    supporting.length > 0
+      ? `Related sections: ${supporting.join(', ')}.`
+      : 'This answer comes from the closest matching local docs section.'
+  const liveContextLine = liveContext
+    ? 'Live portal context was provided and should be used together with the linked workflow.'
+    : ''
+
+  return [
+    `CipherBot is running in fallback mode for the ${scope} surface.`,
+    `Best match: ${top.title} from ${top.source}.`,
+    top.content.replace(/\s+/g, ' ').slice(0, 420),
+    supportLine,
+    liveContextLine,
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
+
 function makePrompt(message: string, scope: string, liveContext?: Record<string, unknown>) {
   const chunks = getRelevantCipherBotDocChunks(message, 6)
   const docsContext =
@@ -42,19 +74,22 @@ function makePrompt(message: string, scope: string, liveContext?: Record<string,
 
 export async function POST(request: Request) {
   const apiKey = process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: 'CipherBot AI mode is not configured. Add GOOGLE_API_KEY to local env.' },
-      { status: 500 }
-    )
-  }
-
   const body = (await request.json()) as ChatBody
   const message = body.message?.trim()
   const scope = body.scope || 'docs'
 
   if (!message) {
     return NextResponse.json({ error: 'Missing chat message.' }, { status: 400 })
+  }
+
+  if (!apiKey) {
+    const fallback = makeFallbackAnswer(message, scope, body.liveContext)
+    return new Response(fallback, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+      },
+    })
   }
 
   const { prompt } = makePrompt(message, scope, body.liveContext)

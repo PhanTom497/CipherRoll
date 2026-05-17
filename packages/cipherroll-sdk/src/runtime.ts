@@ -55,6 +55,13 @@ const DEFAULT_RUNTIME_BY_CHAIN = {
   }
 } as const;
 
+function defaultBackendBaseUrl(
+  env: Record<string, string | undefined>,
+  fallback: string
+) {
+  return env.NODE_ENV === "development" ? fallback : "";
+}
+
 function isSupportedChainKey(value: string | undefined): value is SupportedChainKey {
   return typeof value === "string" && value in SUPPORTED_CHAIN_CONFIG;
 }
@@ -80,7 +87,7 @@ export function getCipherRollRuntimeConfig(
     backendBaseUrl:
       env.NEXT_PUBLIC_CIPHERROLL_BACKEND_BASE_URL ||
       env.CIPHERROLL_BACKEND_BASE_URL ||
-      defaults.backendBaseUrl,
+      defaultBackendBaseUrl(env, defaults.backendBaseUrl),
     defaultOrgId: env.NEXT_PUBLIC_DEFAULT_ORG_ID || defaults.defaultOrgId,
     targetChainKey: resolvedTargetChainKey,
     targetChainName: chain.name,

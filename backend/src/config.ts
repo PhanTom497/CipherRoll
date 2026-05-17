@@ -25,9 +25,19 @@ function parseInteger(name: string, fallback: number): number {
   return value;
 }
 
+function parsePort() {
+  const explicit = process.env.CIPHERROLL_BACKEND_PORT || process.env.PORT;
+  if (!explicit) return 4000;
+  const value = Number.parseInt(explicit, 10);
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`Invalid port value: ${explicit}`);
+  }
+  return value;
+}
+
 export const backendConfig = {
-  host: process.env.CIPHERROLL_BACKEND_HOST || "127.0.0.1",
-  port: parseInteger("CIPHERROLL_BACKEND_PORT", 4000),
+  host: process.env.CIPHERROLL_BACKEND_HOST || process.env.HOST || "0.0.0.0",
+  port: parsePort(),
   chainId: BigInt(parseInteger("CIPHERROLL_BACKEND_CHAIN_ID", 421614)),
   rpcUrl: requireEnv("ARBITRUM_SEPOLIA_RPC_URL"),
   payrollAddress: runtime.contractAddress || requireEnv("NEXT_PUBLIC_CIPHERROLL_CONTRACT_ADDRESS"),

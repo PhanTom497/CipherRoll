@@ -2,8 +2,12 @@
   "name": "cipherroll-web",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=18.18.0"
+  },
   "scripts": {
     "dev": "node ./node_modules/next/dist/bin/next dev",
+    "prebuild": "cd .. && npm run build:sdk",
     "build": "node ./node_modules/next/dist/bin/next build",
     "start": "node ./node_modules/next/dist/bin/next start",
     "lint": "node ./node_modules/next/dist/bin/next lint"

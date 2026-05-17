@@ -3,6 +3,9 @@
   "version": "0.2.0",
   "private": true,
   "description": "CipherRoll — confidential payroll on Arbitrum Sepolia via the CoFHE coprocessor stack",
+  "engines": {
+    "node": ">=18.18.0"
+  },
   "scripts": {
     "baseline": "npm run compile && npm run test && npm run build:web",
     "build:sdk": "tsc -p packages/cipherroll-sdk/tsconfig.json",
