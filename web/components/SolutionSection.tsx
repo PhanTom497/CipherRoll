@@ -70,9 +70,9 @@ const solutionCards = [
   },
   {
     icon: KeyRound,
-    title: "Submission-Ready Hardening",
+    title: "Platform-Ready Operations",
     desc:
-      "The current release now pairs real payroll settlement with stronger wrapper-proof verification, reduced avoidable leakage, a published privacy matrix, safer identifier defaults, and contextual in-product guidance for operators and auditors.",
+      "The current release pairs real payroll settlement with backend-assisted reporting, exports, workflow notifications, safer deployment paths, and contextual in-product guidance for operators and auditors.",
     accentLine: "via-zinc-200/38",
     glow: "bg-white/8"
   }

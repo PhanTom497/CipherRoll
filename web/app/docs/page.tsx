@@ -92,6 +92,7 @@ const envExample = `ARBITRUM_SEPOLIA_RPC_URL=<rpc-url>
 NEXT_PUBLIC_CIPHERROLL_CONTRACT_ADDRESS=${CONTRACT_ADDRESS}
 NEXT_PUBLIC_CIPHERROLL_AUDITOR_DISCLOSURE_ADDRESS=${AUDITOR_DISCLOSURE_CONTRACT_ADDRESS}
 NEXT_PUBLIC_CIPHERROLL_BACKEND_BASE_URL=${BACKEND_BASE_URL || '<backend-url>'}
+CIPHERROLL_DATABASE_URL=<supabase-session-pooler-url>
 CIPHERROLL_BACKEND_ADMIN_TOKEN=<admin-token>`;
 
 const backendExample = `fetch(\`\${process.env.NEXT_PUBLIC_CIPHERROLL_BACKEND_BASE_URL}/api/reports/organizations/\${orgId}/summary\`)
@@ -110,7 +111,7 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
       eyebrow: 'Overview',
       title: 'CipherRoll documentation',
       summary:
-        'CipherRoll is a confidential payroll application built on Fhenix CoFHE for Arbitrum Sepolia. These docs focus on the real frontend surface: setup, payroll operations, employee claims, auditor review, and backend-assisted reporting.',
+        'CipherRoll is a confidential payroll application built on Fhenix CoFHE for Arbitrum Sepolia. These docs focus on the shipped frontend and hosted stack: setup, payroll operations, employee claims, auditor review, backend-assisted reporting, and deployment.',
       searchText:
         'overview cipherroll docs confidential payroll frontend docs arbirtrum sepolia fhenix cofhe admin employee auditor backend reporting',
       content: (
@@ -121,7 +122,9 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
             create payroll runs, reserve settlement inventory, activate claims, and export
             aggregate-only auditor access. Employees can review allocations locally and complete
             claims from their own wallet. Auditors can review aggregate values and generate
-            evidence receipts when needed.
+            evidence receipts when needed. The current stack also includes a backend service for
+            indexed summaries, notifications, exports, and support APIs, with hosted persistence
+            designed for real deployment rather than localhost-only review.
           </p>
 
           <div className="grid gap-5 md:grid-cols-3">
@@ -168,6 +171,11 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
                 'Backend service',
                 'The admin and auditor surfaces rely on indexed read models, exports, notifications, and support endpoints.',
                 'Run the backend for a complete local review loop.',
+              ],
+              [
+                'Database connection',
+                'The hosted backend now persists indexed state in Postgres rather than relying only on a local file.',
+                'For deployment, use the Supabase session-pooler connection string.',
               ],
               [
                 'Browser-based CoFHE flow',
@@ -582,6 +590,7 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
               ['Status and health', 'Expose operational state without forcing contract-level inspection for every review.'],
               ['Organization summaries', 'Help admins and auditors use aggregate-first reporting and export packages.'],
               ['Notifications', 'Highlight pending claims, settlement issues, and receipt activity.'],
+              ['Supabase-backed persistence', 'Keep indexed workflow state and read models durable across hosted restarts.'],
               ['CipherBot query endpoint', 'Answer support-oriented questions with indexed context instead of static copy alone.'],
             ]}
           />
@@ -637,9 +646,10 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
             status="Completed"
             title="Backend foundation and reporting"
             points={[
-              'Introduced backend read models, health/status APIs, reporting, notifications, and exports.',
-              'Moved shared runtime and backend query logic into a reusable SDK surface.',
-              'Extended support from static guidance into retrieval-backed product assistance.',
+              'Introduced a real backend service with indexed read models, health and status routes, reporting summaries, notifications, and export endpoints.',
+              'Moved shared runtime config, backend clients, and cross-surface types into a reusable CipherRoll SDK.',
+              'Added a hosted deployment path with Vercel frontend delivery, Render backend hosting, and Supabase-backed Postgres persistence.',
+              'Extended support from static guidance into retrieval-backed product assistance and in-portal operator help.',
             ]}
           />
         </div>
@@ -693,6 +703,7 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
               ['Payroll contract', CONTRACT_ADDRESS],
               ['Auditor disclosure contract', AUDITOR_DISCLOSURE_CONTRACT_ADDRESS],
               ['Backend base URL', BACKEND_BASE_URL || 'Configured at runtime'],
+              ['Hosted storage', 'Supabase Postgres'],
             ]}
           />
         </div>
@@ -739,6 +750,7 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
               ['docs/ARCHITECTURE.md', 'Backend, frontend, contracts, and service boundaries.'],
               ['docs/DEPLOYMENT.md', 'Step-by-step Vercel and backend deployment guide for the current stack.'],
               ['docs/ROADMAP.md', 'Wave-by-wave product progression and planned next work.'],
+              ['docs/FRONTEND_MANUAL_QA.md', 'Frontend validation checklist for the shipped product surfaces.'],
               ['docs/TESTING.md', 'Manual and integration-oriented validation guidance.'],
             ]}
           />

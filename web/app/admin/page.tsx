@@ -2494,17 +2494,48 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <p className="mb-5 max-w-xl text-[13px] leading-6 text-white/42">
-                  Follow this order once and the full payroll flow becomes straightforward.
+                <p className="mb-5 max-w-2xl text-[13px] leading-6 text-white/42">
+                  Use this order for the cleanest operator pass. It matches the real product flow from workspace creation through settlement review and avoids the most common demo mistakes.
                 </p>
 
                 <div className="space-y-3">
                   {[
-                    { step: "01", title: "Initialize CoFHE", desc: "Turn on privacy from the admin header first.", icon: KeyRound },
-                    { step: "02", title: "Create workspace", desc: "Open Workspace and create your organization.", icon: Building2 },
-                    { step: "03", title: "Add budget", desc: "Deposit payroll funds into the treasury.", icon: FolderCog },
-                    { step: "04", title: "Pay one employee", desc: "Create run, reserve funds, activate claims, then issue payroll.", icon: ShieldCheck },
-                    { step: "05", title: "Review and share", desc: "Refresh summaries or open Auditor Sharing when needed.", icon: Wallet }
+                    {
+                      step: "01",
+                      title: "Connect the admin wallet on Arbitrum Sepolia",
+                      desc: "Start with the intended operator wallet and confirm the network is correct before reading the workspace state.",
+                      icon: Wallet
+                    },
+                    {
+                      step: "02",
+                      title: "Initialize CoFHE before encrypted actions",
+                      desc: "Turn on privacy mode before encrypted budget funding, decrypted summary reads, or any flow that depends on local handle processing.",
+                      icon: KeyRound
+                    },
+                    {
+                      step: "03",
+                      title: "Create the workspace and treasury route",
+                      desc: "Register the organization, attach the intended treasury path, and refresh until the workspace metadata and operator role look correct.",
+                      icon: Building2
+                    },
+                    {
+                      step: "04",
+                      title: "Fund encrypted budget and confirm summary refresh",
+                      desc: "Deposit payroll funds into the treasury-backed route, then refresh the admin dashboard so available budget and committed state align with the chain.",
+                      icon: FolderCog
+                    },
+                    {
+                      step: "05",
+                      title: "Create a run, fund it, activate it, then issue allocations",
+                      desc: "CipherRoll uses an explicit run lifecycle. Reserve the funds first, activate claimability, and only then issue confidential payroll to employees.",
+                      icon: ShieldCheck
+                    },
+                    {
+                      step: "06",
+                      title: "Use backend reporting and auditor sharing for review",
+                      desc: "Refresh the workflow feed, export reports when needed, and move into auditor sharing only after the payroll surface itself is in the state you want to evidence.",
+                      icon: FileKey2
+                    }
                   ].map((item) => (
                     <div key={item.step} className="flex gap-3 rounded-2xl border border-white/8 bg-white/[0.02] px-4 py-3">
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-[9px] font-black text-white/55">

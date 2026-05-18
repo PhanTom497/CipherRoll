@@ -16,34 +16,34 @@ import { TARGET_CHAIN_NAME } from "@/lib/cipherroll-config";
 const title = "CipherRoll";
 const tagline = "Private Payroll. Blind Execution.";
 const description =
-  `Run confidential payroll with encrypted state, real treasury-backed settlement, hardened wrapper verification, aggregate-first audit review, and operator-ready guidance on ${TARGET_CHAIN_NAME} using the official CoFHE coprocessor stack.`;
+  `Run confidential payroll with encrypted balances, treasury-backed settlement, indexed reporting, selective-disclosure audit review, and operator support on ${TARGET_CHAIN_NAME} with the CoFHE coprocessor stack.`;
 
 const portals = [
   {
     title: "Admin",
     description:
-      "Set up payroll, fund it, and pay your team.",
+      "Create workspaces, fund encrypted budget, run payroll, review reports, and manage auditor sharing.",
     icon: Shield,
     url: "/admin"
   },
   {
     title: "Employee",
     description:
-      "Check your payroll and claim your salary.",
+      "Review allocations privately, decrypt locally, and complete claim or finalize flow from your own wallet.",
     icon: Users,
     url: "/employee"
   },
   {
     title: "Auditor",
     description:
-      "Review shared audit summaries and receipts.",
+      "Import permits, review aggregate disclosures, and verify or publish audit receipts when evidence is needed.",
     icon: Eye,
     url: "/auditor"
   },
   {
     title: "Tax",
     description:
-      "See the current tax-facing product status.",
+      "Review the current scope boundary for future tax and compliance-facing product work.",
     icon: Landmark,
     url: "/tax-authority"
   }
@@ -97,7 +97,7 @@ export default function Home() {
               </span>
               <span className="hidden md:block text-white/25">•</span>
               <span className="hidden md:block text-[11px] md:text-xs uppercase tracking-[0.18em] text-white/45 font-medium">
-                Powered by CoFHE Coprocessor
+                Wave 4 Platform Update Live
               </span>
             </motion.div>
 
@@ -181,7 +181,7 @@ export default function Home() {
                 CipherRoll Workspaces
               </h2>
               <p className="text-[18px] md:text-[20px] text-[#b4b4bc] mt-6 max-w-2xl font-normal leading-[1.65]">
-                {`CipherRoll utilizes the CoFHE coprocessor stack to keep confidential data encrypted on ${TARGET_CHAIN_NAME}, meaning host chain operators never see your organization's financial state.`}
+                {`CipherRoll combines encrypted payroll state on ${TARGET_CHAIN_NAME} with operator-grade portals, indexed backend reporting, export surfaces, and audit review flows that stay honest about what remains private and what still becomes public onchain.`}
               </p>
             </div>
           </div>
@@ -224,7 +224,7 @@ export default function Home() {
             <p className="text-[#A1A1AA] text-lg font-medium leading-relaxed mb-8">
               {tagline}
               <br />
-              Configured for {TARGET_CHAIN_NAME}.
+              Confidential payroll infrastructure for {TARGET_CHAIN_NAME}.
             </p>
             <Link href="/docs" className="inline-flex items-center gap-2.5 bg-white text-black px-5 py-2.5 rounded-full text-sm font-semibold hover:bg-white/90 transition-colors mb-20 md:mb-28">
               Explore docs <ArrowRight className="w-4 h-4" />

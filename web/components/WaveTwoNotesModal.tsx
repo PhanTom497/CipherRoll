@@ -16,51 +16,51 @@ const STORAGE_KEY = "cipherroll-submission-notes-dismissed";
 const notes = [
   {
     id: "01",
-    eyebrow: "Submission",
-    badge: "Shipped",
-    title: "CipherRoll now ships a full confidential payroll path from encrypted funding to real employee payout",
+    eyebrow: "Platform",
+    badge: "Wave 4",
+    title: "CipherRoll now ships a real application layer on top of the confidential payroll core",
     body:
-      "The current build is no longer just an encrypted bookkeeping demo. Admins can fund budget, reserve treasury inventory, activate runs, issue allocations, and settle payroll through direct or wrapper-backed payout paths while employees complete real claim flow from their own wallet.",
+      "Wave 4 moved CipherRoll beyond a contracts-first demo into a fuller product stack. The live build now combines the confidential payroll flow with a backend service, indexed read models, support APIs, and richer operator surfaces instead of relying only on direct contract inspection.",
     icon: Wallet,
     accent: "from-emerald-300/18 via-emerald-300/8 to-transparent"
   },
   {
     id: "02",
-    eyebrow: "Hardening",
-    badge: "Verified",
-    title: "Wrapper settlement now behaves like a real protected payout flow instead of a permissive mock",
+    eyebrow: "Backend",
+    badge: "Deployed",
+    title: "Reporting, exports, notifications, and operational status now come from a live indexed backend",
     body:
-      "The wrapper payout route now validates finalize proofs on-chain, enforces the intended request then finalize sequence, rejects mismatched or replayed payloads, and is backed by permanent regression coverage for invalid settlement attempts.",
+      "Admins and auditors no longer need to piece together every state transition from raw chain activity. CipherRoll now serves health, status, organization summaries, run and payment views, recent workflow notifications, and export packages through backend APIs designed for the frontend portals.",
     icon: ShieldCheck,
     accent: "from-cyan-300/18 via-cyan-300/8 to-transparent"
   },
   {
     id: "03",
-    eyebrow: "Auditing",
-    badge: "Live",
-    title: "Aggregate-first auditor review now sits beside the payroll flow as a real product surface",
+    eyebrow: "Infrastructure",
+    badge: "Supabase",
+    title: "The hosted stack now persists backend state through Supabase-backed Postgres instead of local-only storage",
     body:
-      "CipherRoll now supports selective disclosure for audit review with shared permits, aggregate budget and runway insight, and on-chain verify or publish receipts for narrow compliance evidence without exposing employee salary rows.",
+      "CipherRoll now has a deployment path that matches the product surface you demo in the browser. Indexed events, summaries, and notifications can survive restarts through the hosted database layer, while the frontend continues to run separately on Vercel and query the backend over stable APIs.",
     icon: Lock,
     accent: "from-white/14 via-white/5 to-transparent"
   },
   {
     id: "04",
-    eyebrow: "Leakage",
-    badge: "Reduced",
-    title: "Public surfaces were tightened so CipherRoll reveals less convenience metadata by default",
+    eyebrow: "Shared SDK",
+    badge: "Unified",
+    title: "Frontend and backend now share one runtime and query layer instead of drifting across duplicated helpers",
     body:
-      "CipherRoll now trims route-id exposure from auditor-facing views, narrows convenience getters, avoids unnecessary event leakage, and prefers less-guessable identifiers in key admin flows so the live product exposes less than it did before.",
+      "Wave 4 introduced a reusable CipherRoll SDK for runtime config, backend clients, and shared product types. That keeps deployment values, route construction, and cross-surface product assumptions much more consistent across docs, frontend, and backend services.",
     icon: Eye,
     accent: "from-violet-300/18 via-violet-300/8 to-transparent"
   },
   {
     id: "05",
-    eyebrow: "Operator",
-    badge: "Phase 3",
-    title: "CipherBot now supports operators inside the product where the workflow actually happens",
+    eyebrow: "Support",
+    badge: "Expanded",
+    title: "CipherBot and the operator experience now sit inside a more complete product workflow",
     body:
-      "CipherBot now supports free-form product questions across docs, admin, and auditor portals. It helps explain payroll funding order, reserve behavior, wrapper finalize steps, auditor permit import, disclosure boundaries, and common failure states without pretending to execute actions autonomously.",
+      "CipherBot, docs, release notes, and operator guidance now work alongside the backend-assisted product flows rather than beside them. The result is a more coherent review experience for workspace setup, funding order, settlement troubleshooting, receipt review, and deployment understanding.",
     icon: FileCheck2,
     accent: "from-amber-300/18 via-amber-300/8 to-transparent"
   }
@@ -117,10 +117,10 @@ export default function WaveTwoNotesModal() {
             <div className="relative flex-1 overflow-y-auto px-5 pb-8 pt-6 md:px-8 md:pb-10 md:pt-7">
               <div className="mb-6 flex flex-wrap items-center gap-4 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/34 md:mb-8">
                 <span className="rounded-full border border-[#d6af79]/28 bg-[#d6af79]/10 px-4 py-1.5 text-[#d6af79]">
-                  Submission
+                  Wave 4
                 </span>
                 <span>{currentMonthLabel}</span>
-                <span>Platform Notes</span>
+                <span>Platform Update</span>
               </div>
 
               <div className="mb-7 md:mb-9">
@@ -128,7 +128,7 @@ export default function WaveTwoNotesModal() {
                   CipherRoll
                 </div>
                 <div className="mt-1 text-[20px] font-medium tracking-[-0.04em] text-white/46 md:text-[30px]">
-                  Release Notes
+                  Wave 4 Platform Update
                 </div>
               </div>
 
