@@ -120,7 +120,7 @@ CipherRoll does **not** need Supabase specifically in order to complete Phase 4.
 - scheduled/event ingestion: backend worker or polling/indexing loop inside the same service
 - notifications: start with in-app/dashboard events or simple email/webhook-style hooks later
 
-Supabase remains an optional later convenience if we decide we want hosted PostgreSQL, realtime subscriptions, or managed auth faster. It is **not** a blocker and should not be treated as mandatory for CipherRoll's backend, SDK, reporting, or copilot work.
+This question has now been resolved in the shipped Wave 4 stack: the hosted backend persists through **Supabase-backed Postgres**, while the frontend remains separately deployed and continues to query the backend over stable APIs.
 
 **Plain-language summary for non-backend operators**
 
@@ -131,7 +131,7 @@ Phase 4 does not require you to know backend, SDK, API, database, or indexing de
 - we move repeated contract logic into one reusable code package
 - we use that cleaner data to power reports, exports, notifications, and a smarter CipherBot
 
-If a future implementation needs an external service, that choice can be made during execution. It does not have to be decided before Phase 4 starts.
+That implementation choice is now complete for the current stack rather than hypothetical.
 
 - **Priority 11: Build the first real CipherRoll backend and indexed data layer**
   This priority should be treated as one connected backend foundation project, not as separate server and database chores. Stand up a small backend service beside the current frontend and contracts, add environment-based config, health checks, structured logs, and a clean project structure, then connect it to an indexed read-model layer that ingests contract events into a normalized database. When this priority is complete, CipherRoll should no longer depend on the browser reconstructing everything ad hoc from chain reads. The backend should be able to serve clean organization, payroll-run, funding, claim, finalize, settlement-request, and audit-receipt data for later reporting, analytics, notifications, and integrations. This backend supports the product; it must not replace wallet-local privacy or centralize private payroll plaintext.
@@ -152,19 +152,19 @@ Phase 4 is complete, but a few worthwhile polish items remain and should be trea
 - broaden the retrieval corpus with even more product docs, troubleshooting notes, and portal-state examples
 - improve CipherBot ranking, context windows, and answer composition over time
 - deepen backend search/filter/report ergonomics where useful for operators
-- revisit production hosting, persistence, and auth hardening once the next platform wave begins
+- revisit auth hardening and deeper operational guardrails once the next platform wave begins
 
-### Recommended first-pass Phase 4 stack
+### Implemented Phase 4 stack
 
-Unless there is a strong reason to do otherwise, the default implementation path should be:
+The shipped Wave 4 stack now looks like this:
 
 - `backend/` service in Node.js + TypeScript
-- PostgreSQL if the environment already supports it, otherwise SQLite for the first working version
-- simple REST API routes before adding anything more complex
+- Supabase-backed PostgreSQL for hosted persistence
+- simple REST API routes for status, summaries, runs, payments, receipts, notifications, exports, and support
 - one reusable `packages/cipherroll-sdk` package for shared chain and product helpers
-- retrieval-backed CipherBot that reads local docs/indexed product content before considering any larger hosted AI platform
+- retrieval-backed CipherBot integrated into docs and product portals
 
-This keeps the first real CipherRoll platform layer understandable, portable, and inexpensive to evolve.
+This keeps the first real CipherRoll platform layer understandable while also making the hosted product much closer to the local review experience.
 
 ### Backend responsibilities in Phase 4
 

@@ -1,22 +1,22 @@
 # CipherRoll Architecture
 
-## System Overview
+## 1. System Intent
 
 CipherRoll is a confidential payroll system built on **Fhenix CoFHE** and deployed for **Arbitrum Sepolia**.
 
-The core design goal is straightforward:
+Its architectural goal is simple:
 
-- keep payroll amounts, budget summaries, and aggregate solvency values encrypted on-chain
-- let admins still operate a real payroll workflow
-- let employees claim real payouts
+- keep sensitive payroll values encrypted on-chain
+- still support a real payroll workflow
+- let employees receive real payouts
 - let auditors review only aggregate disclosures
-- let compliance evidence become provable when needed
+- give operators a useful backend-assisted product layer without centralizing payroll plaintext
 
-CipherRoll is no longer just an encrypted bookkeeping demo. In the current submission snapshot, it supports real treasury-backed settlement, the official FHERC20 wrapper payout path, local employee decrypts, aggregate auditor permits, on-chain audit receipts, and a first operator-support layer through CipherBot.
+Wave 4 is the point where CipherRoll became more than a contracts-and-frontend prototype. The current system now includes a backend service, indexed read models, notification and export APIs, a shared SDK, and hosted persistence.
 
 ---
 
-## Architecture At A Glance
+## 2. High-Level Architecture
 
 ```mermaid
 flowchart TD
@@ -27,7 +27,6 @@ flowchart TD
     A --> F["CoFHE SDK"]
     C --> F
     D --> F
-
     F --> G[CoFHE Network]
 
     B --> H[Encrypted Budget Handles]
@@ -35,152 +34,133 @@ flowchart TD
     B --> J[Employee Allocation Handles]
     B --> K[Treasury Route]
 
-    E --> L[Aggregate Auditor Summary Getters]
+    E --> L[Aggregate Disclosure Getters]
     E --> M[Verify / Publish Receipt Functions]
 
     K --> N[Direct Settlement Adapter]
-    K --> O[FHERC20 Wrapper Settlement Adapter]
+    K --> O[Wrapper Settlement Adapter]
     O --> P[Settlement Token]
+
+    A --> Q[CipherRoll Backend]
+    D --> Q
+    Q --> R[Supabase Postgres]
 ```
 
 ---
 
-## Core Contracts
+## 3. Major Layers
 
-### `CipherRollPayroll`
+### 3.1 Contracts
 
-The main payroll protocol contract.
+The contract layer handles:
+
+- workspace / organization creation
+- encrypted budget state
+- payroll-run lifecycle
+- employee allocation issuance
+- settlement route coordination
+- employee claims
+- auditor-safe aggregate disclosures
+- verify / publish receipt flows
+
+The contract layer is where the confidential payroll logic lives. Sensitive numbers are represented as encrypted handles rather than plaintext balances.
+
+### 3.2 Frontend
+
+The frontend is a multi-surface product:
+
+- **Admin portal** for workspace creation, funding, payroll operations, reporting, and auditor sharing
+- **Employee portal** for local decrypt, payroll review, claim, and wrapper-finalize flow
+- **Auditor portal** for permit import, aggregate review, and receipt generation
+- **Docs** for product guidance, reference, roadmap, and support context
+- **Tax status page** for current scope signaling rather than a live tax workflow
+
+### 3.3 Backend
+
+Wave 4 introduced a backend service that supports the frontend with:
+
+- chain/event indexing
+- health and status APIs
+- organization, run, payment, and receipt read models
+- aggregate reporting summaries
+- notification feeds
+- export packaging
+- support-oriented query surfaces
+
+The backend is intentionally a **read-model and operator-support layer**. It does not replace browser-local decrypt flows and it does not centralize employee salary plaintext.
+
+### 3.4 Shared SDK
+
+`packages/cipherroll-sdk/` exists to prevent frontend and backend drift.
+
+It contains:
+
+- runtime config handling
+- backend API client logic
+- shared backend and frontend types
+- common product helpers and constants
+
+This is important in the deployed stack because the same chain, contract, and backend assumptions now need to stay consistent across:
+
+- Vercel frontend
+- Render backend
+- docs and product copy
+- future integrations
+
+### 3.5 Database
+
+The hosted backend now persists state in **Supabase-backed Postgres**.
+
+That database stores indexed workflow projections such as:
+
+- organizations
+- payroll runs
+- payments
+- audit receipts
+- notifications
+- raw events
+- indexer progress
+
+This allows the hosted app to survive restarts and serve stable operator summaries rather than rebuilding everything ad hoc in the browser.
+
+---
+
+## 4. Core Contract Surfaces
+
+### 4.1 `CipherRollPayroll`
 
 Responsibilities:
 
-- create and manage workspaces / organizations
-- maintain encrypted organization-level payroll budget state
+- create and manage organizations
+- maintain encrypted organization budget state
 - create and manage explicit payroll runs
 - reserve treasury-backed payroll funding
-- activate employee claims only after funding succeeds
+- activate employee claims only after funding
 - store employee allocation handles
-- process employee claims
-- coordinate direct treasury or FHERC20-wrapper-backed settlement
+- process claim flow
+- coordinate direct or wrapper-backed payout paths
 
-Key design property:
+Key property:
 
-CipherRollPayroll performs payroll arithmetic over encrypted handles instead of storing plaintext balances or allocations directly on-chain.
+Sensitive payroll arithmetic happens over encrypted handles rather than plaintext salary values.
 
-### `CipherRollAuditorDisclosure`
-
-The dedicated auditor disclosure surface.
+### 4.2 `CipherRollAuditorDisclosure`
 
 Responsibilities:
 
-- expose compliance-safe, aggregate-only organization summaries
-- expose decryptable aggregate handles for budget / committed / available
-- intentionally avoid employee salary rows and employee allocation handles
-- support on-chain verification or publication of selected aggregate receipts
-- support batched aggregate evidence flows
+- expose aggregate-only organization summaries
+- expose decryptable auditor-safe handles
+- avoid employee salary rows and raw allocation disclosure
+- support verify and publish receipt flows
+- support batched evidence flows
 
-This contract exists so auditor access does not depend on reusing admin-only getters that were never meant for shared-permit review.
-
----
-
-## Frontend Surfaces
-
-### Admin Portal
-
-The admin portal is the operator surface for:
-
-- wallet connection and CoFHE initialization
-- workspace setup
-- encrypted budget funding
-- treasury route configuration
-- payroll-run creation
-- payroll-run funding / activation
-- employee allocation issuance
-- auditor permit creation and export
-
-### Employee Portal
-
-The employee portal is a self-service claim surface for:
-
-- local permit-based decrypts
-- payroll review
-- claim initiation
-- wrapper-finalize flow when the treasury route uses FHERC20 settlement
-
-### Auditor Portal
-
-The auditor portal is an aggregate-first review surface for:
-
-- importing admin-exported shared permit payloads
-- selecting and activating recipient permits
-- decrypting only aggregate organization summaries
-- creating single-metric or batched verify/publish evidence receipts
-
-### Tax Status / Docs
-
-These are explanatory and documentation-facing surfaces. They are not full tax automation or full regulator workflow products in the current submission.
-
-The docs/admin/auditor/employee surfaces now also include a retrieval-backed CipherBot. It is still intentionally narrow in scope: product explanation, workflow support, and privacy-boundary guidance rather than autonomous execution, but it now answers free-form questions from indexed CipherRoll knowledge instead of relying only on preset answers.
-
-### Phase 4 Backend Reporting Layer
-
-CipherRoll now also includes the first backend-powered operator layer:
-
-- indexed public read models for organizations, payroll runs, payments, receipts, and raw workflow events
-- aggregate-first reporting summaries for admins and auditors
-- notification materialization from meaningful payroll and audit events
-- export packaging for operator JSON/CSV handoff
-
-This backend layer is intentionally limited to public or compliance-safe projections. It does not replace wallet-local decrypts and it does not centralize employee payroll plaintext.
+This contract exists so audit review does not depend on admin-only or employee-oriented reads.
 
 ---
 
-## Submission-Readiness Hardening
+## 5. Payroll Lifecycle
 
-Before the Phase 3 work began in earnest, CipherRoll completed a deliberate hardening pass so the shipped product would be more truthful and more stable:
-
-- wrapper-finalize proof verification now happens on-chain instead of accepting proof-shaped payloads without validation
-- wrapper settlement regression coverage now includes wrong plaintext, mismatched request ids, replay attempts, and finalize calls with no pending request
-- `allowPublic(...)` naming is aligned with the current CoFHE docs
-- privacy wording now matches the real host-chain disclosure boundary for wrapper request/finalize settlement
-- a published privacy matrix explains encrypted values, public metadata, explicit product disclosures, and inferable identifiers
-- identifier inference was reduced where practical and remaining tradeoffs are called out plainly
-- convenience-only route-id and metadata leakage were trimmed before submission
-
-This hardening work matters architecturally because it closes the gap between "what the product says" and "what the contracts and portals actually do."
-
----
-
-## Encrypted State Model
-
-CipherRoll relies on encrypted handles rather than plaintext amounts for sensitive payroll values.
-
-### Organization-Level Encrypted State
-
-The system maintains encrypted representations of:
-
-- total payroll budget
-- committed payroll
-- remaining available runway / budget
-
-These values are surfaced to the frontend as handles and decrypted only through the appropriate permit flow.
-
-### Employee-Level Encrypted State
-
-Each payroll item stores:
-
-- employee wallet
-- payment id
-- encrypted amount handle
-- vesting metadata if applicable
-- claim/finalization status
-
-The employee wallet can decrypt only the values intentionally exposed to it.
-
----
-
-## Payroll Lifecycle
-
-The current shipped payroll system is an explicit state machine rather than a single vague action.
+CipherRoll now models payroll as an explicit workflow, not a vague single-step action.
 
 ```mermaid
 sequenceDiagram
@@ -194,121 +174,107 @@ sequenceDiagram
     Admin->>AdminPortal: Create workspace
     AdminPortal->>Payroll: createOrganization(...)
 
-    Admin->>AdminPortal: Add encrypted budget
+    Admin->>AdminPortal: Fund encrypted budget
     AdminPortal->>Payroll: fundOrganizationBudget(...)
 
     Admin->>AdminPortal: Create payroll run
     AdminPortal->>Payroll: createPayrollRun(...)
 
-    Admin->>AdminPortal: Reserve treasury funds
+    Admin->>AdminPortal: Fund payroll run
     AdminPortal->>Payroll: fundPayrollRun(...)
     Payroll->>Treasury: reserve settlement inventory
 
-    Admin->>AdminPortal: Activate employee claims
+    Admin->>AdminPortal: Activate claims
     AdminPortal->>Payroll: activatePayrollRun(...)
 
     Employee->>Payroll: claimPayroll(...)
 
     alt Direct treasury route
         Payroll->>Treasury: release payout token
-    else FHERC20 wrapper route
-        Payroll->>Treasury: request confidential wrapper-backed payout
-        Employee->>Payroll: finalize wrapper payout / unshield claim
+    else Wrapper route
+        Payroll->>Treasury: request confidential payout
+        Employee->>Payroll: finalize wrapper payout
     end
 ```
 
-Run states in practice:
+Run states used in practice:
 
-1. Draft
-2. Funded
-3. Active
-4. Finalized
+1. `Draft`
+2. `Funded`
+3. `Active`
+4. `Finalized`
 
-This explicit lifecycle is important because claimability now depends on successful treasury funding and activation rather than on a loose notion of “issued payroll”.
+This sequencing matters because claimability now depends on successful treasury funding and explicit activation.
 
 ---
 
-## Treasury Architecture
+## 6. Treasury Architecture
 
-CipherRoll uses a treasury-route model instead of pretending payroll value exists inside the payroll contract alone.
+CipherRoll uses treasury routes so payroll value does not have to be imagined as existing inside the payroll contract alone.
 
-### Direct Settlement Route
-
-This path releases payout token inventory directly from a treasury-backed adapter.
+### Direct route
 
 Useful when:
 
-- the workspace uses direct test-token settlement
+- a workspace uses direct test-token settlement
 - confidential wrapper behavior is not required for the payout step
 
-### FHERC20 Wrapper Settlement Route
-
-This is the preferred current settlement path.
+### Wrapper-backed route
 
 Useful when:
 
-- teams want payroll to stay confidential deeper into the settlement path
-- payout should follow the official FHERC20 wrapper request/finalize model
+- payroll should stay confidential deeper into the payout path
+- the workspace wants the FHERC20-style request/finalize flow
 
-High-level flow:
+Important privacy note:
 
-1. Admin configures wrapper treasury route
-2. Payroll run reserves treasury inventory
-3. Employee claims payroll
-4. System requests wrapper-backed payout
-5. Employee finalizes payout through the unshield/claim flow
-6. Underlying token is released
-
-This keeps confidential wrapper balances private before the request is decrypted, but once the employee submits the `decryptForTx` finalize proof on-chain the amount is no longer only a local secret.
+Wrapper-backed confidential balances stay private before the request is decrypted, but once a `decryptForTx` finalize proof is submitted on-chain, the finalized settlement amount is no longer only a browser-local secret.
 
 ---
 
-## CoFHE Client Architecture
+## 7. CoFHE Client Architecture
 
-CipherRoll uses the current `@cofhe/sdk` client flow in the browser.
+CipherRoll uses `@cofhe/sdk` in the browser.
 
 ### Encryption
 
-Admin-side sensitive inputs are prepared with:
+Sensitive admin inputs are prepared with:
 
 - `encryptInputs(...)`
 
-This is used before contract submission for values that should enter the system as encrypted handles.
-
-### Local decrypt for review
+### Local review decrypts
 
 Employee and auditor read flows use:
 
 - `decryptForView(...)`
 
-This keeps plaintext inside the browser rather than routing salary or aggregate budget values through a backend service.
+This keeps plaintext in the browser rather than routing it through the backend.
 
-### Decrypt for evidence
+### Evidence-oriented decrypts
 
 Auditor receipt flows use:
 
 - `decryptForTx(...)`
 
-This prepares threshold-signed decrypt outputs that can then be:
+This prepares data for:
 
-- verified on-chain
-- or published on-chain
+- on-chain verification
+- or on-chain publication
 
-depending on the evidence mode selected in the auditor portal.
+depending on the selected evidence mode.
 
 ---
 
-## Auditor Architecture
+## 8. Auditor Architecture
 
-The current product introduces a real selective-disclosure architecture rather than a placeholder auditor page.
+CipherRoll’s auditor model is intentionally narrow.
 
 ### Admin sharing path
 
 The admin portal can:
 
-- create a named auditor sharing permit
-- scope it to a recipient wallet
-- set an expiration
+- create recipient-scoped auditor permits
+- set a name and expiration
 - export a non-sensitive sharing payload
 
 ### Auditor import path
@@ -316,139 +282,108 @@ The admin portal can:
 The auditor portal can:
 
 - import the shared payload
-- activate the resulting recipient permit
-- decrypt only aggregate budget / committed / available handles
+- activate the resulting permit locally
+- decrypt only the intended aggregate values
 
 ### Aggregate-only review
 
-The auditor surface intentionally centers on:
+The auditor surface centers on:
 
-- organization-level budget
+- budget
 - committed payroll
 - available runway
 - run counts
-- employee counts
-- treasury / settlement status
+- treasury posture
+- receipt history
 
 It intentionally avoids:
 
-- employee salary history
-- raw employee allocation rows
-- admin-only salary getters
-
-### Evidence mode
-
-The auditor can escalate from viewable to provable:
-
-- verify one metric
-- publish one metric
-- verify a selected batch
-- publish a selected batch
-
-This makes the audit architecture useful for both light review and stronger compliance evidence.
+- employee salary rows
+- raw employee allocation handles
+- broad admin-only views
 
 ---
 
-## Privacy Boundary
+## 9. Backend Responsibilities
 
-CipherRoll’s privacy model is strong, but intentionally honest.
+The backend currently handles these non-sensitive platform concerns:
 
-### Private
+- indexer progress tracking
+- event-to-read-model projection
+- reporting summary generation
+- JSON and CSV export packaging
+- notification materialization
+- backend status and health surfaces
+- support-oriented query context
 
-The following values are designed to stay encrypted:
+The backend should **not** casually centralize:
+
+- employee plaintext salary values
+- wallet-local permit decrypt outputs
+- private values that are meant to stay user-controlled
+
+Client-side permit and decrypt flows remain part of the architecture even though the backend now improves operator visibility.
+
+---
+
+## 10. Hosted Stack
+
+The current submission is deployed as:
+
+- **Frontend:** Vercel
+- **Backend:** Render
+- **Database:** Supabase Postgres
+
+That hosted stack matters architecturally because the frontend now depends on backend summaries, notifications, exports, and support APIs to behave like the intended product.
+
+---
+
+## 11. Privacy Boundary
+
+### Kept encrypted
 
 - organization budget
 - committed payroll
 - available runway
 - employee allocation amounts
-- aggregate auditor summary handles
-- wrapper-backed confidential balances before wrapper-request decryption
+- aggregate disclosure handles
+- pre-finalize wrapper-backed confidential balances
 
-### Public
-
-The following remain public or inferable on the host chain:
+### Public or inferable
 
 - wallet addresses
-- organization ids / labels used by transactions
+- organization ids and labels used in transactions
 - payroll-run states
 - funding deadlines
-- claim and finalization activity
+- claim and finalize activity
 - timestamps
-- wrapper settlement amount once the wrapper request/finalize decrypt proof is submitted on-chain
+- wrapper settlement amount after on-chain finalize proof submission
 
-### Practical interpretation
-
-CipherRoll does **not** claim that all payroll metadata disappears.
-
-Instead, it keeps the most sensitive financial values encrypted while being explicit that operational metadata and final settlement events still leave public traces.
+CipherRoll’s value is not “hide everything.”  
+Its value is “keep the financially sensitive core encrypted while staying honest about the public edges.”
 
 ---
 
-## Permit and Disclosure Model
+## 12. Current Scope Limits
 
-### Employee permits
+Not yet shipped as live product workflows:
 
-Employees use permit-backed decrypt flows to review their own payroll allocation values locally.
+- full tax automation
+- regulator-grade tax portal
+- on-chain M-of-N governance
+- multi-network rollout
+- enterprise auth and role server model
 
-### Auditor recipient permits
-
-Auditors use imported shared permits to decrypt only the aggregate handles intentionally exposed for audit review.
-
-### Important limitation
-
-Shared permits do not magically bypass contract access control.
-
-They depend on prior on-chain `FHE.allow(...)` exposure for the specific aggregate handles that CipherRoll intentionally makes reviewable.
-
-### Revocation honesty
-
-Removing a permit from a local browser session is a product-level revoke aid, not a guaranteed universal revoke of every imported copy.
-
-The primary practical controls remain:
-
-- narrow scope
-- recipient specificity
-- expiration
-
----
-
-## What The Current Submission Specifically Adds
-
-Compared with the earlier state of the project, the current submission now includes:
-
-- real payroll settlement instead of bookkeeping-only payroll
-- explicit payroll lifecycle states
-- funding and activation gates
-- frontend treasury route setup
-- official FHERC20 wrapper settlement path
-- meaningful employee payout completion
-- aggregate-first auditor portal
-- shared-permit-based auditor review
-- single and batched on-chain audit receipts
-- clearer documentation of what is private vs public
-
----
-
-## Current Scope Limits
-
-The current submission is intentionally scoped.
-
-Not shipped as live product workflows yet:
-
-- production-grade tax automation
-- full regulator portal
-- on-chain M-of-N admin governance
-- broader multi-network rollout
-
-Active shipped chain target:
+Current active chain target:
 
 - **Arbitrum Sepolia only**
 
 ---
 
-## Supporting References
+## 13. Related Docs
 
 - [README.md](../README.md)
 - [ROADMAP.md](./ROADMAP.md)
 - [TESTING.md](./TESTING.md)
 - [FRONTEND_MANUAL_QA.md](./FRONTEND_MANUAL_QA.md)
+- [PRIVACY_MATRIX.md](./PRIVACY_MATRIX.md)

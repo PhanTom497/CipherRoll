@@ -1,137 +1,263 @@
 # CipherRoll Testing & Verification Guide
 
-This guide outlines the current submission-readiness verification flow for the CoFHE-based CipherRoll contracts and frontend on Arbitrum Sepolia.
+This guide is the practical verification flow for the current **Wave 4** CipherRoll submission.
 
-## 1. Smart Contract Compilation
+It covers:
 
-Navigate to the repository root and compile the contracts using Hardhat/Foundry wrappers.
+- smart contract baseline checks
+- frontend production readiness
+- backend/indexer validation
+- payroll workflow verification
+- auditor and privacy-boundary checks
+- hosted stack checks
+
+---
+
+## 1. Engineering Baseline
+
+Run these from the repository root:
 
 ```bash
 npm run compile
+npm run test
+npm run build:web
+npm run build:backend
 ```
 
-**Expected Output:**
-- `CipherRollPayroll.sol` compiles successfully.
-- Typechain artifacts are generated for the frontend.
+Expected result:
 
-## 2. Clean Engineering Baseline
+- contracts compile successfully
+- tests pass
+- frontend production build succeeds
+- backend build succeeds
 
-Run the full submission baseline sweep from the repository root.
+If this baseline is red, the current submission should not be treated as stable.
+
+---
+
+## 2. Local Product Loop
+
+### Start the backend
 
 ```bash
-npm run baseline
+npm run dev:backend
 ```
 
-**Expected Output:**
-- `npm run compile` succeeds.
-- `npm run test` succeeds.
-- `npm run build:web` completes a production Next.js build successfully.
-- The current submission snapshot is not treated as stable until this full sweep is green.
-
-## 3. Protocol Deployment
-
-Deploy the core protocol to Arbitrum Sepolia.
-
-```bash
-npm install
-npm run deploy:arb-sepolia
-```
-
-**Expected Output:**
-- An instance of the `CipherRollPayroll` contract is deployed.
-- Deployment metadata is updated with the new addresses.
-
-## 4. Local Development Server
+### Start the frontend
 
 ```bash
 cd web
 npm run dev
 ```
 
-**Expected Output:**
-- The frontend loads seamlessly at `http://localhost:3000`.
-- All sub-routes (`/admin`, `/employee`, `/docs`) properly resolve and maintain state.
+### Expected local routes
 
-## 5. End-to-End Functional Flow
+- `/`
+- `/docs`
+- `/admin`
+- `/employee`
+- `/auditor`
+- `/tax-authority`
 
-1. **Workspace Genesis:** Connect an admin wallet and create a new organizational workspace. Confirm workspace creation succeeds both with a readable label and with the safer less-guessable ID option in the admin portal.
-2. **Homomorphic Funding:** Deposit an encrypted budget amount. Ensure the transaction succeeds and the on-chain handle mapping updates without revealing the integer.
-3. **Explicit Run Lifecycle:** Create a payroll run, upload at least one allocation, fund the run from encrypted budget state, and activate the claim window. Confirm claim attempts fail before activation and succeed only after the run becomes active.
-4. **Confidential Issuance:** Issue a payroll allocation to a designated employee wallet address. Add a specific memo.
-5. **Aggregate Admin Insight:** Refresh the admin portal and confirm it shows only organization-level counters such as total payroll items, active items, claimed items, vesting items, recipient count, and budget health.
-6. **Vesting Issuance:** Issue a second payroll allocation with a future vesting window. Confirm the employee can see that it exists while the contract still blocks early claim attempts.
-7. **Local Permit-Backed Decryption:** 
-   - Switch your Web3 provider to the employee's wallet address.
-   - Access the `/employee` portal.
-   - Generate an EIP-712 security permit.
-   - Validate that the browser `@cofhe/sdk` client successfully decrypts the ciphertext via `decryptForView()` and keeps plaintext local to the browser session.
-   - Confirm the portal labels allocations clearly as draft/funded-awaiting-activation/claim-ready/vesting/claimed when applicable.
-8. **Claim Path:** Claim an immediate allocation successfully, then verify that the same allocation cannot be claimed twice and that a still-vesting allocation remains blocked until unlock.
-9. **Treasury-Backed Settlement Check:**
-   - Configure a workspace treasury adapter and fund it with a real test token inventory.
-   - Confirm the admin portal shows available and reserved treasury balances for the workspace before and after funding a payroll run.
-   - Claim a payroll item from the employee wallet and confirm the employee receives an actual token balance increase on-chain.
-   - For a wrapper-backed workspace, confirm the employee first requests payout and then finalizes the wrapper claim before the underlying token balance increases.
-   - Confirm a workspace without treasury configuration still falls back to claim-state-only behavior.
-10. **Auditor Selective-Disclosure Check:**
-   - From the admin portal, create an auditor sharing permit for a named recipient wallet and copy the exported non-sensitive payload.
-   - From the auditor portal, import that payload into the recipient wallet, activate the recipient permit, and refresh the workspace.
-   - Confirm the auditor can decrypt only the aggregate budget / committed / available values while the portal continues to show public compliance-safe summary fields.
-   - Confirm the auditor cannot access employee salary rows or employee allocation handles through the portal.
-   - Confirm removing the permit from the admin or auditor browser clears the local session but the product language still describes that as a local revoke aid rather than a universal remote kill switch.
-   - Confirm the auditor can select one aggregate metric, generate a `decryptForTx` proof from the imported recipient permit, and submit either a verify receipt or a publish receipt on-chain.
-   - Confirm the evidence flow stays narrow: one aggregate metric at a time, no employee salary rows, and no broader disclosure than the chosen budget / committed / available value.
-   - Confirm the auditor can also choose a batch of aggregate metrics and submit one batched verify receipt or one batched publish receipt without revealing employee-level encrypted state.
-   - Confirm the portal clearly shows when the auditor is only reviewing permit-based data locally versus when they are producing an on-chain receipt.
-11. **Privacy Boundary Check:**
-   - Confirm encrypted values stay private: budget, committed amount, available amount, and employee allocation amounts.
-   - Confirm public metadata is still visible by design: wallet addresses, workspace ids, payment ids, memo hashes, vesting timestamps, payroll-run status, and claim/finalization transactions.
-   - Confirm the current product documents the wrapper privacy boundary honestly: confidential balances stay private before wrapper-request decryption, while the wrapper settlement amount becomes public once the on-chain `decryptForTx` finalize proof is submitted.
-   - Confirm the product documents the shared-permit prerequisite honestly: the auditor flow depends on prior on-chain `FHE.allow(...)` access granted by the data owner to the aggregate handles exposed for audit review.
-   - Confirm the product distinguishes clearly between a view-only aggregate disclosure and a provable on-chain audit receipt, including the extra publicity tradeoff of publishing decrypt results.
-   - Confirm the product explains that batch receipts still remain aggregate-only and are built from the same shared-permit organization metrics rather than payroll-row disclosures.
-   - Confirm the product explains in plain language that view mode keeps plaintext local to the auditor browser, while receipt mode records evidence on-chain.
+---
 
-## 6. Automated Unit Tests
+## 3. Backend Verification
 
-Execute the standardized test suite to verify homomorphic logic, budget boundaries, and role-based access controllers.
+### Health and status
+
+Check the backend directly:
 
 ```bash
-npm run test
+curl http://127.0.0.1:4000/api/health
+curl http://127.0.0.1:4000/api/status
 ```
 
-**Current Root Test Stack:**
-- Hardhat runs with `@cofhe/hardhat-plugin` on the in-process `hardhat` network.
-- CoFHE mock contracts are auto-deployed for local test runs.
-- Tests create batteries-included CoFHE clients via `hre.cofhe.createClientWithBatteries(...)`.
-- The suite currently covers encrypted multi-deposit budget math, confidential payroll issuance, explicit payroll-run lifecycle gating, privacy-safe organization insights, over-capacity zero-allocation behavior, employee-only reads, vesting metadata and claim enforcement, permit-enabled decrypt flows, admin/employee access control, wrapper-finalize proof verification, and malformed, mismatched, replayed, or duplicate request failure handling.
+Expected:
 
-## 7. Backend Reporting & Export Verification
+- health returns `ok: true`
+- status returns chain, indexer, and object-count information
 
-Once the Phase 4 backend is running, verify the indexed operator layer as well:
+### Read-model verification
 
-1. Open `GET /api/status` and confirm indexer progress plus object counts.
-2. Open `GET /api/reports/organizations/:orgId/summary` for a real workspace and confirm it returns aggregate-only payroll, treasury, and claim posture.
-3. Open `GET /api/notifications?orgId=:orgId` and confirm the feed includes funded runs, activated claims, employee claims, wrapper settlement requests/finalizations, and audit receipt events when applicable.
-4. Open `GET /api/reports/organizations/:orgId/export` and confirm the JSON package contains:
-   - summary
-   - payroll runs
-   - audit receipts
-   - notifications
-5. Open `GET /api/reports/organizations/:orgId/export?format=csv` and confirm the CSV downloads successfully.
-6. Post to `POST /api/cipherbot/query` with a free-form question such as "Why can a later payroll run still show zero available treasury funds?" and confirm the answer cites current CipherRoll funding behavior rather than a generic chatbot response.
-7. In the docs, admin, and auditor portals, confirm CipherBot accepts free-form questions and returns portal-aware answers plus follow-up prompts.
-8. In the admin portal overview, confirm the backend operations panel shows:
-   - indexer status
-   - active payroll runs
-   - pending employee claims
-   - wrapper finalize backlog
-   - filterable workflow notifications
-9. In the auditor portal receipts tab, confirm the backend evidence package shows:
-   - verified receipt stream
-   - published receipt stream
-   - packaged notification trail
+Verify the backend can return frontend-facing data:
+
+- `GET /api/reports/organizations/:orgId/summary`
+- `GET /api/organizations/:orgId/runs`
+- `GET /api/organizations/:orgId/payments`
+- `GET /api/notifications?orgId=:orgId`
+- `GET /api/reports/organizations/:orgId/export`
 
 Expected boundary:
-- backend reporting should improve operator visibility
-- employee plaintext salary rows must still remain out of backend reports and exports
+
+- summaries are aggregate-first
+- exports are useful for operators
+- employee plaintext salary rows do not appear in reports or exports
+
+---
+
+## 4. Admin Workflow Verification
+
+1. Connect the intended admin wallet.
+2. Confirm the wallet is on **Arbitrum Sepolia**.
+3. Initialize **CoFHE**.
+4. Create a workspace / organization.
+5. Fund encrypted budget.
+6. Create a payroll run.
+7. Fund the payroll run from treasury-backed inventory.
+8. Activate claims.
+9. Issue at least one payroll allocation.
+10. Refresh the admin portal and confirm the backend reporting panel loads.
+
+Verify:
+
+- workspace metadata loads correctly
+- operator role is recognized
+- encrypted summary cards can be read after CoFHE init
+- backend reporting cards load without 404 or JSON parse errors
+- exports work
+- workflow notifications appear
+
+---
+
+## 5. Employee Workflow Verification
+
+1. Switch to the employee wallet.
+2. Open `/employee`.
+3. Generate or reuse the local permit flow.
+4. Confirm payroll rows load for the intended employee.
+5. Decrypt values locally through the browser flow.
+6. Claim an allocation.
+7. If the route is wrapper-backed, finalize the payout.
+
+Verify:
+
+- values decrypt locally
+- early claim attempts remain blocked when expected
+- claim-ready state appears only after activation
+- wrapper-backed flow requires request plus finalize
+- final payout becomes meaningful on-chain
+
+---
+
+## 6. Auditor Workflow Verification
+
+1. From the admin portal, create an auditor sharing permit.
+2. Export the non-sensitive sharing payload.
+3. Open `/auditor` with the recipient wallet.
+4. Import the shared payload.
+5. Activate the permit locally.
+6. Review aggregate-only values.
+7. Create verify or publish receipts when needed.
+
+Verify:
+
+- auditor can read aggregate summary values
+- auditor cannot see employee salary rows
+- receipt generation stays narrow and aggregate-scoped
+- portal distinguishes between local review and on-chain evidence
+
+---
+
+## 7. Privacy Boundary Verification
+
+Confirm the product stays honest about its privacy model.
+
+### Should remain encrypted
+
+- organization budget
+- committed payroll
+- available runway
+- employee allocation amounts
+- aggregate disclosure handles
+
+### Should remain public or inferable
+
+- wallet addresses
+- organization ids
+- run states
+- funding deadlines
+- timestamps
+- claim and finalize transactions
+
+### Wrapper-specific check
+
+Confirm the product explains that wrapper-backed balances stay confidential before request/finalize decryption, but the finalized settlement amount becomes public once the `decryptForTx` proof is submitted on-chain.
+
+---
+
+## 8. CipherBot Verification
+
+CipherBot is now part of the shipped Wave 4 surface and should be verified explicitly.
+
+### Test locations
+
+- `/docs`
+- `/admin`
+- `/employee`
+- `/auditor`
+
+### What to verify
+
+- the widget opens and accepts free-form questions
+- answers are relevant to the current portal
+- the chat route responds without hanging
+- Gemini-backed answers work on the deployed frontend
+- fallback behavior remains readable if the model path is unavailable
+
+### Useful browser check
+
+In DevTools `Network`, inspect the `/api/chat` response headers:
+
+- `X-CipherBot-Mode`
+- `X-CipherBot-Model`
+- `X-CipherBot-Reason`
+
+This helps distinguish real model responses from fallback behavior.
+
+---
+
+## 9. Hosted Submission Verification
+
+For the deployed Wave 4 stack, verify all three layers:
+
+### Frontend
+
+- Vercel deployment loads successfully
+- docs, admin, employee, and auditor routes render correctly
+
+### Backend
+
+- Render backend returns healthy responses
+- backend read-model routes return JSON
+
+### Database
+
+- backend remains stable across restarts
+- indexed counts and summaries persist through the hosted Postgres layer
+
+### Practical check
+
+In the frontend browser DevTools `Network` tab:
+
+- CipherBot should hit the Vercel route: `/api/chat`
+- backend reporting requests should hit the Render backend host
+- no product data fetch should be trying to use `localhost` or `127.0.0.1` in production
+
+---
+
+## 10. Final Submission Checklist
+
+Before treating the Wave 4 submission as complete, confirm:
+
+- [ ] contracts compile
+- [ ] tests pass
+- [ ] frontend production build passes
+- [ ] backend build passes
+- [ ] admin workflow works
+- [ ] employee workflow works
+- [ ] auditor workflow works
+- [ ] backend status and summaries load
+- [ ] exports work
+- [ ] CipherBot works in deployed mode
+- [ ] privacy wording still matches real behavior
+- [ ] no deployed frontend route is still relying on localhost

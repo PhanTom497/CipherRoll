@@ -748,7 +748,6 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
             headers={['Repo doc', 'Purpose']}
             rows={[
               ['docs/ARCHITECTURE.md', 'Backend, frontend, contracts, and service boundaries.'],
-              ['docs/DEPLOYMENT.md', 'Step-by-step Vercel and backend deployment guide for the current stack.'],
               ['docs/ROADMAP.md', 'Wave-by-wave product progression and planned next work.'],
               ['docs/FRONTEND_MANUAL_QA.md', 'Frontend validation checklist for the shipped product surfaces.'],
               ['docs/TESTING.md', 'Manual and integration-oriented validation guidance.'],
