@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { AbiCoder } from 'ethers'
 import {
   AlertTriangle,
   Building2,
@@ -25,13 +26,18 @@ import GlassCard from '@/components/GlassCard'
 import { motion, AnimatePresence } from 'framer-motion'
 import NetworkStatus from '@/components/NetworkStatus'
 import { useCipherRollWallet } from '@/components/EvmWalletProvider'
-import { getCipherRollContract, formatHandle } from '@/lib/cipherroll-client'
+import {
+  getCipherRollContract,
+  getCipherRollGovernanceContract,
+  formatHandle
+} from '@/lib/cipherroll-client'
 import {
   BACKEND_BASE_URL,
   CONTRACT_ADDRESS,
   DEFAULT_ORG_ID,
   DIRECT_SETTLEMENT_ADAPTER_ADDRESS,
   formatBytes32Preview,
+  GOVERNANCE_CONTRACT_ADDRESS,
   makeHighEntropyBytes32Label,
   makeHighEntropyLabel,
   makeDeterministicLabel,
@@ -44,6 +50,7 @@ import {
 import { getCipherRollBackendClient } from '@/lib/cipherroll-backend'
 import {
   extractCipherRollErrorMessage,
+  isRetryableWalletFeeError,
   parseDecimalAmountToWei,
   shortHash
 } from '@/lib/admin-portal-utils'
@@ -67,10 +74,67 @@ import type {
   PayrollRunView,
   TreasuryAdapterConfig
 } from '@/lib/cipherroll-types'
+import type { CipherRollEncryptedInput } from '@/lib/generated/cipherroll-abi'
 
-type AdminPortal = 'overview' | 'setup' | 'budget' | 'payroll' | 'auditor'
+type AdminPortal = 'overview' | 'setup' | 'budget' | 'payroll' | 'governance' | 'auditor'
+
+type GovernanceActionKey =
+  | 'configure_treasury'
+  | 'create_payroll_run'
+  | 'fund_payroll_run'
+  | 'fund_payroll_run_from_treasury'
+  | 'activate_payroll_run'
+  | 'issue_confidential_payroll'
+  | 'issue_confidential_payroll_to_run'
+  | 'issue_vesting_allocation'
+  | 'issue_vesting_allocation_to_run'
+  | 'add_admin'
+  | 'remove_admin'
+  | 'update_quorum'
+
+type GovernanceActionDefinition = {
+  type: number
+  label: string
+  requiresWalletExecutor: boolean
+}
+
+type GovernanceProposalRecord = {
+  proposalId: string
+  orgId: string
+  actionType: number
+  actionLabel: string
+  payload: string
+  proposer: string
+  createdAt: number
+  expiresAt: number
+  approvalCount: number
+  executed: boolean
+  cancelled: boolean
+  approvedByCurrentAdmin: boolean
+  requiresWalletExecutor: boolean
+}
+
+type GovernanceOverview = {
+  primaryAdmin: string
+  maxAdmins: number
+  quorum: number
+  adminCount: number
+  nonce: number
+  initialized: boolean
+}
+
+type PendingGovernedPayrollIntent = {
+  key: string
+  actionKey: 'issue_confidential_payroll_to_run' | 'issue_vesting_allocation_to_run'
+  payload: string
+  encryptedAmount: CipherRollEncryptedInput
+  paymentId: string
+  memoHash: string
+}
 
 type SurfaceStatusTone = 'neutral' | 'info' | 'success' | 'error'
+
+const MIN_PAYROLL_FUNDING_DEADLINE_BUFFER_SECONDS = 10 * 60
 
 type SurfaceStatus = {
   tone: SurfaceStatusTone
@@ -163,6 +227,33 @@ function formatUnixTimestamp(value?: number | null): string {
   return new Date(value * 1000).toLocaleString()
 }
 
+const governanceActionDefinitions: Record<GovernanceActionKey, GovernanceActionDefinition> = {
+  configure_treasury: { type: 0, label: 'Configure treasury route', requiresWalletExecutor: false },
+  create_payroll_run: { type: 1, label: 'Create payroll run', requiresWalletExecutor: false },
+  fund_payroll_run: { type: 2, label: 'Fund payroll run from encrypted budget', requiresWalletExecutor: true },
+  fund_payroll_run_from_treasury: { type: 3, label: 'Fund payroll run from treasury', requiresWalletExecutor: false },
+  activate_payroll_run: { type: 4, label: 'Activate payroll run', requiresWalletExecutor: false },
+  issue_confidential_payroll: { type: 5, label: 'Issue confidential payroll', requiresWalletExecutor: true },
+  issue_confidential_payroll_to_run: { type: 6, label: 'Issue confidential payroll to run', requiresWalletExecutor: true },
+  issue_vesting_allocation: { type: 7, label: 'Issue vesting allocation', requiresWalletExecutor: true },
+  issue_vesting_allocation_to_run: { type: 8, label: 'Issue vesting allocation to run', requiresWalletExecutor: true },
+  add_admin: { type: 9, label: 'Add admin', requiresWalletExecutor: false },
+  remove_admin: { type: 10, label: 'Remove admin', requiresWalletExecutor: false },
+  update_quorum: { type: 11, label: 'Update quorum', requiresWalletExecutor: false }
+}
+
+const governanceActionLabelsByType = Object.fromEntries(
+  Object.values(governanceActionDefinitions).map((item) => [item.type, item.label])
+) as Record<number, string>
+
+const governanceWalletActionTypes = new Set(
+  Object.values(governanceActionDefinitions)
+    .filter((item) => item.requiresWalletExecutor)
+    .map((item) => item.type)
+)
+
+const abiCoder = AbiCoder.defaultAbiCoder()
+
 export default function AdminPage() {
   const { address, signer, provider, chainId, isInstalled, switchToTargetChain } = useCipherRollWallet()
   const [activePortal, setActivePortal] = useState<AdminPortal>('overview')
@@ -193,9 +284,20 @@ export default function AdminPage() {
   const [backendActiveRuns, setBackendActiveRuns] = useState<PayrollRunRecord[]>([])
   const [backendPendingClaims, setBackendPendingClaims] = useState<PaymentRecord[]>([])
   const [backendPendingFinalizations, setBackendPendingFinalizations] = useState<PaymentRecord[]>([])
-  const [backendNotificationCategory, setBackendNotificationCategory] = useState<'all' | 'payroll_run' | 'claim' | 'settlement' | 'audit_receipt'>('all')
+  const [backendNotificationCategory, setBackendNotificationCategory] = useState<'all' | 'payroll_run' | 'claim' | 'settlement' | 'audit_receipt' | 'governance'>('all')
   const [backendReportError, setBackendReportError] = useState<string | null>(null)
   const [isBackendReportLoading, setIsBackendReportLoading] = useState(false)
+  const [governanceOverview, setGovernanceOverview] = useState<GovernanceOverview | null>(null)
+  const [governanceAdmins, setGovernanceAdmins] = useState<string[]>([])
+  const [governanceProposals, setGovernanceProposals] = useState<GovernanceProposalRecord[]>([])
+  const [isGovernanceLoading, setIsGovernanceLoading] = useState(false)
+  const [governanceError, setGovernanceError] = useState<string | null>(null)
+  const [bootstrapAdminAddress, setBootstrapAdminAddress] = useState('')
+  const [governanceLinkedAddress, setGovernanceLinkedAddress] = useState('')
+  const [newGovernanceAdminAddress, setNewGovernanceAdminAddress] = useState('')
+  const [governanceAdminToRemove, setGovernanceAdminToRemove] = useState('')
+  const [nextGovernanceQuorum, setNextGovernanceQuorum] = useState('2')
+  const [pendingGovernedPayrollIntent, setPendingGovernedPayrollIntent] = useState<PendingGovernedPayrollIntent | null>(null)
 
   useEffect(() => {
     try {
@@ -326,8 +428,17 @@ export default function AdminPage() {
     setAuditorPermitExpirationInput(formatDateTimeLocalInput(date))
   }, [auditorPermitExpirationInput])
 
+  useEffect(() => {
+    if (payrollFundingDeadlineInput) return
+
+    const date = new Date()
+    date.setDate(date.getDate() + 7)
+    setPayrollFundingDeadlineInput(formatDateTimeLocalInput(date))
+  }, [payrollFundingDeadlineInput])
+
   const orgId = useMemo(() => toBytes32Label(orgIdInput), [orgIdInput])
   const isConfigured = Boolean(CONTRACT_ADDRESS)
+  const governanceConfigured = Boolean(GOVERNANCE_CONTRACT_ADDRESS)
   const isTargetChain = chainId === TARGET_CHAIN_ID
   const isAdmin = address && organization.admin
     ? address.toLowerCase() === organization.admin.toLowerCase()
@@ -372,18 +483,16 @@ export default function AdminPage() {
 
     try {
       const backend = getCipherRollBackendClient()
-      const [status, report, notifications, activeRuns, pendingClaims, pendingFinalizations] = await Promise.all([
-        backend.getStatus(),
-        backend.getOrganizationReportSummary(orgId),
-        backend.getNotifications({
-          orgId,
-          limit: 8,
-          category: backendNotificationCategory === 'all' ? undefined : backendNotificationCategory
-        }),
-        backend.getOrganizationRuns(orgId, { status: 2, limit: 5 }),
-        backend.getOrganizationPayments(orgId, { claimState: 'pending', limit: 5 }),
-        backend.getOrganizationPayments(orgId, { settlementState: 'requested', limit: 5 })
-      ])
+      const status = await backend.getStatus()
+      const report = await backend.getOrganizationReportSummary(orgId)
+      const notifications = await backend.getNotifications({
+        orgId,
+        limit: 8,
+        category: backendNotificationCategory === 'all' ? undefined : backendNotificationCategory
+      })
+      const activeRuns = await backend.getOrganizationRuns(orgId, { status: 2, limit: 5 })
+      const pendingClaims = await backend.getOrganizationPayments(orgId, { claimState: 'pending', limit: 5 })
+      const pendingFinalizations = await backend.getOrganizationPayments(orgId, { settlementState: 'requested', limit: 5 })
 
       setBackendStatus(status)
       setBackendReport(report)
@@ -399,6 +508,84 @@ export default function AdminPage() {
     }
   }, [backendNotificationCategory, orgId, organization.exists])
 
+  const loadGovernanceState = useCallback(async () => {
+    if (!provider || !organization.exists || !governanceConfigured || !isTargetChain) {
+      setGovernanceOverview(null)
+      setGovernanceAdmins([])
+      setGovernanceProposals([])
+      setGovernanceLinkedAddress('')
+      setGovernanceError(null)
+      return
+    }
+
+    setIsGovernanceLoading(true)
+    setGovernanceError(null)
+
+    try {
+      const payrollContract = getCipherRollContract(signer ?? provider)
+      const governanceContract = getCipherRollGovernanceContract(signer ?? provider)
+
+      const [linkedExecutor, governance, admins, proposalIds] = await Promise.all([
+        payrollContract.getOrganizationGovernanceExecutor(orgId),
+        governanceContract.getOrganizationGovernance(orgId),
+        governanceContract.getOrganizationAdmins(orgId).catch(() => [] as string[]),
+        governanceContract.getOrganizationGovernanceProposalIds(orgId).catch(() => [] as string[])
+      ])
+
+      setGovernanceLinkedAddress(linkedExecutor)
+      setGovernanceOverview({
+        primaryAdmin: String(governance.primaryAdmin ?? ''),
+        maxAdmins: Number(governance.maxAdmins ?? 0),
+        quorum: Number(governance.quorum ?? 0),
+        adminCount: Number(governance.adminCount ?? 0),
+        nonce: Number(governance.nonce ?? 0),
+        initialized: Boolean(governance.initialized)
+      })
+      setGovernanceAdmins(admins)
+
+      const proposalEntries = await Promise.all(
+        [...proposalIds].reverse().slice(0, 18).map(async (proposalId) => {
+          const proposal = await governanceContract.getGovernanceProposal(proposalId)
+          const approvedByCurrentAdmin =
+            address
+              ? await governanceContract.hasApprovedGovernanceProposal(proposalId, address).catch(() => false)
+              : false
+
+          const actionType = Number(proposal.actionType ?? 0)
+
+          return {
+            proposalId: String(proposalId),
+            orgId: String(proposal.orgId ?? ''),
+            actionType,
+            actionLabel: governanceActionLabelsByType[actionType] ?? `Action ${actionType}`,
+            payload: String(proposal.payload ?? '0x'),
+            proposer: String(proposal.proposer ?? ''),
+            createdAt: Number(proposal.createdAt ?? 0),
+            expiresAt: Number(proposal.expiresAt ?? 0),
+            approvalCount: Number(proposal.approvalCount ?? 0),
+            executed: Boolean(proposal.executed),
+            cancelled: Boolean(proposal.cancelled),
+            approvedByCurrentAdmin,
+            requiresWalletExecutor: governanceWalletActionTypes.has(actionType)
+          } satisfies GovernanceProposalRecord
+        })
+      )
+
+      setGovernanceProposals(proposalEntries)
+      if (governance.initialized) {
+        setNextGovernanceQuorum(String(Number(governance.quorum ?? 0) || 2))
+      }
+    } catch (error) {
+      setGovernanceOverview(null)
+      setGovernanceAdmins([])
+      setGovernanceProposals([])
+      setGovernanceLinkedAddress('')
+      setGovernanceError(extractCipherRollErrorMessage(error))
+    } finally {
+      setIsGovernanceLoading(false)
+    }
+  }, [address, governanceConfigured, isTargetChain, orgId, organization.exists, provider, signer])
+
   useEffect(() => {
     if (!organization.exists) {
       setBackendReport(null)
@@ -411,12 +598,29 @@ export default function AdminPage() {
       return
     }
 
-    if (activePortal !== 'overview' && activePortal !== 'auditor') {
+    if (activePortal !== 'overview' && activePortal !== 'auditor' && activePortal !== 'governance') {
       return
     }
 
     void loadBackendOperatorOutputs()
   }, [activePortal, organization.exists, loadBackendOperatorOutputs])
+
+  useEffect(() => {
+    if (!organization.exists || !governanceConfigured) {
+      setGovernanceOverview(null)
+      setGovernanceAdmins([])
+      setGovernanceProposals([])
+      setGovernanceLinkedAddress('')
+      setGovernanceError(null)
+      return
+    }
+
+    if (activePortal !== 'overview' && activePortal !== 'governance') {
+      return
+    }
+
+    void loadGovernanceState()
+  }, [activePortal, governanceConfigured, loadGovernanceState, organization.exists])
   const vestingWindowInvalid = Boolean(
     payrollMode === 'vesting' &&
     (!vestingStartTimestamp || !vestingEndTimestamp || vestingEndTimestamp <= vestingStartTimestamp)
@@ -428,7 +632,34 @@ export default function AdminPage() {
   const canReadState = Boolean(provider && isConfigured && isTargetChain)
   const canSubmitTransactions = Boolean(signer && isConfigured && isTargetChain)
   const canEncryptInputs = Boolean(canSubmitTransactions && cofheReady)
-  const workspaceOwnedByAnotherAdmin = Boolean(organization.exists && address && !isAdmin)
+  const governanceInitialized = Boolean(governanceOverview?.initialized)
+  const governanceQuorum = governanceOverview?.quorum ?? 0
+  const governanceAdminCount = governanceOverview?.adminCount ?? 0
+  const governanceActive = Boolean(
+    governanceOverview?.initialized &&
+    governanceQuorum > 1 &&
+    governanceAdminCount >= governanceQuorum &&
+    governanceLinkedAddress &&
+    GOVERNANCE_CONTRACT_ADDRESS &&
+    governanceLinkedAddress.toLowerCase() === GOVERNANCE_CONTRACT_ADDRESS.toLowerCase()
+  )
+  const connectedWalletIsGovernanceAdmin = Boolean(
+    address && governanceAdmins.some((admin) => admin.toLowerCase() === address.toLowerCase())
+  )
+  const workspaceOwnedByAnotherAdmin = Boolean(
+    organization.exists &&
+    address &&
+    !isAdmin &&
+    !connectedWalletIsGovernanceAdmin
+  )
+  const bootstrapAdminSafeAddress = useMemo(() => safeAddress(bootstrapAdminAddress) ?? '', [bootstrapAdminAddress])
+  const newGovernanceAdminSafeAddress = useMemo(() => safeAddress(newGovernanceAdminAddress) ?? '', [newGovernanceAdminAddress])
+  const governanceAdminToRemoveSafeAddress = useMemo(() => safeAddress(governanceAdminToRemove) ?? '', [governanceAdminToRemove])
+  const nextGovernanceQuorumValue = useMemo(() => {
+    if (!nextGovernanceQuorum.trim()) return null
+    const parsed = Number.parseInt(nextGovernanceQuorum, 10)
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+  }, [nextGovernanceQuorum])
   const payrollRunExists = payrollRun.exists && payrollRun.orgId === orgId
   const payrollRunStatusLabel = payrollRunExists
     ? ['Draft', 'Funded', 'Active', 'Finalized'][payrollRun.status] ?? 'Unknown'
@@ -473,6 +704,7 @@ export default function AdminPage() {
     { id: 'setup', label: 'Workspace' },
     { id: 'budget', label: 'Add Budget' },
     { id: 'payroll', label: 'Pay One Employee' },
+    { id: 'governance', label: 'Governance' },
     { id: 'auditor', label: 'Auditor Sharing' }
   ] as const satisfies ReadonlyArray<{
     id: AdminPortal
@@ -648,9 +880,9 @@ export default function AdminPage() {
         }
       } else if (address && nextOrg.exists && nextOrg.admin.toLowerCase() !== address.toLowerCase()) {
         setSurfaceStatus({
-          tone: 'error',
-          title: 'Connected wallet is not the workspace admin',
-          detail: 'Refresh succeeded, but admin-only budget handles remain unavailable for this wallet.'
+          tone: 'info',
+          title: 'Connected wallet is not the primary admin',
+          detail: 'Workspace metadata loaded successfully. Budget handles still require the primary admin wallet, or a linked governance signer once M-of-N setup is complete.'
         })
       }
 
@@ -753,7 +985,7 @@ export default function AdminPage() {
     }
   }
 
-  const withTransaction = async (
+  const withTransaction = useCallback(async (
     actionTitle: string,
     awaitingMessage: string,
     successMessage: string,
@@ -768,7 +1000,23 @@ export default function AdminPage() {
         detail: awaitingMessage
       })
 
-      const tx = await work()
+      let tx: { hash?: string | null; wait: () => Promise<unknown> }
+      try {
+        tx = await work()
+      } catch (error) {
+        if (!isRetryableWalletFeeError(error)) {
+          throw error
+        }
+
+        setSurfaceStatus({
+          tone: 'info',
+          title: `${actionTitle} fee refreshed`,
+          detail: 'The wallet fee quote changed before submission. Reopening the wallet prompt with fresh network pricing...'
+        })
+        toast.info('Refreshing the wallet fee quote. Please approve the new prompt.')
+        await new Promise((resolve) => setTimeout(resolve, 900))
+        tx = await work()
+      }
 
       setSurfaceStatus({
         tone: 'info',
@@ -779,6 +1027,9 @@ export default function AdminPage() {
 
       await tx.wait()
       await refreshWorkspaceState('post-action')
+      if (governanceConfigured) {
+        await loadGovernanceState()
+      }
       setSurfaceStatus({
         tone: 'success',
         title: actionTitle,
@@ -798,6 +1049,276 @@ export default function AdminPage() {
     } finally {
       setIsBusy(false)
     }
+  }, [governanceConfigured, loadGovernanceState, refreshWorkspaceState])
+
+  const findMatchingGovernanceProposal = useCallback(
+    (actionType: number, payload: string) => {
+      const now = Math.floor(Date.now() / 1000)
+      return governanceProposals.find(
+        (proposal) =>
+          proposal.actionType === actionType &&
+          proposal.payload.toLowerCase() === payload.toLowerCase() &&
+          !proposal.executed &&
+          !proposal.cancelled &&
+          proposal.expiresAt > now
+      )
+    },
+    [governanceProposals]
+  )
+
+  const handleGovernedAction = useCallback(
+    async ({
+      actionKey,
+      payload,
+      actionTitle,
+      proposalSummary,
+      directExecute,
+      onExecuted
+    }: {
+      actionKey: GovernanceActionKey
+      payload: string
+      actionTitle: string
+      proposalSummary: string
+      directExecute?: () => Promise<{ hash?: string | null; wait: () => Promise<unknown> }>
+      onExecuted?: () => void
+    }) => {
+      if (!canSubmitTransactions || !signer || !address) {
+        toast.error(`Connect the admin wallet and switch to ${TARGET_CHAIN_NAME} before using governance.`)
+        return
+      }
+
+      if (!governanceConfigured) {
+        toast.error('This frontend does not have NEXT_PUBLIC_CIPHERROLL_GOVERNANCE_ADDRESS configured yet.')
+        return
+      }
+
+      if (!governanceInitialized) {
+        toast.error('Bootstrap governance first before routing sensitive actions through M-of-N approval.')
+        return
+      }
+
+      if (!connectedWalletIsGovernanceAdmin) {
+        toast.error('Only a registered governance admin can create, approve, or execute this action.')
+        return
+      }
+
+      const definition = governanceActionDefinitions[actionKey]
+      const governanceContract = getCipherRollGovernanceContract(signer)
+      const existingProposal = findMatchingGovernanceProposal(definition.type, payload)
+
+      if (
+        governanceOverview &&
+        governanceOverview.quorum > 1 &&
+        governanceOverview.adminCount >= governanceOverview.quorum &&
+        !governanceActive
+      ) {
+        toast.error('Link the payroll workspace to the configured governance contract before relying on quorum execution.')
+        return
+      }
+
+      if (!existingProposal) {
+        const expiresAt = Math.floor(Date.now() / 1000) + 3600
+        await withTransaction(
+          `${actionTitle} proposal`,
+          'Approve the wallet transaction to open a governance proposal for this sensitive admin action.',
+          `${proposalSummary} A matching governance proposal is now waiting for the remaining admin approvals.`,
+          async () => governanceContract.proposeGovernanceAction(orgId, definition.type, payload, expiresAt)
+        )
+        return
+      }
+
+      if (!existingProposal.approvedByCurrentAdmin) {
+        await withTransaction(
+          `${actionTitle} approval`,
+          'Approve the wallet transaction to add your governance signature to the matching proposal.',
+          `${proposalSummary} Your approval has been recorded on-chain.`,
+          async () => governanceContract.approveGovernanceProposal(existingProposal.proposalId)
+        )
+        return
+      }
+
+      if (existingProposal.approvalCount < governanceQuorum) {
+        setSurfaceStatus({
+          tone: 'info',
+          title: `${actionTitle} waiting for quorum`,
+          detail: `This proposal currently has ${existingProposal.approvalCount}/${governanceQuorum} approvals. Ask another registered admin to confirm the same action.`
+        })
+        toast.info(`Waiting for quorum: ${existingProposal.approvalCount}/${governanceQuorum} approvals collected.`)
+        return
+      }
+
+      if (definition.requiresWalletExecutor) {
+        if (!directExecute) {
+          toast.error('This governed action still needs a wallet-executed payroll transaction, but no execution handler was provided.')
+          return
+        }
+
+        if (existingProposal.proposer.toLowerCase() !== address.toLowerCase()) {
+          setSurfaceStatus({
+            tone: 'info',
+            title: `${actionTitle} ready for proposer execution`,
+            detail: `Quorum is met, but the admin who opened this proposal (${shortHash(existingProposal.proposer)}) must submit the final encrypted payroll transaction from their wallet.`
+          })
+          toast.info('Quorum is met. The proposing admin must execute the final encrypted wallet transaction.')
+          return
+        }
+
+        await withTransaction(
+          actionTitle,
+          'Approve the final wallet transaction so CipherRoll can consume the approved governance proposal and submit the encrypted payroll action.',
+          `${proposalSummary} The approved governance intent has now been executed on-chain.`,
+          directExecute
+        )
+        onExecuted?.()
+        return
+      }
+
+      await withTransaction(
+        `${actionTitle} execution`,
+        'Approve the wallet transaction to execute the quorum-approved governance proposal.',
+        `${proposalSummary} The approved governance proposal executed successfully.`,
+        async () => governanceContract.executeGovernanceProposal(existingProposal.proposalId)
+      )
+      onExecuted?.()
+    },
+    [
+      address,
+      canSubmitTransactions,
+      connectedWalletIsGovernanceAdmin,
+      findMatchingGovernanceProposal,
+      governanceActive,
+      governanceConfigured,
+      governanceInitialized,
+      governanceOverview,
+      governanceQuorum,
+      orgId,
+      signer,
+      withTransaction
+    ]
+  )
+
+  const bootstrapGovernance = async () => {
+    if (!canSubmitTransactions || !signer) {
+      toast.error(`Connect the admin wallet and switch to ${TARGET_CHAIN_NAME} before bootstrapping governance.`)
+      return
+    }
+
+    if (!organization.exists) {
+      toast.error('Create the workspace first before bootstrapping governance.')
+      return
+    }
+
+    await withTransaction(
+      'Governance bootstrap',
+      'Approve the wallet transaction to initialize M-of-N governance for this workspace.',
+      'Governance initialized. Add the remaining signer(s) and link the payroll executor next.',
+      async () => getCipherRollGovernanceContract(signer).bootstrapOrganization(orgId)
+    )
+  }
+
+  const bootstrapGovernanceAdmin = async () => {
+    if (!bootstrapAdminSafeAddress) {
+      toast.error('Enter a valid wallet address for the bootstrap admin signer.')
+      return
+    }
+
+    await withTransaction(
+      'Bootstrap governance signer',
+      'Approve the wallet transaction to add the next governance admin before quorum becomes active.',
+      'Bootstrap governance signer added. Once the admin count reaches quorum, link the payroll executor to enforce M-of-N approvals.',
+      async () => getCipherRollGovernanceContract(signer!).bootstrapOrganizationAdmin(orgId, bootstrapAdminSafeAddress)
+    )
+  }
+
+  const linkGovernanceExecutor = async () => {
+    if (!canSubmitTransactions || !signer) {
+      toast.error(`Connect the admin wallet and switch to ${TARGET_CHAIN_NAME} before linking governance.`)
+      return
+    }
+
+    if (!governanceConfigured) {
+      toast.error('NEXT_PUBLIC_CIPHERROLL_GOVERNANCE_ADDRESS is not configured in this frontend.')
+      return
+    }
+
+    await withTransaction(
+      'Governance link',
+      'Approve the wallet transaction to route sensitive payroll actions through the governance executor.',
+      'Payroll workspace linked to the governance executor for treasury-route changes and payroll issuance approvals.',
+      async () => getCipherRollContract(signer).configureOrganizationGovernanceExecutor(orgId, GOVERNANCE_CONTRACT_ADDRESS)
+    )
+  }
+
+  const proposeGovernanceAdminAddition = async () => {
+    if (!newGovernanceAdminSafeAddress) {
+      toast.error('Enter a valid wallet address before proposing a new governance admin.')
+      return
+    }
+
+    const payload = abiCoder.encode(['address'], [newGovernanceAdminSafeAddress])
+    await handleGovernedAction({
+      actionKey: 'add_admin',
+      payload,
+      actionTitle: 'Add governance admin',
+      proposalSummary: 'The admin-membership change was routed through governance.'
+    })
+  }
+
+  const proposeGovernanceAdminRemoval = async () => {
+    if (!governanceAdminToRemoveSafeAddress) {
+      toast.error('Enter a valid wallet address before proposing an admin removal.')
+      return
+    }
+
+    const payload = abiCoder.encode(['address'], [governanceAdminToRemoveSafeAddress])
+    await handleGovernedAction({
+      actionKey: 'remove_admin',
+      payload,
+      actionTitle: 'Remove governance admin',
+      proposalSummary: 'The admin-membership change was routed through governance.'
+    })
+  }
+
+  const proposeGovernanceQuorumUpdate = async () => {
+    if (nextGovernanceQuorumValue === null) {
+      toast.error('Enter a valid positive quorum before proposing the update.')
+      return
+    }
+
+    const payload = abiCoder.encode(['uint64'], [nextGovernanceQuorumValue])
+    await handleGovernedAction({
+      actionKey: 'update_quorum',
+      payload,
+      actionTitle: 'Update governance quorum',
+      proposalSummary: 'The quorum update was routed through governance.'
+    })
+  }
+
+  const approveGovernanceProposal = async (proposalId: string) => {
+    await withTransaction(
+      'Governance approval',
+      'Approve the wallet transaction to add your signature to this governance proposal.',
+      'Governance proposal approval recorded.',
+      async () => getCipherRollGovernanceContract(signer!).approveGovernanceProposal(proposalId)
+    )
+  }
+
+  const revokeGovernanceProposalApproval = async (proposalId: string) => {
+    await withTransaction(
+      'Governance approval revocation',
+      'Approve the wallet transaction to revoke your approval from this governance proposal.',
+      'Governance proposal approval revoked.',
+      async () => getCipherRollGovernanceContract(signer!).revokeGovernanceApproval(proposalId)
+    )
+  }
+
+  const executeGovernanceProposal = async (proposalId: string) => {
+    await withTransaction(
+      'Governance execution',
+      'Approve the wallet transaction to execute this quorum-approved governance proposal.',
+      'Governance proposal executed successfully.',
+      async () => getCipherRollGovernanceContract(signer!).executeGovernanceProposal(proposalId)
+    )
   }
 
   const createAuditorPermit = async () => {
@@ -944,7 +1465,7 @@ export default function AdminPage() {
       return
     }
 
-    if (!isAdmin) {
+    if (!isAdmin && !governanceActive) {
       toast.error('Only the workspace admin can configure treasury settlement.')
       return
     }
@@ -956,6 +1477,20 @@ export default function AdminPage() {
 
     if (!canConfigureTreasuryRoute) {
       toast.error('This frontend does not have a settlement adapter address configured for the selected route.')
+      return
+    }
+
+    if (governanceActive) {
+      const payload = abiCoder.encode(['address', 'bytes32'], [selectedTreasuryAdapterAddress, treasuryRouteId])
+      await handleGovernedAction({
+        actionKey: 'configure_treasury',
+        payload,
+        actionTitle: 'Treasury route setup',
+        proposalSummary:
+          treasuryRouteMode === 'wrapper'
+            ? 'The wrapper treasury route change was routed through governance.'
+            : 'The direct treasury route change was routed through governance.'
+      })
       return
     }
 
@@ -1040,6 +1575,26 @@ export default function AdminPage() {
 
     if (!payrollFundingDeadlineTimestamp) {
       toast.error('Choose a funding deadline for this payroll run.')
+      return
+    }
+
+    const minFundingDeadline = Math.floor(Date.now() / 1000) + MIN_PAYROLL_FUNDING_DEADLINE_BUFFER_SECONDS
+    if (payrollFundingDeadlineTimestamp <= minFundingDeadline) {
+      toast.error('Choose a funding deadline at least 10 minutes from now so the wallet transaction has time to confirm.')
+      return
+    }
+
+    try {
+      const contract = getCipherRollContract(signer!)
+      await contract.previewCreatePayrollRun(
+        orgId,
+        selectedPayrollRunId,
+        payrollSettlementAssetId,
+        payrollFundingDeadlineTimestamp,
+        1
+      )
+    } catch (error) {
+      toast.error(extractCipherRollErrorMessage(error))
       return
     }
 
@@ -1194,7 +1749,7 @@ export default function AdminPage() {
       return
     }
 
-    if (!isAdmin) {
+    if (!isAdmin && !governanceActive) {
       toast.error('Only the workspace admin can issue payroll for this organization.')
       return
     }
@@ -1236,39 +1791,133 @@ export default function AdminPage() {
       ? makeDeterministicLabel('memo', paymentMemo.trim())
       : makeHighEntropyBytes32Label('memo', 'cipherroll-payroll')
 
-    await withTransaction(
-      'Payroll issuance',
-      'Approve the wallet transaction to encrypt and issue this employee allocation.',
-      payrollMode === 'vesting'
-        ? 'Confidential vesting payroll allocation issued.'
-        : 'Confidential payroll allocation issued.',
-      async () => {
+    if (governanceActive) {
       const contract = getCipherRollContract(signer!)
-      const encryptedAmount = await encryptUint128(paymentAmountInWei)
-
-      if (payrollMode === 'vesting') {
-        return contract.issueVestingAllocationToRun(
-          orgId,
-          selectedPayrollRunId,
-          employee,
-          encryptedAmount,
-          paymentId,
-          memoHash,
-          vestingStartTimestamp!,
-          vestingEndTimestamp!
-        )
-      }
-
-      return contract.issueConfidentialPayrollToRun(
+      const intentKey = [
         orgId,
         selectedPayrollRunId,
-        employee,
-        encryptedAmount,
-        paymentId,
-        memoHash
-      )
+        employee.toLowerCase(),
+        paymentAmountInWei.toString(),
+        payrollMode,
+        paymentMemo.trim(),
+        vestingStartTimestamp ?? 0,
+        vestingEndTimestamp ?? 0
+      ].join('|')
+
+      let intent = pendingGovernedPayrollIntent?.key === intentKey
+        ? pendingGovernedPayrollIntent
+        : null
+
+      if (!intent) {
+        const encryptedAmount = await encryptUint128(paymentAmountInWei)
+        const intentPaymentId = paymentId
+        const intentMemoHash = memoHash
+        const encryptedTuple = [
+          encryptedAmount.ctHash,
+          encryptedAmount.securityZone,
+          encryptedAmount.utype,
+          encryptedAmount.signature
+        ]
+        const actionKey = payrollMode === 'vesting'
+          ? 'issue_vesting_allocation_to_run'
+          : 'issue_confidential_payroll_to_run'
+        const payload = payrollMode === 'vesting'
+          ? abiCoder.encode(
+            ['bytes32', 'address', '(uint256,uint8,uint8,bytes)', 'bytes32', 'bytes32', 'uint64', 'uint64'],
+            [selectedPayrollRunId, employee, encryptedTuple, intentPaymentId, intentMemoHash, vestingStartTimestamp!, vestingEndTimestamp!]
+          )
+          : abiCoder.encode(
+            ['bytes32', 'address', '(uint256,uint8,uint8,bytes)', 'bytes32', 'bytes32'],
+            [selectedPayrollRunId, employee, encryptedTuple, intentPaymentId, intentMemoHash]
+          )
+
+        intent = {
+          key: intentKey,
+          actionKey,
+          payload,
+          encryptedAmount,
+          paymentId: intentPaymentId,
+          memoHash: intentMemoHash
+        }
+        setPendingGovernedPayrollIntent(intent)
       }
-    )
+
+      const clearExecutedIntent = () => {
+        setPendingGovernedPayrollIntent((current) => current?.key === intentKey ? null : current)
+      }
+
+      if (payrollMode === 'vesting') {
+        await handleGovernedAction({
+          actionKey: intent.actionKey,
+          payload: intent.payload,
+          actionTitle: 'Payroll issuance',
+          proposalSummary: 'The confidential vesting payroll allocation was routed through governance.',
+          directExecute: async () =>
+            contract.issueVestingAllocationToRun(
+              orgId,
+              selectedPayrollRunId,
+              employee,
+              intent.encryptedAmount,
+              intent.paymentId,
+              intent.memoHash,
+              vestingStartTimestamp!,
+              vestingEndTimestamp!
+            ),
+          onExecuted: clearExecutedIntent
+        })
+      } else {
+        await handleGovernedAction({
+          actionKey: intent.actionKey,
+          payload: intent.payload,
+          actionTitle: 'Payroll issuance',
+          proposalSummary: 'The confidential payroll allocation was routed through governance.',
+          directExecute: async () =>
+            contract.issueConfidentialPayrollToRun(
+              orgId,
+              selectedPayrollRunId,
+              employee,
+              intent.encryptedAmount,
+              intent.paymentId,
+              intent.memoHash
+            ),
+          onExecuted: clearExecutedIntent
+        })
+      }
+    } else {
+      await withTransaction(
+        'Payroll issuance',
+        'Approve the wallet transaction to encrypt and issue this employee allocation.',
+        payrollMode === 'vesting'
+          ? 'Confidential vesting payroll allocation issued.'
+          : 'Confidential payroll allocation issued.',
+        async () => {
+          const contract = getCipherRollContract(signer!)
+          const encryptedAmount = await encryptUint128(paymentAmountInWei)
+
+          if (payrollMode === 'vesting') {
+            return contract.issueVestingAllocationToRun(
+              orgId,
+              selectedPayrollRunId,
+              employee,
+              encryptedAmount,
+              paymentId,
+              memoHash,
+              vestingStartTimestamp!,
+              vestingEndTimestamp!
+            )
+          }
+
+          return contract.issueConfidentialPayrollToRun(
+            orgId,
+            selectedPayrollRunId,
+            employee,
+            encryptedAmount,
+            paymentId,
+            memoHash
+          )
+        }
+      )
+    }
 
     await loadPayrollRun()
   }
@@ -1313,6 +1962,12 @@ export default function AdminPage() {
         : 'No claims yet'
     }
   ]
+  const governancePendingProposals = governanceProposals.filter(
+    (proposal) => !proposal.executed && !proposal.cancelled && proposal.expiresAt > Math.floor(Date.now() / 1000)
+  )
+  const governanceReadyProposals = governancePendingProposals.filter(
+    (proposal) => proposal.approvalCount >= governanceQuorum
+  )
 
   const operatorAlerts = [
     !isInstalled
@@ -1348,6 +2003,15 @@ export default function AdminPage() {
           tone: 'info' as const,
           title: 'CoFHE still needs initialization',
           detail: 'Reads can load organization metadata already, but encrypted budget funding and decrypted summary checks require CoFHE initialization.'
+        }
+      : null,
+    governanceInitialized && !governanceActive
+      ? {
+          tone: 'info' as const,
+          title: 'Governance is initialized but not enforcing yet',
+          detail: governanceLinkedAddress
+            ? 'Add enough governance admins to meet quorum before expecting M-of-N enforcement on treasury-route changes or payroll issuance.'
+            : 'Link the payroll workspace to the configured governance executor after quorum is bootstrapped so treasury-route changes and payroll issuance stop flowing through the single-admin path.'
         }
       : null,
     payrollWouldZeroOut
@@ -1529,7 +2193,7 @@ export default function AdminPage() {
                   <h2 className="text-2xl font-bold text-white tracking-tight">Operator access</h2>
                 </div>
 
-                <div className="grid sm:grid-cols-3 gap-4">
+                <div className="grid sm:grid-cols-4 gap-4">
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">Wallet</p>
                     <p className="text-white">
@@ -1538,11 +2202,27 @@ export default function AdminPage() {
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">Admin role</p>
-                    <p className="text-white">{isAdmin ? 'Authorized' : 'Waiting'}</p>
+                    <p className="text-white">
+                      {isAdmin
+                        ? 'Primary admin'
+                        : connectedWalletIsGovernanceAdmin
+                          ? 'Governance admin'
+                          : 'Waiting'}
+                    </p>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">CoFHE</p>
                     <p className="text-white">{cofheReady ? 'Ready' : 'Not initialized'}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">Governance</p>
+                    <p className="text-white">
+                      {governanceActive
+                        ? `${governanceAdminCount}-of-${governanceQuorum} active`
+                        : governanceInitialized
+                          ? `${governanceAdminCount}/${governanceQuorum} bootstrapped`
+                          : 'Not initialized'}
+                    </p>
                   </div>
                 </div>
 
@@ -1566,6 +2246,11 @@ export default function AdminPage() {
                 <div className="mt-6 rounded-2xl border border-cyan-400/15 bg-cyan-400/10 p-4 text-sm text-cyan-50">
                   Configured {TARGET_CHAIN_NAME} payroll contract: <span className="font-mono break-all">{CONTRACT_ADDRESS || 'Not configured'}</span>
                 </div>
+                {governanceConfigured && (
+                  <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
+                    Governance executor target: <span className="font-mono break-all">{GOVERNANCE_CONTRACT_ADDRESS}</span>
+                  </div>
+                )}
               </GlassCard>
             </div>
 
@@ -1719,13 +2404,14 @@ export default function AdminPage() {
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold">Recent workflow notifications</p>
                   <div className="flex flex-wrap gap-2">
-                    {[
-                      ['all', 'All'],
-                      ['payroll_run', 'Runs'],
-                      ['claim', 'Claims'],
-                      ['settlement', 'Settlements'],
-                      ['audit_receipt', 'Receipts']
-                    ].map(([value, label]) => (
+                {[
+                  ['all', 'All'],
+                  ['payroll_run', 'Runs'],
+                  ['claim', 'Claims'],
+                  ['settlement', 'Settlements'],
+                  ['audit_receipt', 'Receipts'],
+                  ['governance', 'Governance']
+                ].map(([value, label]) => (
                       <button
                         key={value}
                         type="button"
@@ -1952,7 +2638,13 @@ export default function AdminPage() {
 
                 <button
                   onClick={configureTreasuryRoute}
-                  disabled={!canSubmitTransactions || !organization.exists || !isAdmin || isBusy || !canConfigureTreasuryRoute}
+                  disabled={
+                    !canSubmitTransactions ||
+                    !organization.exists ||
+                    isBusy ||
+                    !canConfigureTreasuryRoute ||
+                    (!isAdmin && !governanceActive)
+                  }
                   className="w-full rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
                 >
                   Configure Treasury Route
@@ -1962,6 +2654,331 @@ export default function AdminPage() {
               {!organization.exists && (
                 <div className="mt-6 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-50">
                   Create the workspace first, then attach the treasury route from this same tab.
+                </div>
+              )}
+            </GlassCard>
+          </div>
+        )}
+
+        {activePortal === 'governance' && (
+          <div className="grid lg:grid-cols-[0.92fr,1.08fr] gap-8 mt-8">
+            <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white/60">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    Sensitive Admin Controls
+                  </div>
+                  <h2 className="mt-4 text-2xl font-bold text-white">Governance workspace</h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#c9c9d0]">
+                    Use this surface to bootstrap M-of-N governance, link the payroll executor, and review sensitive treasury-route or payroll-issuance actions before they execute.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void loadGovernanceState()}
+                  disabled={!organization.exists || !governanceConfigured || isGovernanceLoading}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                >
+                  {isGovernanceLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                  {isGovernanceLoading ? 'Refreshing…' : 'Refresh Governance'}
+                </button>
+              </div>
+
+              {!governanceConfigured ? (
+                <div className="mt-6 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-50">
+                  This frontend is missing <span className="font-mono">NEXT_PUBLIC_CIPHERROLL_GOVERNANCE_ADDRESS</span>, so the governance portal cannot talk to the companion contract yet.
+                </div>
+              ) : null}
+
+              {governanceError ? (
+                <div className="mt-6 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-50">
+                  Governance state is unavailable right now: {governanceError}
+                </div>
+              ) : null}
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {[
+                  {
+                    label: 'Status',
+                    value: governanceActive ? 'Active' : governanceInitialized ? 'Bootstrapping' : 'Not initialized',
+                    detail: governanceActive
+                      ? 'Sensitive actions now follow quorum rules.'
+                      : 'Still on the single-admin path until governance is ready.'
+                  },
+                  {
+                    label: 'Quorum',
+                    value: governanceInitialized ? `${governanceAdminCount}/${governanceQuorum}` : '—',
+                    detail: governanceInitialized ? 'Current admin count versus required quorum.' : 'Bootstrap governance first.'
+                  },
+                  {
+                    label: 'Linked executor',
+                    value: governanceLinkedAddress
+                      ? governanceLinkedAddress.toLowerCase() === (GOVERNANCE_CONTRACT_ADDRESS || '').toLowerCase()
+                        ? 'Linked'
+                        : 'Custom'
+                      : 'Not linked',
+                    detail: governanceLinkedAddress
+                      ? shortHash(governanceLinkedAddress)
+                      : 'Payroll still accepts direct single-admin privileged actions.'
+                  },
+                  {
+                    label: 'Ready proposals',
+                    value: String(governanceReadyProposals.length),
+                    detail: governanceReadyProposals.length
+                      ? 'Waiting for execution from a governance admin or the proposing wallet.'
+                      : 'No quorum-ready actions at the moment.'
+                  }
+                ].map((item) => (
+                  <div key={item.label} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold">{item.label}</p>
+                    <p className="mt-3 text-3xl font-black text-white">{item.value}</p>
+                    <p className="mt-2 text-sm text-[#a1a1aa]">{item.detail}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold">Recommended order</p>
+                <div className="mt-4 space-y-3 text-sm text-[#c9c9d0]">
+                  <p><span className="font-semibold text-white">1.</span> Bootstrap governance from the primary admin wallet.</p>
+                  <p><span className="font-semibold text-white">2.</span> Add enough bootstrap admins to meet the reserved quorum.</p>
+                  <p><span className="font-semibold text-white">3.</span> Link the payroll workspace to the configured governance executor.</p>
+                  <p><span className="font-semibold text-white">4.</span> From then on, treasury-route changes and payroll issuance actions route through governance. Operational actions like run creation, run funding, and run activation stay single-admin so payroll execution remains usable.</p>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-6 xl:grid-cols-2">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
+                  <div>
+                    <p className="text-sm font-semibold text-white">Bootstrap governance</p>
+                    <p className="mt-1 text-sm text-[#a1a1aa]">Initializes the governance contract using the workspace&apos;s reserved admin slots and quorum.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={bootstrapGovernance}
+                    disabled={!canSubmitTransactions || !organization.exists || isBusy || governanceInitialized || !isAdmin}
+                    className="w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-gray-200 disabled:opacity-50"
+                  >
+                    Bootstrap Governance
+                  </button>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
+                  <div>
+                    <p className="text-sm font-semibold text-white">Link payroll executor</p>
+                    <p className="mt-1 text-sm text-[#a1a1aa]">Once quorum is bootstrapped, bind the payroll workspace to this governance address so sensitive actions stop bypassing approval rules.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={linkGovernanceExecutor}
+                    disabled={!canSubmitTransactions || !organization.exists || isBusy || !governanceInitialized || !isAdmin}
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                  >
+                    Link Governance Executor
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-6 xl:grid-cols-2">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
+                  <div>
+                    <p className="text-sm font-semibold text-white">Bootstrap the next admin signer</p>
+                    <p className="mt-1 text-sm text-[#a1a1aa]">Use this only before governance becomes active. It is the cleanest path for adding the second signer without already requiring quorum.</p>
+                  </div>
+                  <input
+                    value={bootstrapAdminAddress}
+                    onChange={(event) => setBootstrapAdminAddress(event.target.value)}
+                    className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                    placeholder="0x... bootstrap admin wallet"
+                  />
+                  <button
+                    type="button"
+                    onClick={bootstrapGovernanceAdmin}
+                    disabled={!canSubmitTransactions || !organization.exists || isBusy || !governanceInitialized || governanceActive || !bootstrapAdminSafeAddress || !isAdmin}
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                  >
+                    Add Bootstrap Admin
+                  </button>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                  <p className="text-sm font-semibold text-white">Current governance admins</p>
+                  <div className="mt-4 space-y-3">
+                    {governanceAdmins.length === 0 ? (
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#a1a1aa]">
+                        No governance admins are registered yet.
+                      </div>
+                    ) : (
+                      governanceAdmins.map((admin) => (
+                        <div key={admin} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="font-mono text-sm text-white break-all">{admin}</p>
+                            <span className="text-[11px] uppercase tracking-[0.16em] text-white/45">
+                              {governanceOverview?.primaryAdmin?.toLowerCase() === admin.toLowerCase() ? 'Primary' : 'Signer'}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-6 xl:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
+                  <p className="text-sm font-semibold text-white">Propose admin addition</p>
+                  <input
+                    value={newGovernanceAdminAddress}
+                    onChange={(event) => setNewGovernanceAdminAddress(event.target.value)}
+                    className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                    placeholder="0x... new admin"
+                  />
+                  <button
+                    type="button"
+                    onClick={proposeGovernanceAdminAddition}
+                    disabled={!canSubmitTransactions || !governanceActive || isBusy || !newGovernanceAdminSafeAddress}
+                    className="w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-gray-200 disabled:opacity-50"
+                  >
+                    Add Admin Through Governance
+                  </button>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
+                  <p className="text-sm font-semibold text-white">Propose admin removal</p>
+                  <input
+                    value={governanceAdminToRemove}
+                    onChange={(event) => setGovernanceAdminToRemove(event.target.value)}
+                    className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                    placeholder="0x... admin to remove"
+                  />
+                  <button
+                    type="button"
+                    onClick={proposeGovernanceAdminRemoval}
+                    disabled={!canSubmitTransactions || !governanceActive || isBusy || !governanceAdminToRemoveSafeAddress}
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                  >
+                    Remove Admin Through Governance
+                  </button>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
+                  <p className="text-sm font-semibold text-white">Propose quorum update</p>
+                  <input
+                    value={nextGovernanceQuorum}
+                    onChange={(event) => setNextGovernanceQuorum(event.target.value)}
+                    className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                    placeholder="2"
+                  />
+                  <button
+                    type="button"
+                    onClick={proposeGovernanceQuorumUpdate}
+                    disabled={!canSubmitTransactions || !governanceActive || isBusy || nextGovernanceQuorumValue === null}
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                  >
+                    Update Quorum Through Governance
+                  </button>
+                </div>
+              </div>
+            </GlassCard>
+
+            <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
+              <div className="flex items-center gap-3 mb-6">
+                <FolderCog className="w-5 h-5 text-cyan-300" />
+                <div>
+                  <h2 className="text-2xl font-bold text-white">Proposal queue</h2>
+                  <p className="mt-1 text-sm text-[#a1a1aa]">Cleartext actions execute directly from this queue once quorum is met. Encrypted actions show when the proposing admin must come back and submit the final wallet transaction.</p>
+                </div>
+              </div>
+
+              {governanceProposals.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-[#a1a1aa]">
+                  No governance proposals have been created for this workspace yet.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {governanceProposals.map((proposal) => {
+                    const expired = proposal.expiresAt <= Math.floor(Date.now() / 1000)
+                    const quorumMet = governanceQuorum > 0 && proposal.approvalCount >= governanceQuorum
+                    const canApprove = connectedWalletIsGovernanceAdmin && !proposal.executed && !proposal.cancelled && !expired && !proposal.approvedByCurrentAdmin
+                    const canRevoke = connectedWalletIsGovernanceAdmin && !proposal.executed && !proposal.cancelled && proposal.approvedByCurrentAdmin
+                    const canExecute = connectedWalletIsGovernanceAdmin && quorumMet && !proposal.requiresWalletExecutor && !proposal.executed && !proposal.cancelled && !expired
+
+                    return (
+                      <div key={proposal.proposalId} className="rounded-3xl border border-white/10 bg-white/5 p-5">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-lg font-semibold text-white">{proposal.actionLabel}</p>
+                              {proposal.executed ? (
+                                <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-300">Executed</span>
+                              ) : proposal.cancelled ? (
+                                <span className="rounded-full bg-rose-500/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-300">Cancelled</span>
+                              ) : expired ? (
+                                <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-300">Expired</span>
+                              ) : quorumMet ? (
+                                <span className="rounded-full bg-cyan-500/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-300">
+                                  {proposal.requiresWalletExecutor ? 'Ready for proposer wallet' : 'Ready to execute'}
+                                </span>
+                              ) : (
+                                <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/55">Collecting approvals</span>
+                              )}
+                            </div>
+                            <p className="mt-2 text-sm text-[#c9c9d0]">
+                              Proposed by <span className="font-mono text-white/80">{proposal.proposer}</span>
+                            </p>
+                            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                              <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                                <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Approvals</p>
+                                <p className="mt-2 text-xl font-black text-white">{proposal.approvalCount}/{governanceQuorum || '—'}</p>
+                              </div>
+                              <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                                <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Created</p>
+                                <p className="mt-2 text-sm text-white">{formatUnixTimestamp(proposal.createdAt)}</p>
+                              </div>
+                              <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                                <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Expires</p>
+                                <p className="mt-2 text-sm text-white">{formatUnixTimestamp(proposal.expiresAt)}</p>
+                              </div>
+                            </div>
+                            <p className="mt-3 text-xs font-mono text-white/45 break-all">Proposal ID: {proposal.proposalId}</p>
+                          </div>
+                          <div className="flex flex-wrap gap-3">
+                            <button
+                              type="button"
+                              onClick={() => void approveGovernanceProposal(proposal.proposalId)}
+                              disabled={!canApprove || isBusy}
+                              className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-gray-200 disabled:opacity-50"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void revokeGovernanceProposalApproval(proposal.proposalId)}
+                              disabled={!canRevoke || isBusy}
+                              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                            >
+                              Revoke
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void executeGovernanceProposal(proposal.proposalId)}
+                              disabled={!canExecute || isBusy}
+                              className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-50 hover:bg-cyan-400/15 disabled:opacity-50"
+                            >
+                              Execute
+                            </button>
+                          </div>
+                        </div>
+
+                        {proposal.requiresWalletExecutor && quorumMet && !proposal.executed && !proposal.cancelled && !expired ? (
+                          <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm text-cyan-50">
+                            Final wallet execution is required. Return to the matching payroll action and have the <span className="font-mono">{shortHash(proposal.proposer)}</span> proposer submit the encrypted transaction from their wallet so CipherRoll can consume this approved intent.
+                          </div>
+                        ) : null}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </GlassCard>
@@ -2364,7 +3381,7 @@ export default function AdminPage() {
                     disabled={
                       !canEncryptInputs ||
                       !organization.exists ||
-                      !isAdmin ||
+                      (!isAdmin && !governanceActive) ||
                       isBusy ||
                       !payrollRunOpenForAllocations ||
                       paymentAmountInWei === null ||
@@ -2520,18 +3537,24 @@ export default function AdminPage() {
                     },
                     {
                       step: "04",
+                      title: "Bootstrap governance before sensitive actions",
+                      desc: "If this workspace is moving to M-of-N approval, initialize governance, add the remaining signer, and link the payroll executor before treasury-route changes or payroll issuance depend on quorum.",
+                      icon: ShieldCheck
+                    },
+                    {
+                      step: "05",
                       title: "Fund encrypted budget and confirm summary refresh",
                       desc: "Deposit payroll funds into the treasury-backed route, then refresh the admin dashboard so available budget and committed state align with the chain.",
                       icon: FolderCog
                     },
                     {
-                      step: "05",
+                      step: "06",
                       title: "Create a run, fund it, activate it, then issue allocations",
                       desc: "CipherRoll uses an explicit run lifecycle. Reserve the funds first, activate claimability, and only then issue confidential payroll to employees.",
                       icon: ShieldCheck
                     },
                     {
-                      step: "06",
+                      step: "07",
                       title: "Use backend reporting and auditor sharing for review",
                       desc: "Refresh the workflow feed, export reports when needed, and move into auditor sharing only after the payroll surface itself is in the state you want to evidence.",
                       icon: FileKey2

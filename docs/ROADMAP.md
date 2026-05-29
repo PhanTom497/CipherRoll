@@ -186,22 +186,83 @@ CipherRoll's backend should **not** casually centralize secrets or private payro
 
 Once the backend foundation exists, CipherRoll can safely take on the heavier features that are meaningful but not lightweight.
 
-Phase 5 should also absorb the remaining non-blocking Phase 4 polish where it naturally fits, especially deeper copilot retrieval quality, stronger backend operational hardening, and richer search/report ergonomics.
+Phase 5 should absorb the remaining non-blocking Phase 4 polish where it naturally fits, especially deeper copilot retrieval quality, stronger backend operational hardening, and richer search/report ergonomics. It should be executed as a **small number of large, coherent work packages** so we do not keep re-paying the same compile/test/build/deploy tax for tiny isolated chores.
 
-- **Priority 16: Real on-chain governance (M-of-N admins)**
-  Turn reserved quorum metadata into actual execution gating with proposal hashing, approval state, threshold checks, and controlled execution. This should be treated as a protocol upgrade, not just a UI checklist.
-- **Priority 17: Backend-powered integrations**
-  After the indexer and notification stack are stable, consider selective webhook support, finance-system exports, payroll-system ingestion, and compliance-facing delivery workflows.
-- **Priority 18: Optional AI/action surfaces**
-  Revisit MCP and assistant-driven workflows only after the backend, SDK, and governance boundaries are mature enough to support safe action design. The first safe AI value is read/help/reporting; execution should come much later.
-- **Priority 19: Optional communication surfaces**
-  Consider Telegram, Slack, email digests, or similar surfaces only for notification and browser handoff, not for high-risk payroll execution. Payroll has a stricter trust boundary than lightweight messaging surfaces, so any future expansion here should stay low-risk and read-oriented first.
-- **Priority 20: Compliance and tax authority workflows**
-  Expand the current tax-authority roadmap into real encrypted tax provisioning, regulator-specific disclosure flows, and policy-driven reporting once the backend and governance model are in place.
-- **Priority 21: Optional ReineiraOS compliance integration**
-  Treat `@reineira-os/sdk` as an extension layer that may strengthen resolver/compliance workflows later, but not as a dependency that should distort CipherRoll's core architecture.
-- **Priority 22: Treasury expansion**
-  Explore richer treasury analytics, optional multi-asset settlement paths, and eventually fiat-linked enterprise deposit experiences only after the operational core is stable.
+This is also the **final planned phase** for the current CipherRoll arc, so the default bias should be:
+
+- deepen and harden what already exists
+- prefer judge-visible improvements that build on shipped infrastructure
+- reject attractive but sprawling subprojects that create a risk of ending the project in an incomplete or unstable state
+- avoid reopening architecture questions that would force major contract, backend, and frontend churn all at once
+
+### Phase 5 execution rules
+
+- Every Phase 5 priority should be large enough that one Codex run can implement it end-to-end, including code, docs, tests, and product copy.
+- Contract-changing priorities should come before integration-heavy priorities so later work builds on stable execution boundaries.
+- All new privacy features must stay aligned with the current Fhenix / CoFHE guidance:
+  - prefer the current `@cofhe/sdk` builder APIs such as `encryptInputs(...)`, `decryptForView(...)`, and `decryptForTx(...)`
+  - prefer the recommended `client.permits.*` flow for self, sharing, and recipient permits rather than reviving older implicit or legacy patterns
+  - keep wallet-local decrypts and permit-scoped access as first-class constraints even when backend/reporting features grow
+  - treat `decryptForTx` and permit usage as explicit disclosure events, not invisible background mechanics
+- If a proposed feature sounds novel but requires large new privacy semantics, major provider migration, or a new pseudo-enterprise surface that the current product does not truly need, it should be cut or deferred rather than forced into the last phase.
+- Each priority below includes its own intended scope, guardrails, and validation target so it can be pasted directly into Codex as one work package.
+
+### Recommended execution order
+
+1. Governance and privileged execution hardening
+2. Advanced CipherBot quality and support refinement
+3. Batch payroll authoring, sealed encryption, and retryable submission
+4. Treasury expansion and payout policy surface
+5. Compliance, tax, and evidence workflows
+
+**Why the order changes here**
+
+- Governance still comes first because later sensitive treasury or compliance flows must not bypass it.
+- CipherBot moves ahead of the remaining large work because it is already live, already judge-visible, low protocol risk, and high ROI for the final product walk-through.
+- Batch payroll comes next because it closes a major admin-product gap without needing a new contract and should be designed before later treasury/compliance polish reinforces the one-row issuance workflow.
+- Treasury stays ahead of compliance because it still changes execution boundaries and failure handling.
+- Compliance is kept, but narrowed to Tier A only.
+- Integrations are no longer a core final-phase priority because the remaining webhook/delivery work has low FHE signal and low judge-visible payoff compared with batch payroll.
+
+- **Priority 15: Governance and privileged execution hardening**
+  Turn today's reserved-admin / quorum metadata into a real controlled execution model. This priority should implement M-of-N governance for sensitive admin actions such as treasury-route changes, high-impact payroll configuration, compliance-facing disclosure settings, and any future integration secrets or policy toggles. Treat this as one protocol-plus-product package: contract proposal/approval/execution flows, frontend governance UX, backend indexing of governance events, and updated docs/test coverage. The Codex brief for this priority should explicitly require: proposal hashing, approval state, expiration/cancellation rules, threshold checks, replay protection, clear signer role boundaries, and a migration path that does not silently break existing single-admin workflows. It must also explicitly treat Fhenix / CoFHE permits as **decryption-access primitives, not governance primitives**: permit sharing may help multiple admins review encrypted payroll data, but M-of-N execution approval must still be implemented through standard Solidity governance or multisig-style approval logic using the respective admin wallets. Separate physical devices may be used in production, but they must not be assumed as a hard requirement for local testing, QA, or development. Guardrails: stay aligned with CoFHE best practice by keeping decrypt permissions explicit, avoid backend-centralized execution authority, do not add governance that can bypass permit/ACL assumptions, and do not let future Codex runs collapse permit-sharing semantics into transaction-approval semantics. Validation target: compile, tests, frontend build, governance event indexing, and end-to-end admin governance flow on the supported chain.
+
+- **Priority 16: Advanced CipherBot and portal-aware support quality**
+  Treat the remaining AI work as a tight quality pass on the already-shipped CipherBot instead of a new AI platform project. This priority should improve retrieval grounding, portal-specific prompting, backend-indexed context use, and explanation quality for the exact issues judges and operators actually hit while using CipherRoll. The Codex brief for this priority should explicitly require: stronger portal-aware prompts, better use of current wallet/org/run/backend state, answer composition that cites the current docs and indexed product state, first-class handling for operator questions like "why is this claim pending?" or "why can’t I activate this run?", and hard refusal boundaries around any request to execute / fund / activate payroll on the user’s behalf. Guardrails: stay on the current Gemini-based architecture unless there is a truly blocking reason not to, do not build new AI infra, do not let AI bypass governance or treasury rules, and keep optional MCP / navigation-assistant work strictly read-only and secondary. Validation target: frontend build, backend support-route tests where relevant, and portal-by-portal manual QA of answer quality and safety boundaries.
+
+- **Priority 17: Batch payroll authoring, sealed encryption, and retryable submission**
+  Add a real batch payroll issuance flow to the admin portal so operators can build and submit a full payroll cycle without repeating the current one-row issuance workflow by hand. This priority should be treated as a frontend-plus-backend orchestration package built on top of the **existing** contract surface. The Codex brief for this priority should explicitly require: a batch payroll workspace in the admin portal; manual multi-row entry and browser-only CSV import; a role table with local-only base salaries and per-row override; visible row validation for bad addresses, unknown roles, and missing salaries; a review step before encryption; CoFHE encryption progress with **explicit WASM warmup / pre-initialization** so the first submit step does not look frozen; post-encryption salary masking (`★★★★★`) with plaintext salary values removed from UI state and from visible aggregate totals after sealing; and submission in retryable queue chunks. Important design constraint: **Batch payroll v1 supports non-governed orgs only. Governed orgs must see a warning and cannot proceed to submission.** This is required because Priority 15 governance currently turns each encrypted issuance into its own governed payload, which makes large governed batches operationally heavy and a poor final-phase target. Also be explicit about the chunking model: with the current contract there is **no multi-row batch transaction** and no new contract should be added, so each employee issuance still maps to an existing `issueConfidentialPayrollToRun(...)` / `issueVestingAllocationToRun(...)` call. "Chunking" therefore means a frontend-managed queue of rows with progress, per-row tx refs, and retry of failed rows only — not one on-chain tx carrying an array. The backend side must add a small manifest-style memory for re-use of prior runs, because role labels are not present in contract events. That means the frontend should POST a post-confirmation manifest containing only safe metadata such as org id, payroll run id, employee address, role slug/label, and tx reference after successful chunk confirmation. Guardrails: the uploaded CSV must never leave the browser; role base salaries must never be sent to the backend; exports after submission must not contain salary amounts; and docs/CipherBot must explain the batch flow honestly. Validation target: frontend build, row validation coverage, encryption-progress QA, retry/resume submission QA, backend manifest/re-use verification, and manual localhost admin flow verification from import to run population.
+
+- **Priority 18: Treasury expansion and payout policy surface**
+  Expand CipherRoll's treasury layer from "one working payout path" into a safer, clearer payroll treasury system, but keep the scope disciplined. This priority should cluster all treasury-hardening work together: richer treasury analytics, optional multi-route or multi-asset settlement support where it fits the current adapter model, route health/status visibility, clearer payout-state modeling, explicit reserve / funding safety checks, and stronger failure handling around reserve/fund/claim/finalize transitions. The Codex brief for this priority should require: contract-safe treasury abstractions, frontend/admin route management UX, backend summaries for treasury exposure and payout backlog, and regression tests for route mismatch, insufficient reserve, stale finalize state, replay-sensitive finalize paths, and multi-route accounting boundaries. Guardrails: keep the privacy story truthful, do not leak plaintext through treasury analytics, keep wrapper-backed flows aligned with the current Fhenix request/finalize semantics instead of inventing a legacy shortcut, and avoid over-smart automatic route selection logic unless it is clearly worth the added contract complexity. Validation target: compile, treasury-path tests, backend summary tests, and manual admin/employee treasury-flow verification.
+
+- **Priority 19: Compliance, tax, and evidence workflows**
+  Convert the current tax-authority placeholder into the first real compliance-facing product layer, but only for the parts that strengthen CipherRoll's current architecture. This priority should focus on a **Tier A only** build: encrypted tax provisioning or reserve tracking, explicit compliance package export from the backend, policy-oriented report generation, and stronger evidence packaging that builds on the current aggregate-first disclosure model. The Codex brief for this priority should require: a real tax/compliance route, explicit scope boundaries in the UI, backend support for policy-oriented summaries and exports, and receipt/evidence flows that extend current audit-receipt patterns rather than bypassing them. Guardrails: all regulator-facing review must remain aggregate-first unless there is an explicit, documented reason to disclose more; any `decryptForTx` use must be treated as deliberate evidence generation and documented honestly in the UX; and all permit/share flows should continue to use the modern `client.permits.createSharing(...)` / `importShared(...)` model. Explicitly defer: fake enterprise tax networks, real authority API integrations, multi-jurisdiction modeling, or external compliance SDK work unless there is a very direct and low-risk reason to include it. Validation target: compile, tests for compliance disclosure boundaries, backend report/export verification, and manual auditor/tax workflow QA.
+
+### Explicitly deferred ideas for this final phase
+
+These ideas may be interesting later, but they should **not** be treated as default Phase 5 scope unless there is clearly enough time after the core priorities above are stable:
+
+- dark-pool or fully hidden treasury-funding abstractions
+- encrypted vesting unlock timestamps as a new timing/privacy model
+- large external compliance-network simulations
+- webhook / delivery-history integration work as a core build target
+- Slack / Telegram operational bot surfaces
+- action-taking AI assistants
+- novel encrypted payroll-diff computation unless it can be justified as a very tight, low-risk build on top of the stabilized treasury model
+- solvency-proof widgets or encrypted payroll-diff demos that reopen earlier deferred scope
+
+### Final-phase decision principle
+
+If a candidate feature is exciting but risks leaving CipherRoll with:
+
+- partially finished contract logic
+- under-tested privacy semantics
+- confusing judge-facing UX
+- duplicated infrastructure that Wave 4 already covered
+- or a provider / deployment migration late in the project
+
+then it should be cut in favor of a cleaner, more reliable finish on the priorities above.
 
 ```mermaid
 gantt
@@ -226,9 +287,11 @@ gantt
     Reporting + Analytics + Notifications :done, p13, 2026-11, 2027-02
     Real CipherBot Copilot :done, p14, 2026-12, 2027-02
     section Phase 5
-    On-Chain Governance : p15, 2027-01, 2027-03
-    Compliance + Tax Authority Flows : p16, 2027-02, 2027-04
-    Optional AI/Chat/External Extensions : p17, 2027-03, 2027-05
+    Governance + Privileged Execution : p15, 2027-01, 2027-03
+    Advanced CipherBot + Portal Support : p16, 2027-02, 2027-03
+    Batch Payroll + Retryable Submission : p17, 2027-03, 2027-05
+    Treasury Expansion + Payout Policy : p18, 2027-04, 2027-06
+    Compliance + Evidence Workflows : p19, 2027-05, 2027-07
 ```
 
 ## Architecture Decision

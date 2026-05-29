@@ -18,6 +18,7 @@
     "sync:interfaces": "ts-node ./scripts/sync-interfaces.ts",
     "deploy:arb-sepolia": "npx hardhat run ./scripts/deploy.ts --network arb-sepolia",
     "deploy:base-sepolia": "npx hardhat run ./scripts/deploy.ts --network base-sepolia",
+    "smoke:arb-sepolia:governance": "npx hardhat run ./scripts/live-smoke-governance-arb-sepolia.ts --network arb-sepolia",
     "smoke:arb-sepolia:wrapper": "npx hardhat run ./scripts/live-smoke-wrapper-arb-sepolia.ts --network arb-sepolia",
     "lint:web": "npm --prefix web run lint",
     "build:web": "npm run build:sdk && npm --prefix web run build"

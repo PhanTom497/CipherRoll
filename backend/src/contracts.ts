@@ -16,10 +16,14 @@ const payrollArtifact = readArtifact("artifacts/contracts/CipherRollPayroll.sol/
 const auditorArtifact = readArtifact(
   "artifacts/contracts/CipherRollAuditorDisclosure.sol/CipherRollAuditorDisclosure.json"
 );
+const governanceArtifact = readArtifact(
+  "artifacts/contracts/CipherRollGovernance.sol/CipherRollGovernance.json"
+);
 
 export const provider = new JsonRpcProvider(backendConfig.rpcUrl);
 export const payrollInterface = new Interface(payrollArtifact.abi);
 export const auditorInterface = new Interface(auditorArtifact.abi);
+export const governanceInterface = new Interface(governanceArtifact.abi);
 
 export const payrollContract = new Contract(
   backendConfig.payrollAddress,
@@ -32,3 +36,8 @@ export const auditorContract = new Contract(
   auditorArtifact.abi,
   provider
 );
+
+export const governanceContract =
+  backendConfig.governanceAddress
+    ? new Contract(backendConfig.governanceAddress, governanceArtifact.abi, provider)
+    : null;

@@ -1,0 +1,56 @@
+{
+  "network": "arb-sepolia",
+  "chainId": "421614",
+  "payroll": "0x19507291DF36Ba4D7301dB0Be613942C9319b680",
+  "governanceAddress": "0xE6Ef6a9966501fAF47Cd696285e78a036E636372",
+  "directSettlementAdapter": "0xbCaB3E11e52fc5643cD64279f2aF56586F6421B6",
+  "adminAddress": "0x35E94A5Ad13FDCe9EEb9274742745EdC4f4CC562",
+  "secondAdminAddress": "0x63Dd56b04cacA8afbD8D3F605bc52aF8Cc8CeB3C",
+  "orgId": "0x68cc2d83027f026980a86cc62fa2f5bb542eb5cb245faa664ad788268a1c81ea",
+  "payrollRunId": "0xbcd90e9bbb6b892b33ad09fe2dc07799f20def55d346bc838e3642a416640721",
+  "paymentId": "0x7354b0f2ca7787e1e3510a5b9fbf811d6603207159a7f720886bd94978243983",
+  "governanceState": {
+    "contract": "0xE6Ef6a9966501fAF47Cd696285e78a036E636372",
+    "initialized": true,
+    "active": true,
+    "connectedAdminIsRecognized": true,
+    "bootstrapAdminIsRecognized": true,
+    "quorum": 2,
+    "adminCount": 2,
+    "linkedExecutor": "0xE6Ef6a9966501fAF47Cd696285e78a036E636372"
+  },
+  "transactions": {
+    "fundBootstrapSigner": "0x2b8e606e22c4315170631e52ce5aa8997f9bacb8e70c8e2450df5b6b5219f5cc",
+    "createOrganization": "0xe9d8b776fa7907f55727dff4dea808d55dfe8c58c5858528d1490f4a064966a3",
+    "bootstrapGovernance": "0x581c38ba3253b625112da37ccbffa73346667eea96fd29238756c7acb5d53040",
+    "bootstrapGovernanceAdmin": "0x1c2778b5ff9b2bd2cafc371461554c4682775509ce4377ae4c294a26b925157d",
+    "linkExecutor": "0xc4e6b0b4c9602a2b78a16eff9fdd297525462c2f7ea9c070bb9b5aa177f1fc7c",
+    "proposeConfigureTreasury": "0x1cf3fbaff5a7eae0fcc7a8005a3c3bdfac0672fed0bf562adbe850ccbf5dcf3a",
+    "approveConfigureTreasury": "0x6546bc151a5c35371d176c0db90c19b39b6985185194521df9edeced2986ddb0",
+    "executeConfigureTreasury": "0x6fc098d8c592edd13d451824ad4f794d56214adbb7117091d9bb4435af76279f",
+    "proposeCreatePayrollRun": "0x3385b8d5aefae63d0dda9314b12f55ab6b46533921d54416027fce4d958aeba9",
+    "approveCreatePayrollRun": "0x693080db39ca07f5f785cdf577ee168a37ab12973d4a8ef302f5a2e181890ae6",
+    "executeCreatePayrollRun": "0xdb31793a793bae48374e7e5c3553dab9caa816aaf5848c43208fd9df19695943",
+    "proposeIssuePayroll": "0x138896eb19d115464a4b6324fcd8c9c50cb93c0314055441ff19911b3d4978dd",
+    "approveIssuePayroll": "0xb15e56326187a68b090c5f76fe7af4efbd643c875c7415643d72fda5408dcb2f",
+    "executeIssuePayrollFromWallet": "0xa68a3ec689d0142722649f5a531547fd73695bb26706d64f20418d1fdf49d21a"
+  },
+  "proposals": {
+    "configureTreasuryProposalPreview": "0xa46901ce5ee9fcebf465e8bc4ee51ab1416e5f353dceecf0c64f3caba52a3a82",
+    "configureTreasuryProposalId": "0xa46901ce5ee9fcebf465e8bc4ee51ab1416e5f353dceecf0c64f3caba52a3a82",
+    "createRunProposalId": "0x9818adc466a656aec552fc03bd46e4edc2393d9c50e943ce7c48fcac7c68e6e7",
+    "issuePayrollProposalId": "0x53b0826ccc7af8aebe4071988fcad03011c10922d5df3ac64a91fe65f3050fa8",
+    "issuePayrollExecuted": true,
+    "issuePayrollRequiresWalletExecutor": true
+  },
+  "treasury": {
+    "adapter": "0xbCaB3E11e52fc5643cD64279f2aF56586F6421B6",
+    "routeId": "0x10893e5282960b9f110cc9d8adc531bc8aed27b2aa96d66bb32d8c9f1b62e9e6"
+  },
+  "payrollRun": {
+    "status": 0,
+    "allocationCount": 1,
+    "claimedCount": 0
+  },
+  "decryptedAllocation": "250000000000000000"
+}

@@ -20,6 +20,7 @@ export type SupportedChainKey = keyof typeof SUPPORTED_CHAIN_CONFIG;
 export type CipherRollRuntimeConfig = {
   contractAddress: string;
   auditorDisclosureAddress: string;
+  governanceAddress: string;
   directSettlementAdapterAddress: string;
   wrapperSettlementAdapterAddress: string;
   backendBaseUrl: string;
@@ -46,10 +47,11 @@ export type CipherRollRuntimeConfig = {
 
 const DEFAULT_RUNTIME_BY_CHAIN = {
   "arb-sepolia": {
-    contractAddress: "0xAeCaDDa189f35EfB69C2dCc37688030A9Af58DC3",
-    auditorDisclosureAddress: "0x328Fe7B46ddf38888978C3f6CDC49233810ccE49",
-    directSettlementAdapterAddress: "0x4d0EbdE132402145D464089Fd7bE7362dec6f428",
-    wrapperSettlementAdapterAddress: "0x892DEaAaf13fb4a5a57288bB6089565c3cdB95e0",
+    contractAddress: "0xcE253a05a27Fd9BeCb44F591E4AD8fa853Ce2D6A",
+    auditorDisclosureAddress: "0xB7D94c2A6CFa50814d83B8967683b8045F79be30",
+    governanceAddress: "0x0Df80B60920B83D140d30dFfbe060Ff9E3B3FAad",
+    directSettlementAdapterAddress: "0x4308466B2433912858d59C4472375539e2b33da2",
+    wrapperSettlementAdapterAddress: "0x2875eD7C2eA010Dc73D1A2fE9d01467bAe6EBFB2",
     backendBaseUrl: "http://127.0.0.1:4000",
     defaultOrgId: "cipherroll-default-org"
   }
@@ -80,6 +82,8 @@ export function getCipherRollRuntimeConfig(
     contractAddress: env.NEXT_PUBLIC_CIPHERROLL_CONTRACT_ADDRESS || defaults.contractAddress,
     auditorDisclosureAddress:
       env.NEXT_PUBLIC_CIPHERROLL_AUDITOR_DISCLOSURE_ADDRESS || defaults.auditorDisclosureAddress,
+    governanceAddress:
+      env.NEXT_PUBLIC_CIPHERROLL_GOVERNANCE_ADDRESS || defaults.governanceAddress,
     directSettlementAdapterAddress:
       env.NEXT_PUBLIC_CIPHERROLL_DIRECT_SETTLEMENT_ADAPTER || defaults.directSettlementAdapterAddress,
     wrapperSettlementAdapterAddress:

@@ -2,6 +2,7 @@ export type IndexerStatus = {
   chainId: string;
   payrollAddress: string;
   auditorDisclosureAddress: string;
+  governanceAddress: string;
   latestIndexedBlock: number;
   latestKnownBlock: number;
   lastSyncStartedAt: number | null;

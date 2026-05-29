@@ -24,13 +24,34 @@ function asBoolean(value: unknown): boolean {
 
 type SqlParam = string | number | boolean | null;
 
+function isTransientDatabaseError(error: unknown) {
+  const code =
+    typeof error === "object" && error !== null && "code" in error
+      ? String((error as { code?: unknown }).code)
+      : "";
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return (
+    code === "ECONNRESET" ||
+    code === "ETIMEDOUT" ||
+    code === "EPIPE" ||
+    /connection terminated|timeout|terminating connection/i.test(message)
+  );
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export class CipherRollDatabase {
   private constructor(private readonly pool: Pool) {}
 
   static async create() {
     const pool = new Pool({
       connectionString: backendConfig.databaseUrl,
-      ssl: backendConfig.databaseSsl ? { rejectUnauthorized: false } : false
+      ssl: backendConfig.databaseSsl ? { rejectUnauthorized: false } : false,
+      max: 2,
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 10_000
     });
 
     const db = new CipherRollDatabase(pool);
@@ -46,7 +67,13 @@ export class CipherRollDatabase {
     text: string,
     params: SqlParam[] = []
   ) {
-    return this.pool.query<T>(text, params);
+    try {
+      return await this.pool.query<T>(text, params);
+    } catch (error) {
+      if (!isTransientDatabaseError(error)) throw error;
+      await wait(350);
+      return this.pool.query<T>(text, params);
+    }
   }
 
   private async migrate() {
@@ -877,6 +904,7 @@ export class CipherRollDatabase {
       chainId: backendConfig.chainId.toString(),
       payrollAddress: backendConfig.payrollAddress,
       auditorDisclosureAddress: backendConfig.auditorDisclosureAddress,
+      governanceAddress: backendConfig.governanceAddress,
       latestIndexedBlock,
       latestKnownBlock,
       lastSyncStartedAt: lastSyncStartedAt ? Number(lastSyncStartedAt) : null,

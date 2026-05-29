@@ -21,6 +21,12 @@ async function main() {
   const payrollAddress = await payroll.getAddress();
   console.log(`CipherRollPayroll deployed at ${payrollAddress}`);
 
+  const governanceFactory = await ethers.getContractFactory("CipherRollGovernance");
+  const governance = await governanceFactory.deploy(payrollAddress);
+  await governance.waitForDeployment();
+  const governanceAddress = await governance.getAddress();
+  console.log(`CipherRollGovernance deployed at ${governanceAddress}`);
+
   const auditorDisclosureFactory = await ethers.getContractFactory("CipherRollAuditorDisclosure");
   const auditorDisclosure = await auditorDisclosureFactory.deploy(payrollAddress);
   await auditorDisclosure.waitForDeployment();
@@ -72,6 +78,7 @@ async function main() {
     deployer: deployerAddress,
     startNonce,
     payroll: payrollAddress,
+    governance: governanceAddress,
     auditorDisclosure: auditorDisclosureAddress,
     treasuryAdapter: treasuryAdapterAddress,
     settlementToken: settlementTokenAddress,
@@ -80,6 +87,7 @@ async function main() {
     wrapperSettlementAdapter: wrapperSettlementAdapterAddress,
     artifacts: {
       payroll: "artifacts/contracts/CipherRollPayroll.sol/CipherRollPayroll.json",
+      governance: "artifacts/contracts/CipherRollGovernance.sol/CipherRollGovernance.json",
       auditorDisclosure: "artifacts/contracts/CipherRollAuditorDisclosure.sol/CipherRollAuditorDisclosure.json",
       treasuryAdapter: "artifacts/contracts/mocks/Wave1TreasuryAdapter.sol/Wave1TreasuryAdapter.json",
       settlementToken: "artifacts/contracts/mocks/MockSettlementToken.sol/MockSettlementToken.json",
@@ -88,6 +96,7 @@ async function main() {
       wrapperSettlementAdapter: "artifacts/contracts/mocks/MockFHERC20SettlementTreasuryAdapter.sol/MockFHERC20SettlementTreasuryAdapter.json",
       typechain: {
         payroll: "typechain-types/contracts/CipherRollPayroll.ts",
+        governance: "typechain-types/contracts/CipherRollGovernance.ts",
         auditorDisclosure: "typechain-types/contracts/CipherRollAuditorDisclosure.ts"
       }
     },

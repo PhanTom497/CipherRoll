@@ -21,6 +21,14 @@ const auditorArtifactPath = join(
   "CipherRollAuditorDisclosure.json"
 );
 
+const governanceArtifactPath = join(
+  process.cwd(),
+  "artifacts",
+  "contracts",
+  "CipherRollGovernance.sol",
+  "CipherRollGovernance.json"
+);
+
 const generatedAbiPath = join(
   process.cwd(),
   "web",
@@ -36,6 +44,9 @@ function main() {
   const auditorArtifact = JSON.parse(
     readFileSync(auditorArtifactPath, "utf8")
   ) as HardhatArtifact;
+  const governanceArtifact = JSON.parse(
+    readFileSync(governanceArtifactPath, "utf8")
+  ) as HardhatArtifact;
 
   mkdirSync(join(process.cwd(), "web", "lib", "generated"), { recursive: true });
 
@@ -44,6 +55,7 @@ function main() {
 
 export const CIPHERROLL_ABI = ${JSON.stringify(payrollArtifact.abi, null, 2)} as const;
 export const CIPHERROLL_AUDITOR_ABI = ${JSON.stringify(auditorArtifact.abi, null, 2)} as const;
+export const CIPHERROLL_GOVERNANCE_ABI = ${JSON.stringify(governanceArtifact.abi, null, 2)} as const;
 
 export type CiphertextHandle = \`0x\${string}\`;
 

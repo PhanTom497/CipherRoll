@@ -7,6 +7,7 @@ import hre, { ethers } from "hardhat";
 
 import type {
   CipherRollAuditorDisclosure,
+  CipherRollGovernance,
   CipherRollPayroll,
   MockConfidentialPayrollToken,
   MockFHERC20SettlementTreasuryAdapter,
@@ -17,9 +18,11 @@ import type {
 describe("CipherRollPayroll", function () {
   let payroll: CipherRollPayroll;
   let auditorDisclosure: CipherRollAuditorDisclosure;
+  let governance: CipherRollGovernance;
   let admin: HardhatEthersSigner;
   let employee: HardhatEthersSigner;
   let outsider: HardhatEthersSigner;
+  let approver: HardhatEthersSigner;
   let settlementToken: MockSettlementToken;
   let settlementAdapter: MockSettlementTreasuryAdapter;
   let confidentialSettlementToken: MockConfidentialPayrollToken;
@@ -59,7 +62,7 @@ describe("CipherRollPayroll", function () {
   }
 
   beforeEach(async function () {
-    [admin, employee, outsider] = await ethers.getSigners();
+    [admin, employee, outsider, approver] = await ethers.getSigners();
 
     adminClient = await hre.cofhe.createClientWithBatteries(admin);
     employeeClient = await hre.cofhe.createClientWithBatteries(employee);
@@ -68,6 +71,10 @@ describe("CipherRollPayroll", function () {
     const payrollFactory = await ethers.getContractFactory("CipherRollPayroll");
     payroll = await payrollFactory.deploy();
     await payroll.waitForDeployment();
+
+    const governanceFactory = await ethers.getContractFactory("CipherRollGovernance");
+    governance = await governanceFactory.deploy(await payroll.getAddress());
+    await governance.waitForDeployment();
 
     const auditorDisclosureFactory = await ethers.getContractFactory("CipherRollAuditorDisclosure");
     auditorDisclosure = await auditorDisclosureFactory.deploy(await payroll.getAddress());
@@ -1305,6 +1312,139 @@ describe("CipherRollPayroll", function () {
     await expect(
       payroll.connect(admin).fundPayrollRun(orgId, payrollRunId, await encryptUint128(adminClient, 1n))
     ).to.be.revertedWith("CipherRoll: treasury route requires funded asset");
+  });
+
+  it("requires approved governance proposals once M-of-N governance is active", async function () {
+    const orgId = ethers.id("org:governance");
+    const metadataHash = ethers.id("meta:governance");
+    const paymentId = ethers.id("payment:governance");
+    const memoHash = ethers.id("memo:governance");
+    const routeId = ethers.id("route:governance");
+    const latestBlock = await time.latest();
+    const expiresAt = latestBlock + 1_000;
+    const encryptedPayroll = await encryptUint128(adminClient, 5n);
+    const encryptedPayrollTuple = [
+      encryptedPayroll.ctHash,
+      encryptedPayroll.securityZone,
+      encryptedPayroll.utype,
+      encryptedPayroll.signature
+    ];
+    const abiCoder = ethers.AbiCoder.defaultAbiCoder();
+
+    await payroll.connect(admin).createOrganization(orgId, metadataHash, 3, 2);
+    await governance.connect(admin).bootstrapOrganization(orgId);
+    await governance.connect(admin).bootstrapOrganizationAdmin(orgId, approver.address);
+    await payroll
+      .connect(admin)
+      .configureOrganizationGovernanceExecutor(orgId, await governance.getAddress());
+
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, 20n));
+
+    await expect(
+      payroll.connect(admin).configureTreasury(orgId, await settlementAdapter.getAddress(), routeId)
+    ).to.be.revertedWith("CipherRoll: governance approval required");
+
+    const configurePayload = abiCoder.encode(
+      ["address", "bytes32"],
+      [await settlementAdapter.getAddress(), routeId]
+    );
+    const configureTx = await governance
+      .connect(admin)
+      .proposeGovernanceAction(orgId, 0, configurePayload, expiresAt);
+    const configureReceipt = await configureTx.wait();
+    const configureEvent = configureReceipt?.logs
+      .map((log) => {
+        try {
+          return governance.interface.parseLog(log);
+        } catch {
+          return null;
+        }
+      })
+      .find((entry) => entry?.name === "GovernanceProposalCreated");
+    const configureProposalId = configureEvent?.args.proposalId;
+
+    await governance.connect(approver).approveGovernanceProposal(configureProposalId);
+    await governance.connect(admin).executeGovernanceProposal(configureProposalId);
+
+    const organization = await payroll.getOrganization(orgId);
+    expect(organization.treasuryAdapter).to.equal(await settlementAdapter.getAddress());
+
+    const issuePayload = abiCoder.encode(
+      ["address", "(uint256,uint8,uint8,bytes)", "bytes32", "bytes32"],
+      [employee.address, encryptedPayrollTuple, paymentId, memoHash]
+    );
+    const issueTx = await governance
+      .connect(admin)
+      .proposeGovernanceAction(orgId, 5, issuePayload, expiresAt);
+    const issueReceipt = await issueTx.wait();
+    const issueEvent = issueReceipt?.logs
+      .map((log) => {
+        try {
+          return governance.interface.parseLog(log);
+        } catch {
+          return null;
+        }
+      })
+      .find((entry) => entry?.name === "GovernanceProposalCreated");
+    const issueProposalId = issueEvent?.args.proposalId;
+
+    await governance.connect(approver).approveGovernanceProposal(issueProposalId);
+    await payroll.connect(admin).issueConfidentialPayroll(
+      orgId,
+      employee.address,
+      encryptedPayroll,
+      paymentId,
+      memoHash
+    );
+
+    const employeeAllocations = await payroll
+      .connect(employee)
+      .getEmployeeAllocations(orgId, employee.address);
+    expect(employeeAllocations[0]).to.deep.equal([paymentId]);
+    expect(
+      await decryptUint128WithExplicitPermit(employeeClient, employeeAllocations[3][0])
+    ).to.equal(5n);
+  });
+
+  it("supports approval revocation and prevents execution below quorum", async function () {
+    const orgId = ethers.id("org:governance-revoke");
+    const metadataHash = ethers.id("meta:governance-revoke");
+    const routeId = ethers.id("route:governance-revoke");
+    const latestBlock = await time.latest();
+    const abiCoder = ethers.AbiCoder.defaultAbiCoder();
+
+    await payroll.connect(admin).createOrganization(orgId, metadataHash, 3, 2);
+    await governance.connect(admin).bootstrapOrganization(orgId);
+    await governance.connect(admin).bootstrapOrganizationAdmin(orgId, approver.address);
+    await payroll
+      .connect(admin)
+      .configureOrganizationGovernanceExecutor(orgId, await governance.getAddress());
+
+    const payload = abiCoder.encode(
+      ["address", "bytes32"],
+      [await settlementAdapter.getAddress(), routeId]
+    );
+    const proposalTx = await governance
+      .connect(admin)
+      .proposeGovernanceAction(orgId, 0, payload, latestBlock + 1_000);
+    const proposalReceipt = await proposalTx.wait();
+    const proposalEvent = proposalReceipt?.logs
+      .map((log) => {
+        try {
+          return governance.interface.parseLog(log);
+        } catch {
+          return null;
+        }
+      })
+      .find((entry) => entry?.name === "GovernanceProposalCreated");
+    const proposalId = proposalEvent?.args.proposalId;
+
+    await governance.connect(approver).approveGovernanceProposal(proposalId);
+    await governance.connect(approver).revokeGovernanceApproval(proposalId);
+
+    await expect(
+      governance.connect(admin).executeGovernanceProposal(proposalId)
+    ).to.be.revertedWith("CipherRollGovernance: quorum not met");
   });
 
   it("rejects missing or unauthorized claim attempts and duplicate payment ids", async function () {

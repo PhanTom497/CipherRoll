@@ -199,10 +199,11 @@ Current **Arbitrum Sepolia** deployment:
 
 | Contract | Address |
 | --- | --- |
-| `CipherRollPayroll` | `0xAeCaDDa189f35EfB69C2dCc37688030A9Af58DC3` |
-| `CipherRollAuditorDisclosure` | `0x328Fe7B46ddf38888978C3f6CDC49233810ccE49` |
-| `DirectSettlementAdapter` | `0x4d0EbdE132402145D464089Fd7bE7362dec6f428` |
-| `WrapperSettlementAdapter` | `0x892DEaAaf13fb4a5a57288bB6089565c3cdB95e0` |
+| `CipherRollPayroll` | `0xcE253a05a27Fd9BeCb44F591E4AD8fa853Ce2D6A` |
+| `CipherRollGovernance` | `0x0Df80B60920B83D140d30dFfbe060Ff9E3B3FAad` |
+| `CipherRollAuditorDisclosure` | `0xB7D94c2A6CFa50814d83B8967683b8045F79be30` |
+| `DirectSettlementAdapter` | `0x4308466B2433912858d59C4472375539e2b33da2` |
+| `WrapperSettlementAdapter` | `0x2875eD7C2eA010Dc73D1A2fE9d01467bAe6EBFB2` |
 
 Deployment metadata:
 
@@ -305,4 +306,3 @@ It now demonstrates:
 - **hosted full-stack deployment**
 
 That combination is what makes the project feel like a serious confidential payroll product rather than a collection of isolated features.
-

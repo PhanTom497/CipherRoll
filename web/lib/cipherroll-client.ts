@@ -14,12 +14,14 @@ import {
   mapTreasuryAdapterDetailsResult,
   AUDITOR_DISCLOSURE_CONTRACT_ADDRESS,
   CONTRACT_ADDRESS,
+  GOVERNANCE_CONTRACT_ADDRESS,
   TARGET_CHAIN_KEY,
   TARGET_CHAIN_RPC_URL
 } from "./cipherroll-config";
 import {
   CIPHERROLL_AUDITOR_ABI,
   CIPHERROLL_ABI,
+  CIPHERROLL_GOVERNANCE_ABI,
   type CipherRollEncryptedInput,
   type CiphertextHandle,
 } from "./generated/cipherroll-abi";
@@ -42,6 +44,38 @@ const ERC20_ABI = [
 const TREASURY_ADAPTER_ABI = [
   "function depositPayrollFunds(bytes32 orgId, uint256 amount)"
 ] as const;
+
+const ARBITRUM_SEPOLIA_PRIORITY_FEE_FLOOR = 10_000_000n;
+const ARBITRUM_SEPOLIA_MAX_FEE_FLOOR = 80_000_000n;
+
+async function getFreshTransactionOverrides(ethersProvider: EthersBrowserProvider) {
+  if (TARGET_CHAIN_KEY !== "arb-sepolia") {
+    return {};
+  }
+
+  const fallbackRpcProvider = new JsonRpcProvider(TARGET_CHAIN_RPC_URL);
+  const [feeData, latestBlock] = await Promise.all([
+    ethersProvider.getFeeData().catch(() => null),
+    fallbackRpcProvider.getBlock("latest").catch(() => null)
+  ]);
+
+  const baseFee = latestBlock?.baseFeePerGas ?? 0n;
+  const priorityFee = [feeData?.maxPriorityFeePerGas, ARBITRUM_SEPOLIA_PRIORITY_FEE_FLOOR]
+    .filter((value): value is bigint => typeof value === "bigint" && value > 0n)
+    .reduce((max, value) => (value > max ? value : max), ARBITRUM_SEPOLIA_PRIORITY_FEE_FLOOR);
+  const maxFee = [
+    feeData?.maxFeePerGas,
+    baseFee > 0n ? baseFee * 2n + priorityFee * 2n : null,
+    ARBITRUM_SEPOLIA_MAX_FEE_FLOOR
+  ]
+    .filter((value): value is bigint => typeof value === "bigint" && value > 0n)
+    .reduce((max, value) => (value > max ? value : max), ARBITRUM_SEPOLIA_MAX_FEE_FLOOR);
+
+  return {
+    maxFeePerGas: maxFee,
+    maxPriorityFeePerGas: priorityFee
+  };
+}
 
 type JsonRpcPayload = {
   method: string;
@@ -162,27 +196,6 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
 
   const transport = runner instanceof JsonRpcSigner ? runner.provider.transport : runner.transport;
   const ethersProvider = new EthersBrowserProvider(transport as any);
-  const fallbackRpcProvider = new JsonRpcProvider(TARGET_CHAIN_RPC_URL);
-
-  const getTransactionOverrides = async () => {
-    if (TARGET_CHAIN_KEY !== "arb-sepolia") {
-      return {};
-    }
-
-    const [feeData, latestBlock] = await Promise.all([
-      ethersProvider.getFeeData().catch(() => null),
-      fallbackRpcProvider.getBlock("latest").catch(() => null)
-    ]);
-
-    const floorGasPrice = 50_000_000n;
-    const baseFee = latestBlock?.baseFeePerGas ?? 0n;
-    const gasPrice = [feeData?.gasPrice, feeData?.maxFeePerGas, baseFee + 1_000_000n, floorGasPrice]
-      .filter((value): value is bigint => typeof value === "bigint" && value > 0n)
-      .reduce((max, value) => (value > max ? value : max), floorGasPrice);
-
-    return { gasPrice };
-  };
-
   const getEthersContract = async () => {
     const signer = runner instanceof JsonRpcSigner ? await ethersProvider.getSigner() : null;
     return new Contract(CONTRACT_ADDRESS, CIPHERROLL_ABI, signer ?? ethersProvider);
@@ -202,7 +215,7 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
         metadataHash,
         reservedAdminSlots,
         reservedQuorum,
-        await getTransactionOverrides()
+        await getFreshTransactionOverrides(ethersProvider)
       );
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
@@ -214,7 +227,18 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
         orgId,
         adapter,
         routeId,
-        await getTransactionOverrides()
+        await getFreshTransactionOverrides(ethersProvider)
+      );
+      return { hash: tx.hash as string, wait: () => tx.wait() };
+    },
+
+    async configureOrganizationGovernanceExecutor(orgId: string, governanceExecutor: string) {
+      if (!(runner instanceof JsonRpcSigner)) throw new Error("Signer required.");
+      const contract = await getEthersContract();
+      const tx = await contract.configureOrganizationGovernanceExecutor(
+        orgId,
+        governanceExecutor,
+        await getFreshTransactionOverrides(ethersProvider)
       );
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
@@ -222,7 +246,7 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
     async depositBudget(orgId: string, encryptedAmount: CipherRollEncryptedInput) {
       if (!(runner instanceof JsonRpcSigner)) throw new Error("Signer required.");
       const contract = await getEthersContract();
-      const tx = await contract.depositBudget(orgId, encryptedAmount, await getTransactionOverrides());
+      const tx = await contract.depositBudget(orgId, encryptedAmount, await getFreshTransactionOverrides(ethersProvider));
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
 
@@ -241,7 +265,7 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
         encryptedAmount,
         paymentId,
         memoHash,
-        await getTransactionOverrides()
+        await getFreshTransactionOverrides(ethersProvider)
       );
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
@@ -257,7 +281,16 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
     ) {
       if (!(runner instanceof JsonRpcSigner)) throw new Error("Signer required.");
       const contract = await getEthersContract();
-      const tx = await contract.issueVestingAllocation(orgId, employee, encryptedAmount, paymentId, memoHash, startTimestamp, endTimestamp);
+      const tx = await contract.issueVestingAllocation(
+        orgId,
+        employee,
+        encryptedAmount,
+        paymentId,
+        memoHash,
+        startTimestamp,
+        endTimestamp,
+        await getFreshTransactionOverrides(ethersProvider)
+      );
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
 
@@ -276,9 +309,26 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
         settlementAssetId,
         fundingDeadline,
         plannedHeadcount,
-        await getTransactionOverrides()
+        await getFreshTransactionOverrides(ethersProvider)
       );
       return { hash: tx.hash as string, wait: () => tx.wait() };
+    },
+
+    async previewCreatePayrollRun(
+      orgId: string,
+      payrollRunId: string,
+      settlementAssetId: string,
+      fundingDeadline: number,
+      plannedHeadcount: number
+    ) {
+      const contract = await getEthersContract();
+      await contract.createPayrollRun.staticCall(
+        orgId,
+        payrollRunId,
+        settlementAssetId,
+        fundingDeadline,
+        plannedHeadcount
+      );
     },
 
     async fundPayrollRun(
@@ -292,7 +342,7 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
         orgId,
         payrollRunId,
         encryptedAmount,
-        await getTransactionOverrides()
+        await getFreshTransactionOverrides(ethersProvider)
       );
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
@@ -308,7 +358,7 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
         orgId,
         payrollRunId,
         cleartextAmount,
-        await getTransactionOverrides()
+        await getFreshTransactionOverrides(ethersProvider)
       );
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
@@ -316,7 +366,7 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
     async activatePayrollRun(orgId: string, payrollRunId: string) {
       if (!(runner instanceof JsonRpcSigner)) throw new Error("Signer required.");
       const contract = await getEthersContract();
-      const tx = await contract.activatePayrollRun(orgId, payrollRunId, await getTransactionOverrides());
+      const tx = await contract.activatePayrollRun(orgId, payrollRunId, await getFreshTransactionOverrides(ethersProvider));
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
 
@@ -337,7 +387,7 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
         encryptedAmount,
         paymentId,
         memoHash,
-        await getTransactionOverrides()
+        await getFreshTransactionOverrides(ethersProvider)
       );
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
@@ -363,7 +413,7 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
         memoHash,
         startTimestamp,
         endTimestamp,
-        await getTransactionOverrides()
+        await getFreshTransactionOverrides(ethersProvider)
       );
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
@@ -371,7 +421,7 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
     async claimPayroll(orgId: string, paymentId: string) {
       if (!(runner instanceof JsonRpcSigner)) throw new Error("Signer required.");
       const contract = await getEthersContract();
-      const tx = await contract.claimPayroll(orgId, paymentId);
+      const tx = await contract.claimPayroll(orgId, paymentId, await getFreshTransactionOverrides(ethersProvider));
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
 
@@ -388,7 +438,7 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
         paymentId,
         cleartextAmount,
         signature,
-        await getTransactionOverrides()
+        await getFreshTransactionOverrides(ethersProvider)
       );
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
@@ -406,7 +456,7 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
         paymentId,
         cleartextAmount,
         signature,
-        await getTransactionOverrides()
+        await getFreshTransactionOverrides(ethersProvider)
       );
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
@@ -424,7 +474,7 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
         paymentId,
         decryptedAmount,
         signature,
-        await getTransactionOverrides()
+        await getFreshTransactionOverrides(ethersProvider)
       );
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
@@ -433,6 +483,11 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
       const contract = await getEthersContract();
       const result = await contract.getOrganization(orgId);
       return mapOrganizationResult(result);
+    },
+
+    async getOrganizationGovernanceExecutor(orgId: string) {
+      const contract = await getEthersContract();
+      return contract.getOrganizationGovernanceExecutor(orgId) as Promise<string>;
     },
 
     async getTreasuryAdapterDetails(orgId: string): Promise<TreasuryAdapterConfig> {
@@ -445,7 +500,7 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
       if (!(runner instanceof JsonRpcSigner)) throw new Error("Signer required.");
       const signer = await ethersProvider.getSigner();
       const token = new Contract(tokenAddress, ERC20_ABI, signer);
-      const tx = await token.approve(spender, amount, await getTransactionOverrides());
+      const tx = await token.approve(spender, amount, await getFreshTransactionOverrides(ethersProvider));
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
 
@@ -453,7 +508,7 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
       if (!(runner instanceof JsonRpcSigner)) throw new Error("Signer required.");
       const signer = await ethersProvider.getSigner();
       const adapter = new Contract(adapterAddress, TREASURY_ADAPTER_ABI, signer);
-      const tx = await adapter.depositPayrollFunds(orgId, amount, await getTransactionOverrides());
+      const tx = await adapter.depositPayrollFunds(orgId, amount, await getFreshTransactionOverrides(ethersProvider));
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
 
@@ -535,27 +590,6 @@ export function getCipherRollAuditorContract(runner: BrowserProvider | JsonRpcSi
 
   const transport = runner instanceof JsonRpcSigner ? runner.provider.transport : runner.transport;
   const ethersProvider = new EthersBrowserProvider(transport as any);
-  const fallbackRpcProvider = new JsonRpcProvider(TARGET_CHAIN_RPC_URL);
-
-  const getTransactionOverrides = async () => {
-    if (TARGET_CHAIN_KEY !== "arb-sepolia") {
-      return {};
-    }
-
-    const [feeData, latestBlock] = await Promise.all([
-      ethersProvider.getFeeData().catch(() => null),
-      fallbackRpcProvider.getBlock("latest").catch(() => null)
-    ]);
-
-    const floorGasPrice = 50_000_000n;
-    const baseFee = latestBlock?.baseFeePerGas ?? 0n;
-    const gasPrice = [feeData?.gasPrice, feeData?.maxFeePerGas, baseFee + 1_000_000n, floorGasPrice]
-      .filter((value): value is bigint => typeof value === "bigint" && value > 0n)
-      .reduce((max, value) => (value > max ? value : max), floorGasPrice);
-
-    return { gasPrice };
-  };
-
   const getEthersContract = async () => {
     const signer = runner instanceof JsonRpcSigner ? await ethersProvider.getSigner() : null;
     return new Contract(
@@ -603,7 +637,7 @@ export function getCipherRollAuditorContract(runner: BrowserProvider | JsonRpcSi
         AUDITOR_DISCLOSURE_METRIC_INDEX[metric],
         cleartextValue,
         signature,
-        await getTransactionOverrides()
+        await getFreshTransactionOverrides(ethersProvider)
       );
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
@@ -620,7 +654,7 @@ export function getCipherRollAuditorContract(runner: BrowserProvider | JsonRpcSi
         AUDITOR_DISCLOSURE_METRIC_INDEX[metric],
         cleartextValue,
         signature,
-        await getTransactionOverrides()
+        await getFreshTransactionOverrides(ethersProvider)
       );
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
@@ -637,7 +671,7 @@ export function getCipherRollAuditorContract(runner: BrowserProvider | JsonRpcSi
         metrics.map((metric) => AUDITOR_DISCLOSURE_METRIC_INDEX[metric]),
         cleartextValues,
         signatures,
-        await getTransactionOverrides()
+        await getFreshTransactionOverrides(ethersProvider)
       );
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
@@ -654,7 +688,128 @@ export function getCipherRollAuditorContract(runner: BrowserProvider | JsonRpcSi
         metrics.map((metric) => AUDITOR_DISCLOSURE_METRIC_INDEX[metric]),
         cleartextValues,
         signatures,
-        await getTransactionOverrides()
+        await getFreshTransactionOverrides(ethersProvider)
+      );
+      return { hash: tx.hash as string, wait: () => tx.wait() };
+    }
+  };
+}
+
+export function getCipherRollGovernanceContract(runner: BrowserProvider | JsonRpcSigner) {
+  const transport = runner instanceof JsonRpcSigner ? runner.provider.transport : runner.transport;
+  const ethersProvider = new EthersBrowserProvider(transport as any);
+
+  const getEthersContract = async () => {
+    if (!GOVERNANCE_CONTRACT_ADDRESS) {
+      throw new Error("NEXT_PUBLIC_CIPHERROLL_GOVERNANCE_ADDRESS is not configured.");
+    }
+
+    const signer = runner instanceof JsonRpcSigner ? await ethersProvider.getSigner() : null;
+    return new Contract(
+      GOVERNANCE_CONTRACT_ADDRESS,
+      CIPHERROLL_GOVERNANCE_ABI,
+      signer ?? ethersProvider
+    );
+  };
+
+  return {
+    async bootstrapOrganization(orgId: string) {
+      if (!(runner instanceof JsonRpcSigner)) throw new Error("Signer required.");
+      const contract = await getEthersContract();
+      const tx = await contract.bootstrapOrganization(orgId, await getFreshTransactionOverrides(ethersProvider));
+      return { hash: tx.hash as string, wait: () => tx.wait() };
+    },
+
+    async bootstrapOrganizationAdmin(orgId: string, adminToAdd: string) {
+      if (!(runner instanceof JsonRpcSigner)) throw new Error("Signer required.");
+      const contract = await getEthersContract();
+      const tx = await contract.bootstrapOrganizationAdmin(
+        orgId,
+        adminToAdd,
+        await getFreshTransactionOverrides(ethersProvider)
+      );
+      return { hash: tx.hash as string, wait: () => tx.wait() };
+    },
+
+    async getOrganizationGovernance(orgId: string) {
+      const contract = await getEthersContract();
+      return contract.getOrganizationGovernance(orgId);
+    },
+
+    async getOrganizationAdmins(orgId: string) {
+      const contract = await getEthersContract();
+      return contract.getOrganizationAdmins(orgId) as Promise<string[]>;
+    },
+
+    async isOrganizationAdmin(orgId: string, account: string) {
+      const contract = await getEthersContract();
+      return contract.isOrganizationAdmin(orgId, account) as Promise<boolean>;
+    },
+
+    async isGovernanceActive(orgId: string) {
+      const contract = await getEthersContract();
+      return contract.isGovernanceActive(orgId) as Promise<boolean>;
+    },
+
+    async getOrganizationGovernanceProposalIds(orgId: string) {
+      const contract = await getEthersContract();
+      return contract.getOrganizationGovernanceProposalIds(orgId) as Promise<string[]>;
+    },
+
+    async getGovernanceProposal(proposalId: string) {
+      const contract = await getEthersContract();
+      return contract.getGovernanceProposal(proposalId);
+    },
+
+    async hasApprovedGovernanceProposal(proposalId: string, account: string) {
+      const contract = await getEthersContract();
+      return contract.hasApprovedGovernanceProposal(proposalId, account) as Promise<boolean>;
+    },
+
+    async proposeGovernanceAction(
+      orgId: string,
+      actionType: number,
+      payload: string,
+      expiresAt: number
+    ) {
+      if (!(runner instanceof JsonRpcSigner)) throw new Error("Signer required.");
+      const contract = await getEthersContract();
+      const tx = await contract.proposeGovernanceAction(
+        orgId,
+        actionType,
+        payload,
+        expiresAt,
+        await getFreshTransactionOverrides(ethersProvider)
+      );
+      return { hash: tx.hash as string, wait: () => tx.wait() };
+    },
+
+    async approveGovernanceProposal(proposalId: string) {
+      if (!(runner instanceof JsonRpcSigner)) throw new Error("Signer required.");
+      const contract = await getEthersContract();
+      const tx = await contract.approveGovernanceProposal(
+        proposalId,
+        await getFreshTransactionOverrides(ethersProvider)
+      );
+      return { hash: tx.hash as string, wait: () => tx.wait() };
+    },
+
+    async revokeGovernanceApproval(proposalId: string) {
+      if (!(runner instanceof JsonRpcSigner)) throw new Error("Signer required.");
+      const contract = await getEthersContract();
+      const tx = await contract.revokeGovernanceApproval(
+        proposalId,
+        await getFreshTransactionOverrides(ethersProvider)
+      );
+      return { hash: tx.hash as string, wait: () => tx.wait() };
+    },
+
+    async executeGovernanceProposal(proposalId: string) {
+      if (!(runner instanceof JsonRpcSigner)) throw new Error("Signer required.");
+      const contract = await getEthersContract();
+      const tx = await contract.executeGovernanceProposal(
+        proposalId,
+        await getFreshTransactionOverrides(ethersProvider)
       );
       return { hash: tx.hash as string, wait: () => tx.wait() };
     }

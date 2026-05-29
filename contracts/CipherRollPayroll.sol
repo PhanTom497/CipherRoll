@@ -3,6 +3,7 @@ pragma solidity ^0.8.25;
 
 import {FHE, InEuint128, euint128, ebool} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
 import {ITreasuryAdapter} from "./interfaces/ITreasuryAdapter.sol";
+import {ICipherRollGovernanceExecutor} from "./interfaces/ICipherRollGovernanceExecutor.sol";
 
 /// @title CipherRollPayroll
 /// @notice Confidential payroll management using the CoFHE coprocessor stack.
@@ -14,6 +15,21 @@ contract CipherRollPayroll {
         Funded,
         Active,
         Finalized
+    }
+
+    enum GovernanceActionType {
+        ConfigureTreasury,
+        CreatePayrollRun,
+        FundPayrollRun,
+        FundPayrollRunFromTreasury,
+        ActivatePayrollRun,
+        IssueConfidentialPayroll,
+        IssueConfidentialPayrollToRun,
+        IssueVestingAllocation,
+        IssueVestingAllocationToRun,
+        AddAdmin,
+        RemoveAdmin,
+        UpdateQuorum
     }
 
     struct Organization {
@@ -73,6 +89,7 @@ contract CipherRollPayroll {
     }
 
     mapping(bytes32 => Organization) private _organizations;
+    mapping(bytes32 => address) private _organizationGovernanceExecutors;
     mapping(bytes32 => euint128) private _encryptedBudget;
     mapping(bytes32 => euint128) private _encryptedCommitted;
     mapping(bytes32 => euint128) private _encryptedAvailable;
@@ -92,6 +109,12 @@ contract CipherRollPayroll {
         address indexed admin,
         uint64 reservedAdminSlots,
         uint64 reservedQuorum
+    );
+
+    event OrganizationGovernanceExecutorConfigured(
+        bytes32 indexed orgId,
+        address indexed governanceExecutor,
+        address indexed configuredBy
     );
 
     event TreasuryConfigured(
@@ -168,13 +191,90 @@ contract CipherRollPayroll {
 
     modifier onlyOrgAdmin(bytes32 orgId) {
         require(_organizations[orgId].exists, "CipherRoll: unknown org");
-        require(_organizations[orgId].admin == msg.sender, "CipherRoll: not admin");
+        require(_isRecognizedAdmin(orgId, msg.sender), "CipherRoll: not admin");
+        _;
+    }
+
+    modifier onlyOrgOperationalOperator(bytes32 orgId) {
+        require(_organizations[orgId].exists, "CipherRoll: unknown org");
+        require(_isRecognizedAdmin(orgId, msg.sender), "CipherRoll: not admin");
+        _;
+    }
+
+    modifier onlyOrgGovernedOperator(bytes32 orgId) {
+        require(_organizations[orgId].exists, "CipherRoll: unknown org");
+
+        address governanceExecutor = _organizationGovernanceExecutors[orgId];
+        if (_isGovernanceActive(orgId, governanceExecutor)) {
+            require(msg.sender == governanceExecutor, "CipherRoll: governance approval required");
+        } else {
+            require(_isRecognizedAdmin(orgId, msg.sender), "CipherRoll: not admin");
+        }
         _;
     }
 
     modifier onlyExistingPayrollRun(bytes32 payrollRunId) {
         require(_payrollRuns[payrollRunId].exists, "CipherRoll: payroll run missing");
         _;
+    }
+
+    function _isRecognizedAdmin(bytes32 orgId, address account) internal view returns (bool) {
+        if (_organizations[orgId].admin == account) {
+            return true;
+        }
+
+        address governanceExecutor = _organizationGovernanceExecutors[orgId];
+        if (governanceExecutor == address(0)) {
+            return false;
+        }
+
+        try ICipherRollGovernanceExecutor(governanceExecutor).isOrganizationAdmin(orgId, account) returns (bool approved) {
+            return approved;
+        } catch {
+            return false;
+        }
+    }
+
+    function _isGovernanceActive(
+        bytes32 orgId,
+        address governanceExecutor
+    ) internal view returns (bool) {
+        if (governanceExecutor == address(0)) {
+            return false;
+        }
+
+        try ICipherRollGovernanceExecutor(governanceExecutor).isGovernanceActive(orgId) returns (bool active) {
+            return active;
+        } catch {
+            return false;
+        }
+    }
+
+    function _consumeGovernanceWalletAction(
+        bytes32 orgId,
+        GovernanceActionType actionType,
+        bytes memory payload
+    ) internal {
+        address governanceExecutor = _organizationGovernanceExecutors[orgId];
+        require(_isGovernanceActive(orgId, governanceExecutor), "CipherRoll: governance inactive");
+
+        bytes32 executionKey = keccak256(
+            abi.encode(
+                orgId,
+                msg.sender,
+                actionType,
+                keccak256(payload)
+            )
+        );
+
+        bytes32 consumedOrgId = ICipherRollGovernanceExecutor(governanceExecutor)
+            .consumeApprovedProposalExecution(
+                executionKey,
+                uint8(actionType),
+                keccak256(payload),
+                msg.sender
+            );
+        require(consumedOrgId == orgId, "CipherRoll: governance org mismatch");
     }
 
     function createOrganization(
@@ -219,11 +319,25 @@ contract CipherRollPayroll {
         );
     }
 
+    function configureOrganizationGovernanceExecutor(
+        bytes32 orgId,
+        address governanceExecutor
+    ) external {
+        require(_organizations[orgId].exists, "CipherRoll: unknown org");
+        require(msg.sender == _organizations[orgId].admin, "CipherRoll: primary admin only");
+        require(governanceExecutor != address(0), "CipherRoll: executor required");
+
+        _organizationGovernanceExecutors[orgId] = governanceExecutor;
+        _organizations[orgId].updatedAt = uint64(block.timestamp);
+
+        emit OrganizationGovernanceExecutorConfigured(orgId, governanceExecutor, msg.sender);
+    }
+
     function configureTreasury(
         bytes32 orgId,
         address treasuryAdapter,
         bytes32 treasuryRouteId
-    ) external onlyOrgAdmin(orgId) {
+    ) external onlyOrgGovernedOperator(orgId) {
         require(treasuryAdapter != address(0), "CipherRoll: adapter required");
 
         _organizations[orgId].treasuryAdapter = treasuryAdapter;
@@ -243,7 +357,7 @@ contract CipherRollPayroll {
         bytes32 settlementAssetId,
         uint64 fundingDeadline,
         uint32 plannedHeadcount
-    ) external onlyOrgAdmin(orgId) {
+    ) external onlyOrgOperationalOperator(orgId) {
         require(!_payrollRuns[payrollRunId].exists, "CipherRoll: payroll run exists");
         require(fundingDeadline > uint64(block.timestamp), "CipherRoll: funding deadline required");
         require(plannedHeadcount > 0, "CipherRoll: headcount required");
@@ -318,7 +432,7 @@ contract CipherRollPayroll {
         bytes32 orgId,
         bytes32 payrollRunId,
         uint128 cleartextAmount
-    ) external onlyOrgAdmin(orgId) onlyExistingPayrollRun(payrollRunId) {
+    ) external onlyOrgOperationalOperator(orgId) onlyExistingPayrollRun(payrollRunId) {
         PayrollRun storage payrollRun = _payrollRuns[payrollRunId];
         require(payrollRun.orgId == orgId, "CipherRoll: payroll run org mismatch");
         require(payrollRun.status != PayrollRunStatus.Active, "CipherRoll: payroll run already active");
@@ -371,7 +485,7 @@ contract CipherRollPayroll {
     function activatePayrollRun(
         bytes32 orgId,
         bytes32 payrollRunId
-    ) external onlyOrgAdmin(orgId) onlyExistingPayrollRun(payrollRunId) {
+    ) external onlyOrgOperationalOperator(orgId) onlyExistingPayrollRun(payrollRunId) {
         PayrollRun storage payrollRun = _payrollRuns[payrollRunId];
         require(payrollRun.orgId == orgId, "CipherRoll: payroll run org mismatch");
         require(payrollRun.status == PayrollRunStatus.Funded, "CipherRoll: payroll run not funded");
@@ -419,6 +533,14 @@ contract CipherRollPayroll {
     ) external onlyOrgAdmin(orgId) {
         require(employee != address(0), "CipherRoll: employee required");
         require(!_allocations[paymentId].exists, "CipherRoll: payment exists");
+
+        if (_isGovernanceActive(orgId, _organizationGovernanceExecutors[orgId])) {
+            _consumeGovernanceWalletAction(
+                orgId,
+                GovernanceActionType.IssueConfidentialPayroll,
+                abi.encode(employee, encryptedAmount, paymentId, memoHash)
+            );
+        }
 
         euint128 requestedAmount = FHE.asEuint128(encryptedAmount);
         FHE.allowThis(requestedAmount);
@@ -484,6 +606,14 @@ contract CipherRollPayroll {
         require(employee != address(0), "CipherRoll: employee required");
         require(!_allocations[paymentId].exists, "CipherRoll: payment exists");
 
+        if (_isGovernanceActive(orgId, _organizationGovernanceExecutors[orgId])) {
+            _consumeGovernanceWalletAction(
+                orgId,
+                GovernanceActionType.IssueConfidentialPayrollToRun,
+                abi.encode(payrollRunId, employee, encryptedAmount, paymentId, memoHash)
+            );
+        }
+
         euint128 grantedAmount = FHE.asEuint128(encryptedAmount);
         FHE.allowThis(grantedAmount);
         FHE.allow(grantedAmount, employee);
@@ -504,6 +634,21 @@ contract CipherRollPayroll {
         require(employee != address(0), "CipherRoll: employee required");
         require(!_allocations[paymentId].exists, "CipherRoll: payment exists");
         require(endTimestamp > startTimestamp, "CipherRoll: invalid vesting");
+
+        if (_isGovernanceActive(orgId, _organizationGovernanceExecutors[orgId])) {
+            _consumeGovernanceWalletAction(
+                orgId,
+                GovernanceActionType.IssueVestingAllocation,
+                abi.encode(
+                    employee,
+                    encryptedAmount,
+                    paymentId,
+                    memoHash,
+                    startTimestamp,
+                    endTimestamp
+                )
+            );
+        }
 
         euint128 requestedAmount = FHE.asEuint128(encryptedAmount);
         FHE.allowThis(requestedAmount);
@@ -565,6 +710,22 @@ contract CipherRollPayroll {
         require(employee != address(0), "CipherRoll: employee required");
         require(!_allocations[paymentId].exists, "CipherRoll: payment exists");
         require(endTimestamp > startTimestamp, "CipherRoll: invalid vesting");
+
+        if (_isGovernanceActive(orgId, _organizationGovernanceExecutors[orgId])) {
+            _consumeGovernanceWalletAction(
+                orgId,
+                GovernanceActionType.IssueVestingAllocationToRun,
+                abi.encode(
+                    payrollRunId,
+                    employee,
+                    encryptedAmount,
+                    paymentId,
+                    memoHash,
+                    startTimestamp,
+                    endTimestamp
+                )
+            );
+        }
 
         euint128 grantedAmount = FHE.asEuint128(encryptedAmount);
         FHE.allowThis(grantedAmount);
@@ -750,6 +911,12 @@ contract CipherRollPayroll {
         return _organizations[orgId];
     }
 
+    function getOrganizationGovernanceExecutor(
+        bytes32 orgId
+    ) external view returns (address) {
+        return _organizationGovernanceExecutors[orgId];
+    }
+
     function getTreasuryAdapterDetails(
         bytes32 orgId
     )
@@ -794,7 +961,7 @@ contract CipherRollPayroll {
         view
         returns (euint128 budget, euint128 committed, euint128 available)
     {
-        require(_organizations[orgId].admin == msg.sender, "CipherRoll: not admin");
+        require(_isRecognizedAdmin(orgId, msg.sender), "CipherRoll: not admin");
 
         return (
             _encryptedBudget[orgId],
@@ -895,7 +1062,7 @@ contract CipherRollPayroll {
     ) external view onlyOrgAdmin(orgId) returns (OrganizationInsights memory) {
         return _organizationInsights[orgId];
     }
-    
+
     function getAuditorOrganizationInsights(
         bytes32 orgId
     ) external view returns (OrganizationInsights memory) {
@@ -962,5 +1129,4 @@ contract CipherRollPayroll {
         _recordIssuedPayroll(orgId, employee, isVesting);
         _organizations[orgId].updatedAt = uint64(block.timestamp);
     }
-
 }

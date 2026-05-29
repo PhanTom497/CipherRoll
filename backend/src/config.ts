@@ -51,6 +51,10 @@ export const backendConfig = {
   auditorDisclosureAddress:
     runtime.auditorDisclosureAddress ||
     requireEnv("NEXT_PUBLIC_CIPHERROLL_AUDITOR_DISCLOSURE_ADDRESS"),
+  governanceAddress:
+    runtime.governanceAddress ||
+    process.env.NEXT_PUBLIC_CIPHERROLL_GOVERNANCE_ADDRESS ||
+    "",
   databaseUrl: requireEnv("CIPHERROLL_DATABASE_URL"),
   databaseSsl: parseBoolean("CIPHERROLL_DATABASE_SSL", true),
   pollIntervalMs: parseInteger("CIPHERROLL_INDEXER_POLL_INTERVAL_MS", 30_000),

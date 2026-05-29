@@ -1,6 +1,76 @@
 import { formatUnits, parseUnits } from "ethers";
 
 const DECIMAL_AMOUNT_PATTERN = /^\d+(\.\d{1,18})?$/;
+const KNOWN_REVERT_REASONS = [
+  "unknown org",
+  "org exists",
+  "payroll run exists",
+  "funding deadline required",
+  "headcount required",
+  "not admin",
+  "primary admin only",
+  "governance approval required",
+  "governance inactive",
+  "governance org mismatch",
+  "executor required",
+  "admin slots required",
+  "invalid quorum",
+  "quorum required",
+  "employee required",
+  "payroll run has no allocations",
+  "funding window closed",
+  "invalid vesting",
+  "payment missing",
+  "payment exists",
+  "already claimed",
+  "settlement proof required",
+  "settlement unavailable",
+  "settlement asset missing",
+  "wrapper settlement requires request/finalize",
+  "settlement request missing",
+  "settlement request mismatch",
+  "settlement amount not wrapper-aligned",
+  "treasury route requires funded asset",
+  "treasury route missing",
+  "adapter required",
+  "treasury amount required",
+  "treasury funds unavailable",
+  "treasury reserve insufficient",
+  "payroll run reserve insufficient",
+  "invalid settlement proof",
+  "vesting active",
+  "not employee"
+];
+
+function stringifyErrorSafely(value: unknown): string {
+  try {
+    return JSON.stringify(value, (_key, nestedValue) =>
+      typeof nestedValue === "bigint" ? nestedValue.toString() : nestedValue
+    );
+  } catch {
+    return String(value ?? "");
+  }
+}
+
+function normalizeErrorMessage(error: unknown): string {
+  const raw =
+    typeof error === "string"
+      ? error
+      : error instanceof Error
+        ? error.message
+        : typeof error === "object" && error !== null
+        ? stringifyErrorSafely(error)
+          : "Unknown error";
+
+  const serialized =
+    typeof error === "object" && error !== null
+      ? stringifyErrorSafely(error)
+      : raw;
+  const lowerSerialized = serialized.toLowerCase();
+  const matchedReason = KNOWN_REVERT_REASONS.find((reason) => lowerSerialized.includes(reason));
+
+  return matchedReason ?? raw;
+}
 
 export function parseDecimalAmountToWei(input: string): bigint | null {
   const normalized = input.trim();
@@ -15,14 +85,7 @@ export function parseDecimalAmountToWei(input: string): bigint | null {
 }
 
 export function extractCipherRollErrorMessage(error: unknown): string {
-  const message =
-    typeof error === "string"
-      ? error
-      : error instanceof Error
-        ? error.message
-        : typeof error === "object" && error !== null
-          ? JSON.stringify(error)
-          : "Unknown error";
+  const message = normalizeErrorMessage(error);
 
   const errorCode =
     typeof error === "object" && error !== null && "code" in error
@@ -37,8 +100,8 @@ export function extractCipherRollErrorMessage(error: unknown): string {
     return "Your wallet does not know this test network yet. Approve the Add Network prompt, then try again.";
   }
 
-  if (/max fee per gas less than block base fee|could not coalesce error|underpriced/i.test(message)) {
-    return "The network price changed while the wallet was preparing your request. Please try again now.";
+  if (isRetryableWalletFeeError(error)) {
+    return "The network fee changed while the wallet was preparing your request. Reopen the wallet prompt and accept the refreshed fee settings, then try again.";
   }
 
   if (/unknown org/i.test(message)) {
@@ -63,6 +126,26 @@ export function extractCipherRollErrorMessage(error: unknown): string {
 
   if (/not admin/i.test(message)) {
     return "This wallet is not allowed to manage this workspace.";
+  }
+
+  if (/primary admin only/i.test(message)) {
+    return "Only the primary workspace admin can complete this setup step.";
+  }
+
+  if (/governance approval required/i.test(message)) {
+    return "This action is protected by multi-admin governance. Create and approve it from the Governance panel, then execute it from an approved admin wallet.";
+  }
+
+  if (/governance inactive/i.test(message)) {
+    return "Governance is not active for this workspace yet. Bootstrap governance and link the executor before using this approval flow.";
+  }
+
+  if (/governance org mismatch/i.test(message)) {
+    return "The approved governance action belongs to a different workspace. Recreate the approval for the current workspace.";
+  }
+
+  if (/executor required/i.test(message)) {
+    return "The governance executor address is missing. Refresh the page and try linking governance again.";
   }
 
   if (/admin slots required/i.test(message)) {
@@ -145,6 +228,10 @@ export function extractCipherRollErrorMessage(error: unknown): string {
     return "This workspace does not have a payroll treasury configured yet.";
   }
 
+  if (/adapter required/i.test(message)) {
+    return "Choose a valid treasury route before configuring treasury.";
+  }
+
   if (/treasury amount required/i.test(message)) {
     return "Enter a positive amount before reserving treasury funds for the payroll run.";
   }
@@ -190,6 +277,19 @@ export function extractCipherRollErrorMessage(error: unknown): string {
   }
 
   return message;
+}
+
+export function isRetryableWalletFeeError(error: unknown): boolean {
+  const message =
+    typeof error === "string"
+      ? error
+      : error instanceof Error
+        ? error.message
+        : typeof error === "object" && error !== null
+          ? JSON.stringify(error)
+          : "";
+
+  return /network price changed|max fee per gas less than block base fee|could not coalesce error|underpriced|fee cap less than block base fee/i.test(message);
 }
 
 export function shortHash(hash?: string | null): string | null {

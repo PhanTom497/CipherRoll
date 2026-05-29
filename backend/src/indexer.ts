@@ -9,13 +9,23 @@ import {
 } from "../../packages/cipherroll-sdk/dist";
 import { backendConfig } from "./config";
 import { coerceRowBooleans, CipherRollDatabase } from "./db";
-import { auditorContract, auditorInterface, payrollContract, payrollInterface, provider } from "./contracts";
+import {
+  auditorContract,
+  auditorInterface,
+  governanceInterface,
+  payrollContract,
+  payrollInterface,
+  provider
+} from "./contracts";
 import { deriveIndexerStartBlock } from "./start-block";
 
 type ParsedLog = {
-  contract: "payroll" | "auditor";
+  contract: "payroll" | "auditor" | "governance";
   log: Log;
-  parsed: NonNullable<ReturnType<typeof payrollInterface.parseLog>> | NonNullable<ReturnType<typeof auditorInterface.parseLog>>;
+  parsed:
+    | NonNullable<ReturnType<typeof payrollInterface.parseLog>>
+    | NonNullable<ReturnType<typeof auditorInterface.parseLog>>
+    | NonNullable<ReturnType<typeof governanceInterface.parseLog>>;
   blockTimestamp: number;
 };
 
@@ -76,7 +86,7 @@ export class CipherRollIndexer {
   }
 
   private async indexChunk(fromBlock: bigint, toBlock: bigint) {
-    const [payrollLogs, auditorLogs] = await Promise.all([
+    const [payrollLogs, auditorLogs, governanceLogs] = await Promise.all([
       provider.getLogs({
         address: backendConfig.payrollAddress,
         fromBlock,
@@ -86,12 +96,20 @@ export class CipherRollIndexer {
         address: backendConfig.auditorDisclosureAddress,
         fromBlock,
         toBlock
-      })
+      }),
+      backendConfig.governanceAddress
+        ? provider.getLogs({
+            address: backendConfig.governanceAddress,
+            fromBlock,
+            toBlock
+          })
+        : Promise.resolve([])
     ]);
 
     const parsedLogs = await this.parseLogs([
       ...payrollLogs.map((log) => ({ contract: "payroll" as const, log })),
-      ...auditorLogs.map((log) => ({ contract: "auditor" as const, log }))
+      ...auditorLogs.map((log) => ({ contract: "auditor" as const, log })),
+      ...governanceLogs.map((log) => ({ contract: "governance" as const, log }))
     ]);
 
     parsedLogs.sort((left, right) => {
@@ -104,6 +122,8 @@ export class CipherRollIndexer {
     for (const entry of parsedLogs) {
       if (entry.contract === "payroll") {
         await this.processPayrollEvent(entry);
+      } else if (entry.contract === "governance") {
+        await this.processGovernanceEvent(entry);
       } else {
         await this.processAuditorEvent(entry);
       }
@@ -111,14 +131,16 @@ export class CipherRollIndexer {
   }
 
   private async parseLogs(
-    logs: Array<{ contract: "payroll" | "auditor"; log: Log }>
+    logs: Array<{ contract: "payroll" | "auditor" | "governance"; log: Log }>
   ): Promise<ParsedLog[]> {
     const parsed: ParsedLog[] = [];
     for (const entry of logs) {
       const parsedLog =
         entry.contract === "payroll"
           ? payrollInterface.parseLog(entry.log)
-          : auditorInterface.parseLog(entry.log);
+          : entry.contract === "auditor"
+            ? auditorInterface.parseLog(entry.log)
+            : governanceInterface.parseLog(entry.log);
 
       if (!parsedLog) continue;
 
@@ -131,6 +153,104 @@ export class CipherRollIndexer {
       });
     }
     return parsed;
+  }
+
+  private async processGovernanceEvent(entry: ParsedLog) {
+    const { parsed, log, blockTimestamp } = entry;
+    const args = parsed.args as unknown as Record<string, unknown>;
+    const eventId = `${log.transactionHash}:${log.index}`;
+
+    await this.db.insertRawEvent({
+      id: eventId,
+      chainId: backendConfig.chainId.toString(),
+      contractAddress: log.address,
+      blockNumber: log.blockNumber,
+      blockTimestamp,
+      transactionHash: log.transactionHash,
+      logIndex: log.index,
+      eventName: parsed.name,
+      orgId: typeof args.orgId === "string" ? args.orgId : null,
+      payrollRunId: null,
+      paymentId: null,
+      payloadJson: asJson(args)
+    });
+
+    const notificationByEvent: Record<
+      string,
+      { severity: "info" | "success" | "warning"; title: string; detail: string }
+    > = {
+      OrganizationGovernanceInitialized: {
+        severity: "success",
+        title: "Governance initialized",
+        detail: "The workspace governance module is now linked for multi-admin operations."
+      },
+      OrganizationAdminBootstrapped: {
+        severity: "info",
+        title: "Admin signer bootstrapped",
+        detail: "A new admin signer was added while quorum was still being assembled."
+      },
+      OrganizationAdminAdded: {
+        severity: "success",
+        title: "Admin signer added",
+        detail: "A new organization admin was added through governance."
+      },
+      OrganizationAdminRemoved: {
+        severity: "warning",
+        title: "Admin signer removed",
+        detail: "An organization admin was removed through governance."
+      },
+      OrganizationQuorumUpdated: {
+        severity: "warning",
+        title: "Governance quorum updated",
+        detail: "The required approval threshold changed for this workspace."
+      },
+      GovernanceProposalCreated: {
+        severity: "info",
+        title: "Governance proposal created",
+        detail: "A sensitive admin action is waiting for additional approvals."
+      },
+      GovernanceProposalApproved: {
+        severity: "info",
+        title: "Governance proposal approved",
+        detail: "An admin signer added an approval to a pending proposal."
+      },
+      GovernanceProposalRevoked: {
+        severity: "warning",
+        title: "Governance approval revoked",
+        detail: "An existing governance approval was revoked before execution."
+      },
+      GovernanceProposalCancelled: {
+        severity: "warning",
+        title: "Governance proposal cancelled",
+        detail: "A pending governance proposal was cancelled."
+      },
+      GovernanceProposalExecuted: {
+        severity: "success",
+        title: "Governance proposal executed",
+        detail: "A quorum-approved governance proposal completed successfully."
+      }
+    };
+
+    const notification = notificationByEvent[parsed.name];
+    if (!notification) {
+      return;
+    }
+
+    await this.db.insertNotification({
+      id: eventId,
+      orgId: typeof args.orgId === "string" ? String(args.orgId) : null,
+      payrollRunId: null,
+      paymentId: null,
+      category: "governance",
+      severity: notification.severity,
+      title: notification.title,
+      detail: notification.detail,
+      eventName: parsed.name,
+      transactionHash: log.transactionHash,
+      blockNumber: log.blockNumber,
+      createdAt: blockTimestamp,
+      metadataJson: asJson(args)
+    });
   }
 
   private async getBlockTimestamp(blockNumber: number) {
