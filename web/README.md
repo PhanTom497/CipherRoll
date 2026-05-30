@@ -36,8 +36,8 @@ npm run dev
 
 ## Notes
 
-- The shipped product surface is admin, employee, auditor, tax status, and docs.
+- The shipped product surface is admin, employee, auditor, tax compliance, and docs.
 - Permit-based reads replace the old record-scan mindset.
-- Future selective-disclosure work will extend the same SDK flow with `decryptForTx()`.
+- Evidence workflows extend the same SDK flow with deliberate `decryptForTx()` receipt generation.
 - `/auditor` is a live aggregate-first review surface for shared permits and audit receipts.
-- `/tax-authority` remains a roadmap/status page rather than a live compliance portal.
+- `/tax-authority` is a Tier A aggregate compliance package route, not a filing or external authority integration.

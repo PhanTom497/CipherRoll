@@ -73,7 +73,7 @@ The frontend is a multi-surface product:
 - **Employee portal** for local decrypt, payroll review, claim, and wrapper-finalize flow
 - **Auditor portal** for permit import, aggregate review, and receipt generation
 - **Docs** for product guidance, reference, roadmap, and support context
-- **Tax status page** for current scope signaling rather than a live tax workflow
+- **Tax compliance page** for Tier A aggregate compliance package generation, tax reserve policy, and receipt evidence export
 
 ### 3.3 Backend
 

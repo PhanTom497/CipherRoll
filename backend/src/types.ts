@@ -1,5 +1,9 @@
 export type {
   AuditReceiptRecord,
+  CompliancePackage,
+  ComplianceEvidenceSummary,
+  CompliancePolicySummary,
+  ComplianceTaxProvisionSummary,
   IndexerStatus,
   NotificationRecord,
   OrganizationAuditPackage,
@@ -7,8 +11,11 @@ export type {
   OrganizationInsightsRecord,
   OrganizationRecord,
   OrganizationReportSummary,
+  TreasuryExposureSummary,
+  TreasuryRunExposureRecord,
   PaymentRecord,
   PayrollRunRecord,
   RawEventRecord,
-  TreasuryRouteRecord
+  TreasuryRouteRecord,
+  BatchPayrollManifestRecord
 } from "../../packages/cipherroll-sdk/dist";

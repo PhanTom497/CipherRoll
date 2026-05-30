@@ -82,6 +82,7 @@ contract CipherRollPayroll {
 
     struct PayrollSettlementRequest {
         bytes32 requestId;
+        address adapter;
         address payoutAsset;
         address confidentialAsset;
         uint64 requestedAt;
@@ -809,6 +810,7 @@ contract CipherRollPayroll {
 
         _settlementRequests[paymentId] = PayrollSettlementRequest({
             requestId: requestId,
+            adapter: adapter,
             payoutAsset: payoutAsset,
             confidentialAsset: confidentialAsset,
             requestedAt: uint64(block.timestamp),
@@ -840,6 +842,7 @@ contract CipherRollPayroll {
 
         address adapter = _organizations[orgId].treasuryAdapter;
         require(adapter != address(0), "CipherRoll: settlement unavailable");
+        require(adapter == request.adapter, "CipherRoll: settlement route changed");
         require(
             ITreasuryAdapter(adapter).supportsConfidentialSettlement(),
             "CipherRoll: wrapper settlement unsupported"
@@ -950,6 +953,42 @@ contract CipherRollPayroll {
         confidentialSettlementAsset = ITreasuryAdapter(adapter).confidentialSettlementAsset();
         availablePayrollFunds = ITreasuryAdapter(adapter).availablePayrollFunds(orgId);
         reservedPayrollFunds = ITreasuryAdapter(adapter).reservedPayrollFunds(orgId);
+    }
+
+    function getTreasuryPayrollRunFunding(
+        bytes32 orgId,
+        bytes32 payrollRunId
+    )
+        external
+        view
+        returns (
+            address adapter,
+            bytes32 routeId,
+            address settlementAsset,
+            bool supportsConfidentialSettlement,
+            uint256 availablePayrollFunds,
+            uint256 reservedPayrollFunds,
+            uint256 reservedPayrollRunFunds
+        )
+    {
+        Organization memory org = _organizations[orgId];
+        PayrollRun memory payrollRun = _payrollRuns[payrollRunId];
+        require(payrollRun.exists, "CipherRoll: payroll run missing");
+        require(payrollRun.orgId == orgId, "CipherRoll: payroll run org mismatch");
+
+        adapter = org.treasuryAdapter;
+        routeId = org.treasuryRouteId;
+
+        if (adapter == address(0)) {
+            return (adapter, routeId, address(0), false, 0, 0, 0);
+        }
+
+        settlementAsset = ITreasuryAdapter(adapter).settlementAsset();
+        supportsConfidentialSettlement = ITreasuryAdapter(adapter)
+            .supportsConfidentialSettlement();
+        availablePayrollFunds = ITreasuryAdapter(adapter).availablePayrollFunds(orgId);
+        reservedPayrollFunds = ITreasuryAdapter(adapter).reservedPayrollFunds(orgId);
+        reservedPayrollRunFunds = ITreasuryAdapter(adapter).reservedPayrollRunFunds(payrollRunId);
     }
 
     /// @notice Returns encrypted budget handles for the admin.

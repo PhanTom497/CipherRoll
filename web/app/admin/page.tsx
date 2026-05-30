@@ -11,6 +11,7 @@ import {
   Download,
   FileKey2,
   FolderCog,
+  Info,
   KeyRound,
   Loader2,
   RefreshCw,
@@ -69,7 +70,9 @@ import type {
   OrganizationView,
   OrganizationInsightsView,
   OrganizationReportSummary,
+  TreasuryExposureSummary,
   PaymentRecord,
+  BatchPayrollManifestRecord,
   PayrollRunRecord,
   PayrollRunView,
   TreasuryAdapterConfig
@@ -133,6 +136,31 @@ type PendingGovernedPayrollIntent = {
 }
 
 type SurfaceStatusTone = 'neutral' | 'info' | 'success' | 'error'
+
+type BatchPayrollRole = {
+  id: string
+  slug: string
+  label: string
+  baseSalary: string
+}
+
+type BatchPayrollRowStatus = 'draft' | 'validated' | 'sealed' | 'submitting' | 'confirmed' | 'failed'
+
+type BatchPayrollRow = {
+  id: string
+  employeeAddress: string
+  roleSlug: string
+  amount: string
+  memo: string
+  status: BatchPayrollRowStatus
+  error?: string | null
+  txHash?: string | null
+  paymentId?: string | null
+  encryptedAmount?: CipherRollEncryptedInput | null
+  memoHash?: string | null
+}
+
+type BatchPayrollStage = 'draft' | 'review' | 'sealed'
 
 const MIN_PAYROLL_FUNDING_DEADLINE_BUFFER_SECONDS = 10 * 60
 
@@ -227,6 +255,114 @@ function formatUnixTimestamp(value?: number | null): string {
   return new Date(value * 1000).toLocaleString()
 }
 
+function makeBatchRowId() {
+  return `batch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+function slugifyRole(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48)
+}
+
+function parseCsvLine(line: string) {
+  const cells: string[] = []
+  let current = ''
+  let inQuotes = false
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index]
+    const next = line[index + 1]
+
+    if (char === '"' && inQuotes && next === '"') {
+      current += '"'
+      index += 1
+    } else if (char === '"') {
+      inQuotes = !inQuotes
+    } else if (char === ',' && !inQuotes) {
+      cells.push(current.trim())
+      current = ''
+    } else {
+      current += char
+    }
+  }
+
+  cells.push(current.trim())
+  return cells
+}
+
+function parseBatchPayrollCsv(text: string): BatchPayrollRow[] {
+  const lines = text
+    .replace(/\r/g, '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  if (lines.length === 0) return []
+
+  const firstCells = parseCsvLine(lines[0]).map((cell) => cell.toLowerCase())
+  const hasHeader = firstCells.some((cell) => ['employee', 'employeeaddress', 'address', 'role', 'amount', 'memo'].includes(cell.replace(/\s+/g, '')))
+  const dataLines = hasHeader ? lines.slice(1) : lines
+  const headerIndex = (names: string[], fallback: number) => {
+    if (!hasHeader) return fallback
+    const index = firstCells.findIndex((cell) => names.includes(cell.replace(/\s+/g, '')))
+    return index >= 0 ? index : fallback
+  }
+  const employeeIndex = headerIndex(['employee', 'employeeaddress', 'address', 'wallet'], 0)
+  const roleIndex = headerIndex(['role', 'roleslug', 'rolelabel'], 1)
+  const amountIndex = headerIndex(['amount', 'salary', 'basesalary'], 2)
+  const memoIndex = headerIndex(['memo', 'note'], 3)
+
+  return dataLines.map((line) => {
+    const cells = parseCsvLine(line)
+    const roleValue = cells[roleIndex] ?? ''
+    return {
+      id: makeBatchRowId(),
+      employeeAddress: cells[employeeIndex] ?? '',
+      roleSlug: slugifyRole(roleValue),
+      amount: cells[amountIndex] ?? '',
+      memo: cells[memoIndex] ?? '',
+      status: 'draft',
+      error: null,
+      txHash: null,
+      paymentId: null,
+      encryptedAmount: null,
+      memoHash: null
+    }
+  })
+}
+
+function decodeBatchPayrollCsvBuffer(buffer: ArrayBuffer) {
+  const bytes = new Uint8Array(buffer)
+
+  if (bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04) {
+    throw new Error('This looks like an Excel .xlsx workbook, not a CSV file. In Excel, use Save As or Export and choose CSV UTF-8 (.csv), then import that file.')
+  }
+
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
+    return new TextDecoder('utf-16le').decode(bytes.subarray(2))
+  }
+
+  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
+    return new TextDecoder('utf-16be').decode(bytes.subarray(2))
+  }
+
+  if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+    return new TextDecoder('utf-8').decode(bytes.subarray(3))
+  }
+
+  const utf8 = new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+  if (utf8.includes('\u0000')) {
+    const utf16 = new TextDecoder('utf-16le').decode(bytes)
+    if (!utf16.includes('\u0000')) return utf16
+  }
+
+  return utf8
+}
+
 const governanceActionDefinitions: Record<GovernanceActionKey, GovernanceActionDefinition> = {
   configure_treasury: { type: 0, label: 'Configure treasury route', requiresWalletExecutor: false },
   create_payroll_run: { type: 1, label: 'Create payroll run', requiresWalletExecutor: false },
@@ -279,11 +415,13 @@ export default function AdminPage() {
   })
   const [showGuide, setShowGuide] = useState(false)
   const [backendReport, setBackendReport] = useState<OrganizationReportSummary | null>(null)
+  const [backendTreasuryExposure, setBackendTreasuryExposure] = useState<TreasuryExposureSummary | null>(null)
   const [backendNotifications, setBackendNotifications] = useState<NotificationRecord[]>([])
   const [backendStatus, setBackendStatus] = useState<IndexerStatus | null>(null)
   const [backendActiveRuns, setBackendActiveRuns] = useState<PayrollRunRecord[]>([])
   const [backendPendingClaims, setBackendPendingClaims] = useState<PaymentRecord[]>([])
   const [backendPendingFinalizations, setBackendPendingFinalizations] = useState<PaymentRecord[]>([])
+  const [batchPayrollManifests, setBatchPayrollManifests] = useState<BatchPayrollManifestRecord[]>([])
   const [backendNotificationCategory, setBackendNotificationCategory] = useState<'all' | 'payroll_run' | 'claim' | 'settlement' | 'audit_receipt' | 'governance'>('all')
   const [backendReportError, setBackendReportError] = useState<string | null>(null)
   const [isBackendReportLoading, setIsBackendReportLoading] = useState(false)
@@ -298,6 +436,31 @@ export default function AdminPage() {
   const [governanceAdminToRemove, setGovernanceAdminToRemove] = useState('')
   const [nextGovernanceQuorum, setNextGovernanceQuorum] = useState('2')
   const [pendingGovernedPayrollIntent, setPendingGovernedPayrollIntent] = useState<PendingGovernedPayrollIntent | null>(null)
+  const [batchPayrollStage, setBatchPayrollStage] = useState<BatchPayrollStage>('draft')
+  const [batchPayrollMode, setBatchPayrollMode] = useState<'instant' | 'vesting'>('instant')
+  const [batchPayrollRoles, setBatchPayrollRoles] = useState<BatchPayrollRole[]>([
+    { id: 'role-engineer', slug: 'engineer', label: 'Engineer', baseSalary: '3.5' },
+    { id: 'role-ops', slug: 'operations', label: 'Operations', baseSalary: '2.5' }
+  ])
+  const [batchPayrollRows, setBatchPayrollRows] = useState<BatchPayrollRow[]>([
+    {
+      id: makeBatchRowId(),
+      employeeAddress: '',
+      roleSlug: 'engineer',
+      amount: '',
+      memo: '',
+      status: 'draft',
+      error: null,
+      txHash: null,
+      paymentId: null,
+      encryptedAmount: null,
+      memoHash: null
+    }
+  ])
+  const [batchPayrollCsvName, setBatchPayrollCsvName] = useState('')
+  const [batchPayrollProgress, setBatchPayrollProgress] = useState('')
+  const [isBatchPayrollSealing, setIsBatchPayrollSealing] = useState(false)
+  const [isBatchPayrollSubmitting, setIsBatchPayrollSubmitting] = useState(false)
 
   useEffect(() => {
     try {
@@ -448,6 +611,7 @@ export default function AdminPage() {
   const payrollFundingAmountInWei = useMemo(() => parseDecimalAmountToWei(payrollFundingAmount), [payrollFundingAmount])
   const treasuryDepositAmountInWei = useMemo(() => parseDecimalAmountToWei(treasuryDepositAmount), [treasuryDepositAmount])
   const selectedPayrollRunId = useMemo(() => toBytes32Label(selectedPayrollRunInput), [selectedPayrollRunInput])
+  const plannedHeadcountForCreate = Math.max(1, batchPayrollRows.length)
   const treasuryRouteId = useMemo(() => toBytes32Label(treasuryRouteLabel), [treasuryRouteLabel])
   const auditorRecipientSafeAddress = useMemo(() => safeAddress(auditorRecipientAddress) ?? '', [auditorRecipientAddress])
   const selectedTreasuryAdapterAddress = useMemo(
@@ -485,6 +649,7 @@ export default function AdminPage() {
       const backend = getCipherRollBackendClient()
       const status = await backend.getStatus()
       const report = await backend.getOrganizationReportSummary(orgId)
+      const treasuryExposure = await backend.getTreasuryExposureSummary(orgId)
       const notifications = await backend.getNotifications({
         orgId,
         limit: 8,
@@ -496,6 +661,7 @@ export default function AdminPage() {
 
       setBackendStatus(status)
       setBackendReport(report)
+      setBackendTreasuryExposure(treasuryExposure)
       setBackendNotifications(notifications)
       setBackendActiveRuns(activeRuns)
       setBackendPendingClaims(pendingClaims)
@@ -507,6 +673,21 @@ export default function AdminPage() {
       setIsBackendReportLoading(false)
     }
   }, [backendNotificationCategory, orgId, organization.exists])
+
+  const loadBatchPayrollManifests = useCallback(async () => {
+    if (!organization.exists) {
+      setBatchPayrollManifests([])
+      return
+    }
+
+    try {
+      const backend = getCipherRollBackendClient()
+      const manifests = await backend.getBatchPayrollManifests(orgId, selectedPayrollRunId)
+      setBatchPayrollManifests(manifests)
+    } catch {
+      setBatchPayrollManifests([])
+    }
+  }, [orgId, organization.exists, selectedPayrollRunId])
 
   const loadGovernanceState = useCallback(async () => {
     if (!provider || !organization.exists || !governanceConfigured || !isTargetChain) {
@@ -594,6 +775,7 @@ export default function AdminPage() {
       setBackendActiveRuns([])
       setBackendPendingClaims([])
       setBackendPendingFinalizations([])
+      setBatchPayrollManifests([])
       setBackendReportError(null)
       return
     }
@@ -621,6 +803,11 @@ export default function AdminPage() {
 
     void loadGovernanceState()
   }, [activePortal, governanceConfigured, loadGovernanceState, organization.exists])
+
+  useEffect(() => {
+    if (activePortal !== 'payroll') return
+    void loadBatchPayrollManifests()
+  }, [activePortal, loadBatchPayrollManifests])
   const vestingWindowInvalid = Boolean(
     payrollMode === 'vesting' &&
     (!vestingStartTimestamp || !vestingEndTimestamp || vestingEndTimestamp <= vestingStartTimestamp)
@@ -665,6 +852,9 @@ export default function AdminPage() {
     ? ['Draft', 'Funded', 'Active', 'Finalized'][payrollRun.status] ?? 'Unknown'
     : 'Not created'
   const payrollRunOpenForAllocations = payrollRunExists && payrollRun.status < 2
+  const payrollRunRemainingAllocationSlots = payrollRunOpenForAllocations
+    ? Math.max(0, Number(payrollRun.plannedHeadcount) - Number(payrollRun.allocationCount))
+    : 0
   const payrollRunClaimable = payrollRunExists && payrollRun.status === 2
   const treasuryAvailableFunds = useMemo(
     () => parseDecimalAmountToWei(treasuryAdapterDetails.availablePayrollFunds ?? ''),
@@ -698,12 +888,51 @@ export default function AdminPage() {
     availableBudgetInWei !== null &&
     paymentAmountInWei > availableBudgetInWei
   )
+  const batchRoleBySlug = useMemo(
+    () => new Map(batchPayrollRoles.map((role) => [role.slug, role])),
+    [batchPayrollRoles]
+  )
+  const batchPayrollValidation = useMemo(() => {
+    return batchPayrollRows.map((row) => {
+      const role = batchRoleBySlug.get(row.roleSlug)
+      const isSealedRow = Boolean(row.encryptedAmount)
+      const amount = row.amount.trim() || role?.baseSalary.trim() || ''
+      const amountInWei = parseDecimalAmountToWei(amount)
+      const employee = safeAddress(row.employeeAddress)
+      const errors: string[] = []
+
+      if (!employee) errors.push('Invalid employee address.')
+      if (!role) errors.push('Unknown role.')
+      if (!isSealedRow && !amount.trim()) errors.push('Missing salary.')
+      if (!isSealedRow && amount.trim() && amountInWei === null) errors.push('Invalid salary amount.')
+
+      return {
+        id: row.id,
+        employee,
+        role,
+        amount,
+        amountInWei,
+        errors
+      }
+    })
+  }, [batchPayrollRows, batchRoleBySlug])
+  const batchPayrollHasErrors = batchPayrollValidation.some((item) => item.errors.length > 0)
+  const batchPayrollReadyRows = batchPayrollRows.filter((row) => row.status === 'sealed' || row.status === 'failed')
+  const batchPayrollSubmittableRows = batchPayrollReadyRows.filter((row) => row.encryptedAmount && row.paymentId && row.memoHash)
+  const batchPayrollConfirmedRows = batchPayrollRows.filter((row) => row.status === 'confirmed')
+  const batchPayrollVisibleTotal = useMemo(() => {
+    if (batchPayrollStage === 'sealed') return 'Sealed'
+    const total = batchPayrollValidation.reduce((sum, item) => {
+      return item.amountInWei == null ? sum : sum + item.amountInWei
+    }, 0n)
+    return formatTreasuryTokenAmount(total.toString())
+  }, [batchPayrollStage, batchPayrollValidation])
 
   const portalTabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'setup', label: 'Workspace' },
     { id: 'budget', label: 'Add Budget' },
-    { id: 'payroll', label: 'Pay One Employee' },
+    { id: 'payroll', label: 'Payroll' },
     { id: 'governance', label: 'Governance' },
     { id: 'auditor', label: 'Auditor Sharing' }
   ] as const satisfies ReadonlyArray<{
@@ -1578,6 +1807,11 @@ export default function AdminPage() {
       return
     }
 
+    if (plannedHeadcountForCreate < 1 || plannedHeadcountForCreate > 500) {
+      toast.error('CipherRoll can auto-size this run for 1 to 500 planned employees.')
+      return
+    }
+
     const minFundingDeadline = Math.floor(Date.now() / 1000) + MIN_PAYROLL_FUNDING_DEADLINE_BUFFER_SECONDS
     if (payrollFundingDeadlineTimestamp <= minFundingDeadline) {
       toast.error('Choose a funding deadline at least 10 minutes from now so the wallet transaction has time to confirm.')
@@ -1591,7 +1825,7 @@ export default function AdminPage() {
         selectedPayrollRunId,
         payrollSettlementAssetId,
         payrollFundingDeadlineTimestamp,
-        1
+        plannedHeadcountForCreate
       )
     } catch (error) {
       toast.error(extractCipherRollErrorMessage(error))
@@ -1609,7 +1843,7 @@ export default function AdminPage() {
           selectedPayrollRunId,
           payrollSettlementAssetId,
           payrollFundingDeadlineTimestamp,
-          1
+          plannedHeadcountForCreate
         )
       }
     )
@@ -1920,6 +2154,314 @@ export default function AdminPage() {
     }
 
     await loadPayrollRun()
+  }
+
+  const updateBatchPayrollRow = (rowId: string, updates: Partial<BatchPayrollRow>) => {
+    setBatchPayrollRows((current) =>
+      current.map((row) => row.id === rowId ? { ...row, ...updates } : row)
+    )
+  }
+
+  const addBatchPayrollRow = () => {
+    setBatchPayrollRows((current) => [
+      ...current,
+      {
+        id: makeBatchRowId(),
+        employeeAddress: '',
+        roleSlug: batchPayrollRoles[0]?.slug ?? '',
+        amount: '',
+        memo: '',
+        status: 'draft',
+        error: null,
+        txHash: null,
+        paymentId: null,
+        encryptedAmount: null,
+        memoHash: null
+      }
+    ])
+    setBatchPayrollStage('draft')
+  }
+
+  const removeBatchPayrollRow = (rowId: string) => {
+    setBatchPayrollRows((current) => current.filter((row) => row.id !== rowId))
+    setBatchPayrollStage('draft')
+  }
+
+  const addBatchPayrollRole = () => {
+    const slug = `role-${batchPayrollRoles.length + 1}`
+    setBatchPayrollRoles((current) => [
+      ...current,
+      {
+        id: makeBatchRowId(),
+        slug,
+        label: `Role ${current.length + 1}`,
+        baseSalary: ''
+      }
+    ])
+    setBatchPayrollStage('draft')
+  }
+
+  const updateBatchPayrollRole = (roleId: string, updates: Partial<BatchPayrollRole>) => {
+    setBatchPayrollRoles((current) =>
+      current.map((role) => {
+        if (role.id !== roleId) return role
+        const nextLabel = updates.label ?? role.label
+        const nextSlug = updates.slug ?? (updates.label ? slugifyRole(nextLabel) : role.slug)
+        return {
+          ...role,
+          ...updates,
+          slug: nextSlug || role.slug
+        }
+      })
+    )
+    setBatchPayrollStage('draft')
+  }
+
+  const prepareBatchPayrollReview = () => {
+    if (governanceActive) {
+      toast.error('Batch payroll v1 supports non-governed workspaces only. Use the one-row governed issuance flow for this workspace.')
+      return
+    }
+
+    if (!organization.exists || !payrollRunOpenForAllocations) {
+      toast.error('Create or load a draft/funded payroll run before preparing a batch.')
+      return
+    }
+
+    if (batchPayrollRows.length === 0) {
+      toast.error('Add at least one employee row before review.')
+      return
+    }
+
+    if (batchPayrollMode === 'vesting' && vestingWindowInvalid) {
+      toast.error('Choose a valid vesting schedule before reviewing a vesting batch.')
+      return
+    }
+
+    if (batchPayrollHasErrors) {
+      toast.error('Fix row validation errors before review.')
+      setBatchPayrollRows((current) =>
+        current.map((row) => {
+          const validation = batchPayrollValidation.find((item) => item.id === row.id)
+          return {
+            ...row,
+            error: validation?.errors.join(' ') || null,
+            status: validation?.errors.length ? 'failed' : 'validated'
+          }
+        })
+      )
+      return
+    }
+
+    setBatchPayrollRows((current) =>
+      current.map((row) => ({
+        ...row,
+        status: row.status === 'confirmed' ? 'confirmed' : 'validated',
+        error: null
+      }))
+    )
+    setBatchPayrollStage('review')
+    toast.success('Batch review is ready. Confirm the rows before sealing encrypted salaries.')
+  }
+
+  const sealBatchPayroll = async () => {
+    if (governanceActive) {
+      toast.error('Batch payroll v1 is disabled for governed workspaces.')
+      return
+    }
+
+    if (!canEncryptInputs) {
+      toast.error(`Connect the admin wallet, switch to ${TARGET_CHAIN_NAME}, and initialize CoFHE before sealing a batch.`)
+      return
+    }
+
+    if (batchPayrollStage !== 'review') {
+      toast.error('Review the batch before sealing encrypted salaries.')
+      return
+    }
+
+    if (batchPayrollHasErrors) {
+      toast.error('Fix row validation errors before sealing.')
+      return
+    }
+
+    setIsBatchPayrollSealing(true)
+    setBatchPayrollProgress('Warming up CoFHE WASM and wallet-local encryption...')
+
+    try {
+      await initCofhe((window as any).ethereum)
+      const sealedRows: BatchPayrollRow[] = []
+
+      for (let index = 0; index < batchPayrollRows.length; index += 1) {
+        const row = batchPayrollRows[index]
+        const validation = batchPayrollValidation.find((item) => item.id === row.id)
+        if (!validation?.amountInWei || !validation.employee) {
+          throw new Error(`Row ${index + 1} is missing a valid amount or employee address.`)
+        }
+
+        setBatchPayrollProgress(`Encrypting row ${index + 1} of ${batchPayrollRows.length}...`)
+        const encryptedAmount = await encryptUint128(validation.amountInWei)
+        const paymentId = makeHighEntropyBytes32Label('payment', validation.employee)
+        const memoHash = row.memo.trim()
+          ? makeDeterministicLabel('memo', row.memo.trim())
+          : makeHighEntropyBytes32Label('memo', 'cipherroll-batch-payroll')
+
+        sealedRows.push({
+          ...row,
+          employeeAddress: validation.employee,
+          amount: '',
+          status: 'sealed',
+          error: null,
+          encryptedAmount,
+          paymentId,
+          memoHash
+        })
+      }
+
+      setBatchPayrollRows(sealedRows)
+      setBatchPayrollRoles((current) => current.map((role) => ({ ...role, baseSalary: '' })))
+      setBatchPayrollStage('sealed')
+      setBatchPayrollProgress('Batch sealed. Plaintext salaries were removed from visible state.')
+      toast.success('Batch salaries sealed. Plaintext salary values are masked before submission.')
+    } catch (error) {
+      const message = extractCipherRollErrorMessage(error)
+      setBatchPayrollProgress(message)
+      toast.error(message)
+    } finally {
+      setIsBatchPayrollSealing(false)
+    }
+  }
+
+  const submitBatchPayrollQueue = async () => {
+    if (governanceActive) {
+      toast.error('Batch payroll v1 supports non-governed workspaces only.')
+      return
+    }
+
+    if (!canSubmitTransactions || !signer) {
+      toast.error(`Connect the admin wallet and switch to ${TARGET_CHAIN_NAME} before submitting a batch.`)
+      return
+    }
+
+    if (!organization.exists || !payrollRunOpenForAllocations) {
+      toast.error('Create or load a draft/funded payroll run before submitting batch rows.')
+      return
+    }
+
+    if (batchPayrollMode === 'vesting' && vestingWindowInvalid) {
+      toast.error('Choose a valid vesting schedule before submitting a vesting batch.')
+      return
+    }
+
+    const queue = batchPayrollRows
+      .filter((row) => row.status === 'sealed' || row.status === 'failed')
+      .filter((row) => row.encryptedAmount && row.paymentId && row.memoHash)
+
+    if (queue.length === 0) {
+      toast.info('No sealed or failed batch rows are ready to submit.')
+      return
+    }
+
+    if (payrollRunRemainingAllocationSlots < queue.length) {
+      toast.error(`This payroll run has ${payrollRunRemainingAllocationSlots} remaining slot(s), but this sealed batch has ${queue.length} payable row(s). Create a new payroll run after importing the CSV so CipherRoll can size the run correctly.`)
+      setBatchPayrollProgress(`Run capacity mismatch: ${payrollRunRemainingAllocationSlots} slot(s) left for ${queue.length} sealed row(s). Use a new payroll run label and create the run after importing the CSV.`)
+      return
+    }
+
+    setIsBatchPayrollSubmitting(true)
+
+    try {
+      const contract = getCipherRollContract(signer)
+      const backend = getCipherRollBackendClient()
+
+      for (let index = 0; index < queue.length; index += 1) {
+        const row = queue[index]
+        const role = batchRoleBySlug.get(row.roleSlug)
+        const employee = safeAddress(row.employeeAddress)
+
+        if (!employee || !row.encryptedAmount || !row.paymentId || !row.memoHash || !role) {
+          updateBatchPayrollRow(row.id, {
+            status: 'failed',
+            error: 'Missing sealed row metadata. Rebuild and seal this row again.'
+          })
+          continue
+        }
+
+        setBatchPayrollProgress(`Opening wallet confirmation ${index + 1} of ${queue.length}: ${role.label}`)
+        updateBatchPayrollRow(row.id, { status: 'submitting', error: null })
+
+        try {
+          const tx = batchPayrollMode === 'vesting'
+            ? await contract.issueVestingAllocationToRun(
+              orgId,
+              selectedPayrollRunId,
+              employee,
+              row.encryptedAmount,
+              row.paymentId,
+              row.memoHash,
+              vestingStartTimestamp!,
+              vestingEndTimestamp!
+            )
+            : await contract.issueConfidentialPayrollToRun(
+              orgId,
+              selectedPayrollRunId,
+              employee,
+              row.encryptedAmount,
+              row.paymentId,
+              row.memoHash
+            )
+          await tx.wait()
+
+          await backend.createBatchPayrollManifest({
+            orgId,
+            payrollRunId: selectedPayrollRunId,
+            employee,
+            roleSlug: role.slug,
+            roleLabel: role.label,
+            paymentId: row.paymentId,
+            txHash: tx.hash ?? ''
+          })
+
+          updateBatchPayrollRow(row.id, {
+            status: 'confirmed',
+            txHash: tx.hash ?? null,
+            error: null
+          })
+        } catch (error) {
+          updateBatchPayrollRow(row.id, {
+            status: 'failed',
+            error: extractCipherRollErrorMessage(error)
+          })
+        }
+      }
+
+      await loadPayrollRun()
+      await loadBatchPayrollManifests()
+      setBatchPayrollProgress('Batch queue pass finished. Retry only failed rows if needed.')
+    } finally {
+      setIsBatchPayrollSubmitting(false)
+    }
+  }
+
+  const importBatchPayrollCsv = async (file: File | null) => {
+    if (!file) return
+
+    try {
+      const text = decodeBatchPayrollCsvBuffer(await file.arrayBuffer())
+      const rows = parseBatchPayrollCsv(text)
+      if (rows.length === 0) {
+        toast.error('CSV did not contain any payroll rows.')
+        return
+      }
+
+      setBatchPayrollRows(rows)
+      setBatchPayrollCsvName(file.name)
+      setBatchPayrollStage('draft')
+      setBatchPayrollProgress('CSV imported locally. No salary data was sent to the backend.')
+      toast.success(`Imported ${rows.length} row(s) from CSV in this browser only.`)
+    } catch (error) {
+      toast.error(extractCipherRollErrorMessage(error))
+    }
   }
 
   const summaryCards = [
@@ -2365,6 +2907,71 @@ export default function AdminPage() {
                   <p className="mt-2 text-sm text-[#a1a1aa]">{item.detail}</p>
                 </div>
               ))}
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold">Treasury exposure and payout policy</p>
+                  <p className="mt-2 text-sm text-[#a1a1aa]">
+                    Backend-safe treasury posture: route health, available/reserved inventory, wrapper finalize backlog, and active run exposure without plaintext salary rows.
+                  </p>
+                </div>
+                <span className={`rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] ${
+                  backendTreasuryExposure?.routeHealth === 'healthy'
+                    ? 'bg-emerald-400/15 text-emerald-200'
+                    : backendTreasuryExposure?.routeHealth === 'action_needed'
+                      ? 'bg-amber-400/15 text-amber-100'
+                      : backendTreasuryExposure?.routeHealth === 'depleted'
+                        ? 'bg-rose-400/15 text-rose-100'
+                        : 'bg-white/10 text-white/50'
+                }`}>
+                  {backendTreasuryExposure?.routeHealth?.replace(/_/g, ' ') ?? 'not loaded'}
+                </span>
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-4">
+                {[
+                  ['Available', backendTreasuryExposure ? formatTreasuryTokenAmount(backendTreasuryExposure.availableTreasuryFunds) : '—'],
+                  ['Reserved', backendTreasuryExposure ? formatTreasuryTokenAmount(backendTreasuryExposure.reservedTreasuryFunds) : '—'],
+                  ['Payout backlog', backendTreasuryExposure ? String(backendTreasuryExposure.payoutBacklog) : '—'],
+                  ['Active/funded runs', backendTreasuryExposure ? `${backendTreasuryExposure.activeRuns}/${backendTreasuryExposure.fundedRuns}` : '—']
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">{label}</p>
+                    <p className="mt-2 text-2xl font-black text-white">{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {backendTreasuryExposure?.safetyNotes.length ? (
+                <div className="mt-4 space-y-2">
+                  {backendTreasuryExposure.safetyNotes.map((note) => (
+                    <div key={note} className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-3 text-sm text-amber-50">
+                      {note}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                {(backendTreasuryExposure?.runExposures ?? []).slice(0, 6).map((run) => (
+                  <div key={run.payrollRunId} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <p className="font-semibold text-white">{formatBytes32Preview(run.payrollRunId)}</p>
+                    <p className="mt-2 text-sm text-[#c9c9d0]">
+                      {run.claimedCount}/{run.allocationCount} claimed · backlog {run.payoutBacklog}
+                    </p>
+                    <p className="mt-2 text-xs text-white/45">
+                      {run.pendingSettlementRequests} finalize step(s), {run.settledPayments} settled
+                    </p>
+                  </div>
+                ))}
+                {backendTreasuryExposure && backendTreasuryExposure.runExposures.length === 0 ? (
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#a1a1aa]">
+                    No funded or active treasury-backed run exposure is currently indexed.
+                  </div>
+                ) : null}
+              </div>
             </div>
 
             <div className="mt-6 grid gap-4 xl:grid-cols-4">
@@ -3301,9 +3908,12 @@ export default function AdminPage() {
                       className="cipherroll-date-input w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white"
                     />
                   </label>
+                  <p className="text-xs leading-5 text-[#a1a1aa]">
+                    Planned employee slots are set automatically from the current batch row count. Import the CSV first, then create the run so this run opens with {plannedHeadcountForCreate} slot(s).
+                  </p>
                   <button
                     onClick={createPayrollRun}
-                    disabled={!canSubmitTransactions || isBusy || !organization.exists}
+                    disabled={!canSubmitTransactions || isBusy || !organization.exists || plannedHeadcountForCreate > 500}
                     className="w-full rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
                   >
                     Create Run
@@ -3484,6 +4094,332 @@ export default function AdminPage() {
                 </div>
               )}
             </GlassCard>
+
+            <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <FolderCog className="w-5 h-5 text-violet-300" />
+                    <h2 className="text-2xl font-bold text-white">Batch payroll workspace</h2>
+                  </div>
+                  <p className="mt-3 max-w-3xl text-sm leading-6 text-[#a1a1aa]">
+                    Build multiple payroll rows locally, review them, seal encrypted salaries in the browser, then submit retryable row transactions against the existing contract surface. CSV data and role salaries never leave this browser.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white">
+                  Stage: <span className="font-semibold capitalize">{batchPayrollStage}</span>
+                </div>
+              </div>
+
+              {governanceActive ? (
+                <div className="mt-6 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-50">
+                  Batch payroll v1 is intentionally disabled for governed workspaces. Priority 15 turns each encrypted issuance into its own governed payload, so use the one-row governed flow until a future governed-batch model is added.
+                </div>
+              ) : null}
+
+              <div className="mt-6 grid gap-4 lg:grid-cols-[0.9fr,1.1fr]">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-white">Local role table</p>
+                    <button
+                      type="button"
+                      onClick={addBatchPayrollRole}
+                      disabled={batchPayrollStage === 'sealed'}
+                      className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                    >
+                      Add role
+                    </button>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    {batchPayrollRoles.map((role) => (
+                      <div key={role.id} className="grid gap-3 md:grid-cols-[1fr,0.75fr]">
+                        <input
+                          value={role.label}
+                          onChange={(event) => updateBatchPayrollRole(role.id, { label: event.target.value })}
+                          disabled={batchPayrollStage === 'sealed'}
+                          className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-white/35 disabled:opacity-60"
+                          placeholder="Role label"
+                        />
+                        <input
+                          value={batchPayrollStage === 'sealed' ? '★★★★★' : role.baseSalary}
+                          onChange={(event) => updateBatchPayrollRole(role.id, { baseSalary: event.target.value })}
+                          disabled={batchPayrollStage === 'sealed'}
+                          className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-white/35 disabled:opacity-60"
+                          placeholder="Base salary"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-white">Batch controls</p>
+                      <p className="mt-1 text-xs text-[#a1a1aa]">
+                        CSV columns: <span className="font-semibold text-white/80">employee, role, salary, memo</span>. Headers and role names are case-insensitive; save Excel files as CSV UTF-8 first.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="cursor-pointer rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10">
+                        Browser-only CSV import
+                        <input
+                          type="file"
+                          accept=".csv,text/csv"
+                          className="hidden"
+                          onChange={(event) => {
+                            void importBatchPayrollCsv(event.target.files?.[0] ?? null)
+                            event.currentTarget.value = ''
+                          }}
+                        />
+                      </label>
+                      <div className="group relative">
+                        <button
+                          type="button"
+                          aria-label="CSV import format help"
+                          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/20 text-white/70 hover:bg-white/10 hover:text-white"
+                        >
+                          <Info className="h-4 w-4" />
+                        </button>
+                        <div className="pointer-events-none absolute right-0 top-12 z-20 hidden w-80 rounded-2xl border border-white/10 bg-[#101010] p-4 text-xs leading-5 text-white/75 shadow-2xl group-hover:block">
+                          Import a real <span className="font-semibold text-white">.csv</span> file, not <span className="font-semibold text-white">.xlsx</span>. Required columns are <span className="font-semibold text-white">employee</span> and <span className="font-semibold text-white">role</span>; optional columns are <span className="font-semibold text-white">salary</span> and <span className="font-semibold text-white">memo</span>. Headers and role matching are case-insensitive. Employee must be an EVM <span className="font-semibold text-white">0x...</span> address. Role must match the local role table. Leave salary empty to use that role&apos;s base salary.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-xs text-[#71717a]">
+                    Example: <span className="font-mono text-white/70">employee,role,salary,memo</span> then <span className="font-mono text-white/70">0xabc...,Engineer,,January payroll</span>.
+                  </p>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-4">
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Rows</p>
+                      <p className="mt-2 text-xl font-black text-white">{batchPayrollRows.length}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Visible total</p>
+                      <p className="mt-2 text-xl font-black text-white">{batchPayrollVisibleTotal}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Confirmed</p>
+                      <p className="mt-2 text-xl font-black text-white">{batchPayrollConfirmedRows.length}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Ready / slots</p>
+                      <p className="mt-2 text-xl font-black text-white">{batchPayrollSubmittableRows.length} / {payrollRunRemainingAllocationSlots}</p>
+                    </div>
+                  </div>
+                  {batchPayrollCsvName ? (
+                    <p className="mt-3 text-xs text-white/45">Imported locally: {batchPayrollCsvName}</p>
+                  ) : null}
+                  {payrollRunOpenForAllocations && batchPayrollSubmittableRows.length > payrollRunRemainingAllocationSlots ? (
+                    <div className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-3 text-xs leading-5 text-amber-50">
+                      This selected run has {payrollRunRemainingAllocationSlots} remaining slot(s), but the sealed batch has {batchPayrollSubmittableRows.length} payable row(s). Create a new run after importing the CSV so all employees can submit in one pass.
+                    </div>
+                  ) : null}
+                  <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Batch allocation mode</p>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      {[
+                        { id: 'instant', label: 'Instant' },
+                        { id: 'vesting', label: 'Vesting' }
+                      ].map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setBatchPayrollMode(option.id as 'instant' | 'vesting')}
+                          disabled={batchPayrollStage === 'sealed'}
+                          className={`rounded-xl px-3 py-2 text-xs font-semibold ${
+                            batchPayrollMode === option.id ? 'bg-white text-black' : 'bg-white/5 text-white/70'
+                          } disabled:opacity-50`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                    {batchPayrollMode === 'vesting' ? (
+                      <div className="mt-3 grid gap-2 md:grid-cols-2">
+                        <input
+                          type="datetime-local"
+                          value={vestingStartInput}
+                          onChange={(event) => setVestingStartInput(event.target.value)}
+                          disabled={batchPayrollStage === 'sealed'}
+                          className="cipherroll-date-input rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white disabled:opacity-50"
+                        />
+                        <input
+                          type="datetime-local"
+                          value={vestingEndInput}
+                          onChange={(event) => setVestingEndInput(event.target.value)}
+                          disabled={batchPayrollStage === 'sealed'}
+                          className="cipherroll-date-input rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white disabled:opacity-50"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 overflow-x-auto rounded-2xl border border-white/10">
+                <table className="min-w-[900px] w-full text-left text-sm">
+                  <thead className="bg-white/5 text-[11px] uppercase tracking-[0.16em] text-white/45">
+                    <tr>
+                      <th className="px-4 py-3">Employee</th>
+                      <th className="px-4 py-3">Role</th>
+                      <th className="px-4 py-3">Salary / Override</th>
+                      <th className="px-4 py-3">Memo</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/10">
+                    {batchPayrollRows.map((row) => {
+                      const validation = batchPayrollValidation.find((item) => item.id === row.id)
+                      const rowRoleExists = batchPayrollRoles.some((role) => role.slug === row.roleSlug)
+                      return (
+                        <tr key={row.id} className="bg-black/15">
+                          <td className="px-4 py-3">
+                            <input
+                              value={row.employeeAddress}
+                              onChange={(event) => updateBatchPayrollRow(row.id, { employeeAddress: event.target.value, status: 'draft' })}
+                              disabled={batchPayrollStage === 'sealed'}
+                              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-white disabled:opacity-60"
+                              placeholder="0x..."
+                            />
+                            {validation?.errors.includes('Invalid employee address.') ? <p className="mt-1 text-xs text-rose-300">Invalid employee address</p> : null}
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              value={row.roleSlug}
+                              onChange={(event) => updateBatchPayrollRow(row.id, { roleSlug: event.target.value, status: 'draft' })}
+                              disabled={batchPayrollStage === 'sealed'}
+                              className="w-full rounded-xl border border-white/10 bg-[#101018] px-3 py-2 text-white disabled:opacity-60"
+                            >
+                              {!rowRoleExists && row.roleSlug ? (
+                                <option value={row.roleSlug}>Unknown role: {row.roleSlug}</option>
+                              ) : null}
+                              {batchPayrollRoles.map((role) => (
+                                <option key={role.id} value={role.slug}>{role.label}</option>
+                              ))}
+                            </select>
+                            {validation?.errors.includes('Unknown role.') ? <p className="mt-1 text-xs text-rose-300">Unknown role. Add it to the local role table or choose an existing role.</p> : null}
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              value={batchPayrollStage === 'sealed' ? '★★★★★' : row.amount}
+                              onChange={(event) => updateBatchPayrollRow(row.id, { amount: event.target.value, status: 'draft' })}
+                              disabled={batchPayrollStage === 'sealed'}
+                              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-white disabled:opacity-60"
+                              placeholder="Uses role salary"
+                            />
+                            {validation?.errors.some((error) => error.includes('salary')) ? (
+                              <p className="mt-1 text-xs text-rose-300">
+                                {validation.errors.filter((error) => error.includes('salary')).join(' ')}
+                              </p>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              value={row.memo}
+                              onChange={(event) => updateBatchPayrollRow(row.id, { memo: event.target.value, status: 'draft' })}
+                              disabled={batchPayrollStage === 'sealed'}
+                              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-white disabled:opacity-60"
+                              placeholder="Optional"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs capitalize text-white/75">{row.status}</span>
+                            {row.txHash ? <p className="mt-1 text-xs text-emerald-300">Tx {shortHash(row.txHash)}</p> : null}
+                            {row.error ? <p className="mt-1 text-xs text-rose-300">{row.error}</p> : null}
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => removeBatchPayrollRow(row.id)}
+                              disabled={batchPayrollStage === 'sealed' || batchPayrollRows.length <= 1}
+                              className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 disabled:opacity-40"
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-6 flex flex-col gap-3 lg:flex-row">
+                <button
+                  type="button"
+                  onClick={addBatchPayrollRow}
+                  disabled={batchPayrollStage === 'sealed'}
+                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                >
+                  Add Manual Row
+                </button>
+                <button
+                  type="button"
+                  onClick={prepareBatchPayrollReview}
+                  disabled={governanceActive || isBusy || batchPayrollRows.length === 0}
+                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                >
+                  Review Batch
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void sealBatchPayroll()}
+                  disabled={governanceActive || isBatchPayrollSealing || batchPayrollStage !== 'review' || !canEncryptInputs}
+                  className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-gray-200 disabled:opacity-50"
+                >
+                  {isBatchPayrollSealing ? 'Sealing...' : 'Seal Encrypted Salaries'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void submitBatchPayrollQueue()}
+                  disabled={governanceActive || isBatchPayrollSubmitting || batchPayrollStage !== 'sealed' || !payrollRunOpenForAllocations || payrollRunRemainingAllocationSlots <= 0 || batchPayrollSubmittableRows.length === 0 || batchPayrollSubmittableRows.length > payrollRunRemainingAllocationSlots}
+                  className="rounded-2xl border border-violet-400/20 bg-violet-400/10 px-4 py-3 text-sm font-semibold text-violet-50 hover:bg-violet-400/15 disabled:opacity-50"
+                >
+                  {isBatchPayrollSubmitting ? 'Submitting...' : 'Submit Batch'}
+                </button>
+              </div>
+
+              {batchPayrollProgress ? (
+                <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#c9c9d0]">
+                  {batchPayrollProgress}
+                </div>
+              ) : null}
+
+              <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-white">Backend manifest memory</p>
+                    <p className="mt-1 text-xs text-[#a1a1aa]">Safe role labels and tx refs for this run. No salary amounts are stored here.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void loadBatchPayrollManifests()}
+                    className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
+                  >
+                    Refresh
+                  </button>
+                </div>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  {batchPayrollManifests.length === 0 ? (
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#a1a1aa]">
+                      No batch manifests are stored for this payroll run yet.
+                    </div>
+                  ) : (
+                    batchPayrollManifests.slice(0, 6).map((manifest) => (
+                      <div key={manifest.id} className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#c9c9d0]">
+                        <p className="font-semibold text-white">{manifest.roleLabel}</p>
+                        <p className="mt-1 font-mono text-xs text-white/55">{manifest.employee}</p>
+                        <p className="mt-2 text-xs text-white/45">Payment {formatBytes32Preview(manifest.paymentId)}</p>
+                        <p className="mt-1 text-xs text-emerald-300">Tx {shortHash(manifest.txHash)}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </GlassCard>
           </div>
         )}
 
@@ -3602,6 +4538,47 @@ export default function AdminPage() {
         headline="Your contextual guide for CipherRoll admin operations."
         intro="Ask about workspace setup, treasury funding, payroll activation, wrapper settlement, or auditor sharing. I will keep the answer practical and aligned with the current admin flow."
         organizationId={orgId}
+        liveContext={{
+          reportSummary: backendReport
+            ? {
+                pendingClaims: backendReport.pendingClaims,
+                pendingSettlementRequests: backendReport.pendingSettlementRequests,
+                activePayrollRuns: backendReport.activePayrollRuns,
+                settledPayments: backendReport.settledPayments,
+                availableTreasuryFunds: backendReport.availableTreasuryFunds,
+                reservedTreasuryFunds: backendReport.reservedTreasuryFunds,
+                treasuryRouteConfigured: backendReport.treasuryRouteConfigured,
+                supportsConfidentialSettlement: backendReport.supportsConfidentialSettlement,
+                draftPayrollRuns: backendReport.draftPayrollRuns,
+                fundedPayrollRuns: backendReport.fundedPayrollRuns,
+                finalizedPayrollRuns: backendReport.finalizedPayrollRuns,
+                totalPayments: backendReport.totalPayments,
+                employeeRecipients: backendReport.employeeRecipients
+              }
+            : undefined,
+          indexerStatus: backendStatus
+            ? {
+                latestIndexedBlock: backendStatus.latestIndexedBlock,
+                latestKnownBlock: backendStatus.latestKnownBlock,
+                organizations: backendStatus.organizations,
+                payrollRuns: backendStatus.payrollRuns,
+                payments: backendStatus.payments,
+                notifications: backendStatus.notifications,
+                lastSyncError: backendStatus.lastSyncError
+              }
+            : undefined,
+          portalSummary: [
+            organization.exists ? 'Workspace is loaded in the admin portal.' : 'No workspace is loaded in the admin portal yet.',
+            governanceActive
+              ? `Governance is active with ${governanceAdminCount}-of-${governanceQuorum} approvals required for sensitive actions.`
+              : governanceInitialized
+                ? 'Governance is bootstrapped but not fully active yet, so sensitive actions may still need setup before relying on quorum.'
+                : 'Governance is not initialized for this workspace yet.',
+            isTargetChain
+              ? `Wallet is on ${TARGET_CHAIN_NAME}.`
+              : `Wallet is not on ${TARGET_CHAIN_NAME}, so transaction actions are blocked.`
+          ]
+        }}
       />
     </main>
   )

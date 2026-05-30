@@ -73,6 +73,10 @@ contract MockFHERC20SettlementTreasuryAdapter is ITreasuryAdapter {
         return _reservedPayrollFunds[orgId];
     }
 
+    function reservedPayrollRunFunds(bytes32 payrollRunId) external view returns (uint256) {
+        return _reservedPayrollRunFunds[payrollRunId];
+    }
+
     function depositPayrollFunds(bytes32 orgId, uint256 amount) external {
         payrollToken.safeTransferFrom(msg.sender, address(this), amount);
 

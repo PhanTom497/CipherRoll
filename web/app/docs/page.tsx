@@ -137,7 +137,7 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
             <MetricCard
               icon={Wallet}
               title="Role-based portals"
-              description="The web app currently ships admin, employee, auditor, tax status, and docs routes."
+              description="The web app currently ships admin, employee, auditor, tax compliance, and docs routes."
             />
             <MetricCard
               icon={FileKey2}
@@ -257,7 +257,7 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
               'Initialize CoFHE before attempting encrypted budget or payroll actions.',
               'Create the workspace that will hold payroll state and reporting context.',
               'Fund encrypted budget instead of treating payroll as a public balance.',
-              'Create a payroll run and issue confidential allocations.',
+              'Create a payroll run and issue confidential allocations one row at a time or through the non-governed batch workspace.',
               'Reserve treasury funds through the configured settlement route.',
               'Activate claimability only after funding succeeds.',
               'Export an auditor sharing payload when aggregate review is required.',
@@ -531,7 +531,7 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
             columns={[
               {
                 title: 'Frontend portals',
-                items: ['Admin portal', 'Employee portal', 'Auditor portal', 'Docs and tax status pages'],
+                items: ['Admin portal', 'Employee portal', 'Auditor portal', 'Docs and tax compliance pages'],
               },
               {
                 title: 'Core contracts',
@@ -729,7 +729,7 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
               ['/employee', 'Local payroll review, claim, and wrapper-finalization workflow.'],
               ['/auditor', 'Recipient permit import, aggregate review, and evidence receipt workflow.'],
               ['/docs', 'Product documentation and support-oriented context.'],
-              ['/tax-authority', 'Status-only page for a future workflow, not a live tax portal today.'],
+              ['/tax-authority', 'Tier A aggregate compliance package, tax reserve policy, and receipt metadata export.'],
             ]}
           />
 
@@ -740,6 +740,8 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
               ['GET /api/status', 'Indexer and runtime status.'],
               ['GET /api/organizations/:orgId/runs', 'Run-level read model.'],
               ['GET /api/reports/organizations/:orgId/summary', 'Aggregate-first organization summary.'],
+              ['GET /api/compliance/organizations/:orgId/package', 'Tier A compliance package with aggregate tax reserve and evidence summary.'],
+              ['GET /api/compliance/organizations/:orgId/export', 'Compliance package export as JSON or CSV.'],
               ['GET /api/reports/organizations/:orgId/export', 'Operator export packaging.'],
               ['POST /api/cipherbot/query', 'Support-oriented product Q&A surface.'],
             ]}
@@ -786,7 +788,7 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
               ],
               [
                 'Is the tax page a live compliance workflow?',
-                'No. It is currently a status page that signals roadmap scope, not a shipped regulator portal.',
+                'It is a Tier A aggregate compliance package route. It is not a tax filing, external authority API, or employee salary export.',
               ],
               [
                 'Should publish receipts be the default?',
@@ -1458,7 +1460,7 @@ export default function DocsPage() {
         <CipherBotWidget
           scope="docs"
           headline="Your contextual guide for CipherRoll docs and product behavior."
-          intro="Ask about local setup, payroll workflows, privacy boundaries, backend endpoints, or auditor review. I will keep the answer aligned with the current CipherRoll implementation."
+          intro="Ask about local setup, payroll workflows, privacy boundaries, backend endpoints, governance, or auditor review. I will stay read-only and aligned with the current CipherRoll implementation."
         />
       </motion.div>
 

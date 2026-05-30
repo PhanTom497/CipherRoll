@@ -92,6 +92,19 @@ export type PaymentRecord = {
   syncedAt: number;
 };
 
+export type BatchPayrollManifestRecord = {
+  id: string;
+  orgId: string;
+  payrollRunId: string;
+  employee: string;
+  roleSlug: string;
+  roleLabel: string;
+  paymentId: string;
+  txHash: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
 export type AuditReceiptRecord = {
   id: string;
   orgId: string;
@@ -170,6 +183,84 @@ export type OrganizationReportSummary = {
   latestRunFinalizedAt: number | null;
 };
 
+export type TreasuryRunExposureRecord = {
+  payrollRunId: string;
+  status: number;
+  allocationCount: number;
+  claimedCount: number;
+  pendingClaims: number;
+  pendingSettlementRequests: number;
+  settledPayments: number;
+  payoutBacklog: number;
+  fundingDeadline: number;
+  fundedAt: number;
+  activatedAt: number;
+  finalizedAt: number;
+};
+
+export type TreasuryExposureSummary = {
+  orgId: string;
+  generatedAt: number;
+  routeConfigured: boolean;
+  routeHealth: "not_configured" | "healthy" | "action_needed" | "depleted";
+  adapter: string;
+  routeId: string;
+  adapterName: string;
+  supportsConfidentialSettlement: boolean;
+  settlementAsset: string;
+  confidentialSettlementAsset: string;
+  availableTreasuryFunds: string;
+  reservedTreasuryFunds: string;
+  pendingClaims: number;
+  pendingSettlementRequests: number;
+  settledPayments: number;
+  payoutBacklog: number;
+  activeRuns: number;
+  fundedRuns: number;
+  runExposures: TreasuryRunExposureRecord[];
+  safetyNotes: string[];
+};
+
+export type CompliancePolicySummary = {
+  policyId: string;
+  label: string;
+  taxReserveBps: number;
+  aggregateOnly: boolean;
+  employeeRowsIncluded: false;
+  decryptForTxRequired: boolean;
+  scopeBoundary: string;
+};
+
+export type ComplianceEvidenceSummary = {
+  verifiedReceipts: number;
+  publishedReceipts: number;
+  latestReceiptBlock: number | null;
+  latestReceiptTxHash: string | null;
+  evidenceModes: string[];
+};
+
+export type ComplianceTaxProvisionSummary = {
+  reserveBasis: "reserved_treasury_funds";
+  reservedTreasuryFunds: string;
+  estimatedTaxReserve: string;
+  pendingClaims: number;
+  pendingSettlementRequests: number;
+  settledPayments: number;
+};
+
+export type CompliancePackage = {
+  orgId: string;
+  generatedAt: number;
+  packageKind: "tier_a_aggregate_compliance";
+  policy: CompliancePolicySummary;
+  report: OrganizationReportSummary;
+  treasury: TreasuryExposureSummary;
+  taxProvision: ComplianceTaxProvisionSummary;
+  evidence: ComplianceEvidenceSummary;
+  recentReceipts: AuditReceiptRecord[];
+  safetyNotes: string[];
+};
+
 export type OrganizationAuditPackage = {
   orgId: string;
   generatedAt: number;
@@ -182,6 +273,7 @@ export type OrganizationExportPackage = {
   orgId: string;
   generatedAt: number;
   summary: OrganizationReportSummary;
+  treasury: TreasuryExposureSummary;
   payrollRuns: PayrollRunRecord[];
   auditReceipts: AuditReceiptRecord[];
   notifications: NotificationRecord[];

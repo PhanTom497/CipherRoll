@@ -47,11 +47,11 @@ export type CipherRollRuntimeConfig = {
 
 const DEFAULT_RUNTIME_BY_CHAIN = {
   "arb-sepolia": {
-    contractAddress: "0xcE253a05a27Fd9BeCb44F591E4AD8fa853Ce2D6A",
-    auditorDisclosureAddress: "0xB7D94c2A6CFa50814d83B8967683b8045F79be30",
-    governanceAddress: "0x0Df80B60920B83D140d30dFfbe060Ff9E3B3FAad",
-    directSettlementAdapterAddress: "0x4308466B2433912858d59C4472375539e2b33da2",
-    wrapperSettlementAdapterAddress: "0x2875eD7C2eA010Dc73D1A2fE9d01467bAe6EBFB2",
+    contractAddress: "0xDDE597a07fdBFb489c865f1B1f01aA633Ff4f9A7",
+    auditorDisclosureAddress: "0x3e84af37DddBdff7e2Cb2aAe4f1c5347d22890e9",
+    governanceAddress: "0xE4Fd9d1Df1c8EeD3a91AF3C832BFA8eCF3210cCC",
+    directSettlementAdapterAddress: "0x8Aec7daF18A47026E0a3aC0ad3A939Ee824882D8",
+    wrapperSettlementAdapterAddress: "0xa32df000E716B795B53cE925e78e0374Dd966b85",
     backendBaseUrl: "http://127.0.0.1:4000",
     defaultOrgId: "cipherroll-default-org"
   }

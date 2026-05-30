@@ -1209,6 +1209,34 @@ export default function AuditorPage() {
         headline="Your contextual guide for CipherRoll auditor review."
         intro="Ask about permit import, aggregate-only review, verify versus publish receipts, or disclosure boundaries. I will keep the answer focused on the current auditor workflow."
         organizationId={orgId}
+        liveContext={{
+          reportSummary: backendAuditPackage
+            ? {
+                pendingClaims: backendAuditPackage.summary.pendingClaims,
+                pendingSettlementRequests: backendAuditPackage.summary.pendingSettlementRequests,
+                activePayrollRuns: backendAuditPackage.summary.activePayrollRuns,
+                settledPayments: backendAuditPackage.summary.settledPayments,
+                availableTreasuryFunds: backendAuditPackage.summary.availableTreasuryFunds,
+                reservedTreasuryFunds: backendAuditPackage.summary.reservedTreasuryFunds,
+                treasuryRouteConfigured: backendAuditPackage.summary.treasuryRouteConfigured,
+                supportsConfidentialSettlement: backendAuditPackage.summary.supportsConfidentialSettlement,
+                draftPayrollRuns: backendAuditPackage.summary.draftPayrollRuns,
+                fundedPayrollRuns: backendAuditPackage.summary.fundedPayrollRuns,
+                finalizedPayrollRuns: backendAuditPackage.summary.finalizedPayrollRuns,
+                totalPayments: backendAuditPackage.summary.totalPayments,
+                employeeRecipients: backendAuditPackage.summary.employeeRecipients
+              }
+            : undefined,
+          portalSummary: [
+            activeRecipientPermitHash
+              ? 'An auditor recipient permit is active in this browser session.'
+              : 'No auditor recipient permit is active in this browser session.',
+            summaryValues.available
+              ? 'Aggregate auditor summary values have been refreshed and decrypted locally.'
+              : 'Aggregate auditor summary values have not been refreshed yet.',
+            `${backendVerifiedReceipts.length} verified receipt(s) and ${backendPublishedReceipts.length} published receipt(s) are loaded from the backend package.`
+          ]
+        }}
       />
     </div>
   )

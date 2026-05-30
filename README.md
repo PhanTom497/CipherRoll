@@ -100,7 +100,7 @@ CipherRoll currently ships the following user-facing routes:
 | Employee portal | `/employee` | Local decrypt, payroll review, claim, and wrapper-finalize flow |
 | Auditor portal | `/auditor` | Permit import, aggregate review, and audit receipt workflow |
 | Docs | `/docs` | Product documentation, roadmap, reference, and support context |
-| Tax status page | `/tax-authority` | Current scope boundary for future compliance-facing work |
+| Tax compliance page | `/tax-authority` | Tier A aggregate compliance package, tax reserve policy, and receipt evidence export |
 
 ---
 
@@ -199,11 +199,11 @@ Current **Arbitrum Sepolia** deployment:
 
 | Contract | Address |
 | --- | --- |
-| `CipherRollPayroll` | `0xcE253a05a27Fd9BeCb44F591E4AD8fa853Ce2D6A` |
-| `CipherRollGovernance` | `0x0Df80B60920B83D140d30dFfbe060Ff9E3B3FAad` |
-| `CipherRollAuditorDisclosure` | `0xB7D94c2A6CFa50814d83B8967683b8045F79be30` |
-| `DirectSettlementAdapter` | `0x4308466B2433912858d59C4472375539e2b33da2` |
-| `WrapperSettlementAdapter` | `0x2875eD7C2eA010Dc73D1A2fE9d01467bAe6EBFB2` |
+| `CipherRollPayroll` | `0xDDE597a07fdBFb489c865f1B1f01aA633Ff4f9A7` |
+| `CipherRollGovernance` | `0xE4Fd9d1Df1c8EeD3a91AF3C832BFA8eCF3210cCC` |
+| `CipherRollAuditorDisclosure` | `0x3e84af37DddBdff7e2Cb2aAe4f1c5347d22890e9` |
+| `DirectSettlementAdapter` | `0x8Aec7daF18A47026E0a3aC0ad3A939Ee824882D8` |
+| `WrapperSettlementAdapter` | `0xa32df000E716B795B53cE925e78e0374Dd966b85` |
 
 Deployment metadata:
 

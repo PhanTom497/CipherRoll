@@ -8,6 +8,7 @@ import type {
   PayrollAllocationMetaView,
   PayrollRunView,
   PayrollSettlementRequestView,
+  TreasuryPayrollRunFundingView,
   TreasuryAdapterConfig
 } from "./frontend-types";
 
@@ -144,10 +145,33 @@ export function mapPayrollSettlementRequestResult(
 ): PayrollSettlementRequestView {
   return {
     requestId: asString(result.requestId),
+    adapter: asString(result.adapter),
     payoutAsset: asString(result.payoutAsset),
     confidentialAsset: asString(result.confidentialAsset),
     requestedAt: asNumber(result.requestedAt),
     exists: asBoolean(result.exists)
+  };
+}
+
+export function mapTreasuryPayrollRunFundingResult(
+  result: StringIndexedRecord
+): TreasuryPayrollRunFundingView {
+  return {
+    adapter: asString(pickIndexedValue(result, 0) ?? result.adapter),
+    routeId: asString(pickIndexedValue(result, 1) ?? result.routeId),
+    settlementAsset: asString(pickIndexedValue(result, 2) ?? result.settlementAsset),
+    supportsConfidentialSettlement: asBoolean(
+      pickIndexedValue(result, 3) ?? result.supportsConfidentialSettlement
+    ),
+    availablePayrollFunds: asString(
+      pickIndexedValue(result, 4) ?? result.availablePayrollFunds
+    ),
+    reservedPayrollFunds: asString(
+      pickIndexedValue(result, 5) ?? result.reservedPayrollFunds
+    ),
+    reservedPayrollRunFunds: asString(
+      pickIndexedValue(result, 6) ?? result.reservedPayrollRunFunds
+    )
   };
 }
 

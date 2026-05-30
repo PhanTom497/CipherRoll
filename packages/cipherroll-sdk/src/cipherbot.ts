@@ -31,10 +31,22 @@ export type CipherBotLiveContext = {
     | "availableTreasuryFunds"
     | "reservedTreasuryFunds"
     | "treasuryRouteConfigured"
+    | "supportsConfidentialSettlement"
+    | "draftPayrollRuns"
+    | "fundedPayrollRuns"
+    | "finalizedPayrollRuns"
+    | "totalPayments"
+    | "employeeRecipients"
   > | null;
   indexerStatus?: Pick<
     IndexerStatus,
-    "latestIndexedBlock" | "organizations" | "payrollRuns" | "payments" | "notifications"
+    | "latestIndexedBlock"
+    | "latestKnownBlock"
+    | "organizations"
+    | "payrollRuns"
+    | "payments"
+    | "notifications"
+    | "lastSyncError"
   > | null;
 };
 
@@ -158,6 +170,26 @@ const CIPHERBOT_ENTRIES: CipherBotKnowledgeEntry[] = [
     sourceLabel: "Admin portal funding behavior"
   },
   {
+    id: "admin-treasury-exposure",
+    scopes: ["admin"],
+    question: "How should I read treasury health and payout backlog?",
+    title: "Treasury exposure and payout backlog",
+    body:
+      "Priority 18 makes the treasury surface stricter and clearer: route health is based on indexed available and reserved treasury inventory, pending employee claims, pending wrapper finalizations, and funded or active run exposure. These analytics do not reveal employee salary amounts; they are operational counts, route metadata, and reserve posture. Wrapper-backed payouts still use request first and finalize second, and a pending finalize remains pinned to the treasury adapter that created it.",
+    keywords: ["treasury health", "payout backlog", "route health", "exposure", "reserve", "finalize", "priority 18"],
+    sourceLabel: "Priority 18 treasury exposure"
+  },
+  {
+    id: "shared-tier-a-compliance",
+    scopes: ["shared", "docs", "admin", "auditor"],
+    question: "What does the tax compliance page do?",
+    title: "Tier A aggregate compliance package",
+    body:
+      "The tax compliance route is a Tier A aggregate reporting layer. It packages indexed organization summaries, treasury reserve posture, an operator-selected aggregate tax reserve policy, and auditor receipt metadata into JSON or CSV exports. It is not a tax filing, not a real authority API integration, and not an employee salary export. Evidence still comes from the existing auditor verify/publish receipt flow, where decryptForTx is a deliberate on-chain evidence action.",
+    keywords: ["tax", "compliance", "tier a", "reserve", "package", "export", "receipt", "authority"],
+    sourceLabel: "Priority 19 compliance boundary"
+  },
+  {
     id: "admin-common-failures",
     scopes: ["admin"],
     question: "What are the most common admin-side mistakes?",
@@ -166,6 +198,56 @@ const CIPHERBOT_ENTRIES: CipherBotKnowledgeEntry[] = [
       "The most common admin-side mistakes are missing privacy mode in the current browser session, trying to fund or activate a run before allocations exist, misreading reserved funds as reusable balance, using stale frontend state after a redeploy, or forgetting that wrapper-backed payouts still need employee-side finalize after request.",
     keywords: ["mistakes", "privacy mode", "activate", "fund", "stale frontend", "wrapper", "reserved"],
     sourceLabel: "Admin troubleshooting"
+  },
+  {
+    id: "admin-activate-run-failure",
+    scopes: ["admin"],
+    question: "Why can't I activate this run?",
+    title: "Why activation can be blocked",
+    body:
+      "Run activation is intentionally gated. The run must exist, have allocations, be funded or reserved through the treasury path, and still be operated by an authorized admin on the correct chain. Governance does not replace this operational gate: after Priority 15, run creation, funding, reserve, and activation stay single-admin actions while payroll issuance and treasury-route changes are governed when M-of-N is active.",
+    keywords: ["activate", "cannot activate", "can't activate", "run", "funded", "reserved", "single-admin", "governance"],
+    sourceLabel: "Admin troubleshooting"
+  },
+  {
+    id: "admin-claim-pending",
+    scopes: ["admin", "employee"],
+    question: "Why is this claim pending?",
+    title: "Why claims stay pending",
+    body:
+      "A pending claim usually means one of the required lifecycle gates has not finished yet. The employer may still need to fund and activate the run, the employee may need to claim with the correct wallet and active permit, a vesting allocation may still be locked, or a wrapper-backed claim may have completed request but still need finalize before settlement is done.",
+    keywords: ["claim pending", "pending claim", "pending", "claim", "not claimable", "vesting", "finalize", "wrapper"],
+    sourceLabel: "Claim troubleshooting"
+  },
+  {
+    id: "admin-governance-boundary",
+    scopes: ["shared", "docs", "admin"],
+    question: "Which actions are governed and which actions stay single-admin?",
+    title: "Governance versus operational actions",
+    body:
+      "Priority 15 routes sensitive actions through M-of-N governance: payroll issuance, vesting issuance, treasury route changes, governance membership, and quorum changes. Create run, fund run, reserve funds, and activate run stay single-admin operational actions so the live payroll flow remains usable. CoFHE permits are only decryption-access tools; they are not transaction approvals or governance signatures.",
+    keywords: ["governance", "single-admin", "operational", "quorum", "payroll issuance", "treasury route", "permit"],
+    sourceLabel: "Priority 15 governance boundary"
+  },
+  {
+    id: "admin-batch-payroll-v1",
+    scopes: ["shared", "docs", "admin"],
+    question: "How does batch payroll v1 work?",
+    title: "Batch payroll v1",
+    body:
+      "Batch payroll v1 is a browser-local authoring and retry queue for non-governed workspaces. Operators can add manual rows or import a CSV locally, validate employee addresses and roles, review the rows, seal encrypted salaries in the browser, choose instant or vesting mode, and then submit retryable row transactions against the existing single-row contract functions. There is no multi-row on-chain transaction yet, CSV salary data never leaves the browser, and governed workspaces must use the one-row governed issuance flow.",
+    keywords: ["batch payroll", "csv", "sealed", "retry", "queue", "non-governed", "roles", "salary masking"],
+    sourceLabel: "Priority 17 batch payroll boundary"
+  },
+  {
+    id: "shared-no-action-execution",
+    scopes: ["shared", "docs", "admin", "auditor", "employee"],
+    question: "Can CipherBot execute payroll actions for me?",
+    title: "CipherBot safety boundary",
+    body:
+      "CipherBot is read-only support. It can explain the current screen, indexed backend state, docs, and likely next checks, but it cannot create, fund, reserve, activate, approve, execute, claim, finalize, or disclose payroll on a user's behalf. Wallet transactions must remain explicit user actions and governance-protected actions must still go through the governance flow.",
+    keywords: ["execute", "fund", "activate", "approve", "claim", "finalize", "do it for me", "send transaction", "safety"],
+    sourceLabel: "CipherBot read-only boundary"
   },
   {
     id: "admin-auditor-sharing",
@@ -223,7 +305,7 @@ const CIPHERBOT_ENTRIES: CipherBotKnowledgeEntry[] = [
     question: "What are CipherRoll's future plans after the current release?",
     title: "CipherRoll future roadmap",
     body:
-      "After the current Phase 4 release, CipherRoll's next focus is heavier operational work: real on-chain multi-admin governance, deeper integrations, richer compliance and tax workflows, and further backend and CipherBot polish. The current product already ships the payroll core, backend platform layer, reporting surface, and support copilot.",
+      "CipherRoll has now completed the Priority 15 governance hardening pass and is using Priority 16 to improve CipherBot quality. Remaining final-phase work focuses on batch payroll authoring, treasury expansion, and narrowed compliance/evidence workflows without adding action-taking AI.",
     keywords: ["future plans", "roadmap", "next phase", "phase 5", "future", "after release"],
     sourceLabel: "Roadmap and progress"
   },
@@ -379,10 +461,19 @@ function formatLiveContext(
     lines.push(
       `Current workspace snapshot: ${liveContext.reportSummary.activePayrollRuns} active runs, ${liveContext.reportSummary.pendingClaims} pending claims, ${liveContext.reportSummary.pendingSettlementRequests} pending wrapper finalizations.`
     );
+    lines.push(
+      `Run mix: ${liveContext.reportSummary.draftPayrollRuns ?? 0} draft, ${liveContext.reportSummary.fundedPayrollRuns ?? 0} funded, ${liveContext.reportSummary.activePayrollRuns} active, ${liveContext.reportSummary.finalizedPayrollRuns ?? 0} finalized.`
+    );
+    lines.push(
+      `Payment mix: ${liveContext.reportSummary.settledPayments} settled out of ${liveContext.reportSummary.totalPayments ?? 0} indexed payments for ${liveContext.reportSummary.employeeRecipients ?? 0} recipient wallet(s).`
+    );
 
     if (scope === "admin") {
       lines.push(
         `Treasury view: available ${liveContext.reportSummary.availableTreasuryFunds}, reserved ${liveContext.reportSummary.reservedTreasuryFunds}, route configured: ${liveContext.reportSummary.treasuryRouteConfigured ? "yes" : "no"}.`
+      );
+      lines.push(
+        `Settlement route: ${liveContext.reportSummary.supportsConfidentialSettlement ? "wrapper-backed confidential settlement" : liveContext.reportSummary.treasuryRouteConfigured ? "direct treasury settlement" : "not configured"}.`
       );
     }
   }
@@ -395,6 +486,12 @@ function formatLiveContext(
     lines.push(
       `Backend index snapshot: ${liveContext.indexerStatus.organizations} organizations, ${liveContext.indexerStatus.payrollRuns} runs, ${liveContext.indexerStatus.payments} payments, and ${liveContext.indexerStatus.notifications} notifications indexed through block ${liveContext.indexerStatus.latestIndexedBlock}.`
     );
+    if (liveContext.indexerStatus.latestKnownBlock != null) {
+      lines.push(`Backend known chain head: ${liveContext.indexerStatus.latestKnownBlock}.`);
+    }
+    if (liveContext.indexerStatus.lastSyncError) {
+      lines.push(`Backend sync warning: ${liveContext.indexerStatus.lastSyncError}.`);
+    }
   }
 
   return lines.length > 0 ? `\n\nCurrent portal context:\n- ${lines.join("\n- ")}` : "";
@@ -419,6 +516,8 @@ export function getCipherBotStarterQuestions(scope: CipherBotScope) {
     case "admin":
       return [
         "How should I set up a workspace before sending payroll?",
+        "How does batch payroll v1 work?",
+        "What does the tax compliance page do?",
         "What is the correct funding order from budget to employee claim?",
         "Why can a later payroll run still show zero available treasury funds?",
         "When does a wrapper-backed payout need request plus finalize?"
@@ -442,6 +541,7 @@ export function getCipherBotStarterQuestions(scope: CipherBotScope) {
       return [
         "What is the current end-to-end CipherRoll payroll flow?",
         "What stays encrypted and what is still public on-chain?",
+        "What does the tax compliance page do?",
         "How does the wrapper settlement path work today?",
         "What shipped in Phase 4 and what is still future work?"
       ];

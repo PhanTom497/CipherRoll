@@ -2,6 +2,7 @@ import { Pool, type QueryResultRow } from "pg";
 import { backendConfig } from "./config";
 import type {
   AuditReceiptRecord,
+  CompliancePackage,
   IndexerStatus,
   NotificationRecord,
   OrganizationAuditPackage,
@@ -12,8 +13,16 @@ import type {
   PaymentRecord,
   PayrollRunRecord,
   RawEventRecord,
-  TreasuryRouteRecord
+  TreasuryExposureSummary,
+  TreasuryRunExposureRecord,
+  TreasuryRouteRecord,
+  BatchPayrollManifestRecord
 } from "./types";
+import {
+  calculateAggregateReserveAmount,
+  formatCompliancePolicyLabel,
+  normalizeComplianceTaxReserveBps
+} from "../../packages/cipherroll-sdk/dist";
 
 type Primitive = string | number | bigint | boolean | null;
 
@@ -204,6 +213,25 @@ export class CipherRollDatabase {
         created_at BIGINT NOT NULL,
         metadata_json TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS batch_payroll_manifests (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL,
+        payroll_run_id TEXT NOT NULL,
+        employee TEXT NOT NULL,
+        role_slug TEXT NOT NULL,
+        role_label TEXT NOT NULL,
+        payment_id TEXT NOT NULL,
+        tx_hash TEXT NOT NULL,
+        created_at BIGINT NOT NULL,
+        updated_at BIGINT NOT NULL
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS batch_payroll_manifests_payment_idx
+        ON batch_payroll_manifests(payment_id);
+
+      CREATE INDEX IF NOT EXISTS batch_payroll_manifests_org_run_idx
+        ON batch_payroll_manifests(org_id, payroll_run_id);
     `);
   }
 
@@ -516,6 +544,75 @@ export class CipherRollDatabase {
         record.metadataJson
       ]
     );
+  }
+
+  async upsertBatchPayrollManifest(record: BatchPayrollManifestRecord) {
+    await this.query(
+      `
+        INSERT INTO batch_payroll_manifests (
+          id, org_id, payroll_run_id, employee, role_slug, role_label,
+          payment_id, tx_hash, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        ON CONFLICT(payment_id) DO UPDATE SET
+          org_id = excluded.org_id,
+          payroll_run_id = excluded.payroll_run_id,
+          employee = excluded.employee,
+          role_slug = excluded.role_slug,
+          role_label = excluded.role_label,
+          tx_hash = excluded.tx_hash,
+          updated_at = excluded.updated_at
+      `,
+      [
+        record.id,
+        record.orgId,
+        record.payrollRunId,
+        record.employee,
+        record.roleSlug,
+        record.roleLabel,
+        record.paymentId,
+        record.txHash,
+        record.createdAt,
+        record.updatedAt
+      ]
+    );
+  }
+
+  async getBatchPayrollManifests(orgId: string, payrollRunId?: string, limit = 250) {
+    const params: SqlParam[] = [orgId];
+    const clauses = ["org_id = $1"];
+
+    if (payrollRunId) {
+      params.push(payrollRunId);
+      clauses.push(`payroll_run_id = $${params.length}`);
+    }
+
+    params.push(limit);
+    const result = await this.query(
+      `
+        SELECT * FROM batch_payroll_manifests
+        WHERE ${clauses.join(" AND ")}
+        ORDER BY updated_at DESC, id DESC
+        LIMIT $${params.length}
+      `,
+      params
+    );
+
+    return result.rows.map((row) => this.mapBatchPayrollManifestRow(row));
+  }
+
+  private mapBatchPayrollManifestRow(row: Record<string, unknown>): BatchPayrollManifestRecord {
+    return {
+      id: String(row.id ?? ""),
+      orgId: String(row.org_id ?? ""),
+      payrollRunId: String(row.payroll_run_id ?? ""),
+      employee: String(row.employee ?? ""),
+      roleSlug: String(row.role_slug ?? ""),
+      roleLabel: String(row.role_label ?? ""),
+      paymentId: String(row.payment_id ?? ""),
+      txHash: String(row.tx_hash ?? ""),
+      createdAt: Number(row.created_at ?? 0),
+      updatedAt: Number(row.updated_at ?? 0)
+    };
   }
 
   async getOrganizations(limit = 100) {
@@ -831,6 +928,116 @@ export class CipherRollDatabase {
     };
   }
 
+  async getTreasuryExposureSummary(orgId: string): Promise<TreasuryExposureSummary | null> {
+    const organization = coerceRowBooleans(
+      (await this.getOrganization(orgId)) as Record<string, unknown> | undefined,
+      ["exists_flag", "supports_confidential_settlement"]
+    );
+    if (!organization) return null;
+
+    const payrollRuns = ((await this.getPayrollRunsForOrganization(orgId)) as Record<string, unknown>[]).map(
+      (row) => coerceRowBooleans(row, ["exists_flag"]) as Record<string, unknown>
+    );
+    const payments = ((await this.getPaymentsForOrganization(orgId, 10_000)) as Record<string, unknown>[]).map(
+      (row) => coerceRowBooleans(row, ["is_claimed"]) as Record<string, unknown>
+    );
+
+    const paymentsByRun = new Map<string, Record<string, unknown>[]>();
+    for (const payment of payments) {
+      const payrollRunId = String(payment.payroll_run_id ?? "");
+      if (!payrollRunId) continue;
+      const existing = paymentsByRun.get(payrollRunId) ?? [];
+      existing.push(payment);
+      paymentsByRun.set(payrollRunId, existing);
+    }
+
+    const pendingClaims = payments.filter((payment) => !Boolean(payment.is_claimed)).length;
+    const pendingSettlementRequests = payments.filter(
+      (payment) => Number(payment.requested_at ?? 0) > 0 && Number(payment.settled_at ?? 0) === 0
+    ).length;
+    const settledPayments = payments.filter((payment) => Number(payment.settled_at ?? 0) > 0).length;
+    const payoutBacklog = pendingClaims + pendingSettlementRequests;
+    const routeConfigured =
+      String(organization.treasury_adapter ?? "0x0000000000000000000000000000000000000000") !==
+      "0x0000000000000000000000000000000000000000";
+    const availableFunds = BigInt(String(organization.available_payroll_funds ?? "0"));
+    const reservedFunds = BigInt(String(organization.reserved_payroll_funds ?? "0"));
+
+    let routeHealth: TreasuryExposureSummary["routeHealth"] = "not_configured";
+    if (routeConfigured) {
+      if (payoutBacklog > 0 && reservedFunds === 0n) {
+        routeHealth = "depleted";
+      } else if (pendingSettlementRequests > 0 || pendingClaims > 0) {
+        routeHealth = "action_needed";
+      } else {
+        routeHealth = "healthy";
+      }
+    }
+
+    const runExposures: TreasuryRunExposureRecord[] = payrollRuns
+      .filter((run) => Number(run.status ?? 0) === 1 || Number(run.status ?? 0) === 2)
+      .map((run) => {
+        const runPayments = paymentsByRun.get(String(run.payroll_run_id ?? "")) ?? [];
+        const runPendingClaims = runPayments.filter((payment) => !Boolean(payment.is_claimed)).length;
+        const runPendingSettlementRequests = runPayments.filter(
+          (payment) => Number(payment.requested_at ?? 0) > 0 && Number(payment.settled_at ?? 0) === 0
+        ).length;
+        const runSettledPayments = runPayments.filter((payment) => Number(payment.settled_at ?? 0) > 0).length;
+
+        return {
+          payrollRunId: String(run.payroll_run_id ?? ""),
+          status: Number(run.status ?? 0),
+          allocationCount: Number(run.allocation_count ?? 0),
+          claimedCount: Number(run.claimed_count ?? 0),
+          pendingClaims: runPendingClaims,
+          pendingSettlementRequests: runPendingSettlementRequests,
+          settledPayments: runSettledPayments,
+          payoutBacklog: runPendingClaims + runPendingSettlementRequests,
+          fundingDeadline: Number(run.funding_deadline ?? 0),
+          fundedAt: Number(run.funded_at ?? 0),
+          activatedAt: Number(run.activated_at ?? 0),
+          finalizedAt: Number(run.finalized_at ?? 0)
+        };
+      });
+
+    const safetyNotes: string[] = [];
+    if (!routeConfigured) {
+      safetyNotes.push("No treasury settlement route is configured for this workspace.");
+    }
+    if (pendingSettlementRequests > 0) {
+      safetyNotes.push("Wrapper-backed payouts are waiting for employee finalize transactions.");
+    }
+    if (pendingClaims > 0) {
+      safetyNotes.push("Some allocations are still waiting for employee claim action.");
+    }
+    if (routeConfigured && availableFunds === 0n && reservedFunds === 0n && payoutBacklog > 0) {
+      safetyNotes.push("No indexed treasury inventory remains while payout backlog still exists.");
+    }
+
+    return {
+      orgId,
+      generatedAt: Date.now(),
+      routeConfigured,
+      routeHealth,
+      adapter: String(organization.treasury_adapter ?? ""),
+      routeId: String(organization.route_id ?? organization.treasury_route_id ?? ""),
+      adapterName: String(organization.adapter_name ?? ""),
+      supportsConfidentialSettlement: Boolean(organization.supports_confidential_settlement),
+      settlementAsset: String(organization.settlement_asset ?? ""),
+      confidentialSettlementAsset: String(organization.confidential_settlement_asset ?? ""),
+      availableTreasuryFunds: String(organization.available_payroll_funds ?? "0"),
+      reservedTreasuryFunds: String(organization.reserved_payroll_funds ?? "0"),
+      pendingClaims,
+      pendingSettlementRequests,
+      settledPayments,
+      payoutBacklog,
+      activeRuns: payrollRuns.filter((run) => Number(run.status ?? 0) === 2).length,
+      fundedRuns: payrollRuns.filter((run) => Number(run.status ?? 0) === 1).length,
+      runExposures,
+      safetyNotes
+    };
+  }
+
   async getOrganizationAuditPackage(orgId: string): Promise<OrganizationAuditPackage | null> {
     const summary = await this.getOrganizationReportSummary(orgId);
     if (!summary) return null;
@@ -851,9 +1058,75 @@ export class CipherRollDatabase {
     };
   }
 
+  async getCompliancePackage(orgId: string, taxReserveBpsInput?: number): Promise<CompliancePackage | null> {
+    const [report, treasury] = await Promise.all([
+      this.getOrganizationReportSummary(orgId),
+      this.getTreasuryExposureSummary(orgId)
+    ]);
+    if (!report || !treasury) return null;
+
+    const taxReserveBps = normalizeComplianceTaxReserveBps(taxReserveBpsInput);
+    const recentReceipts = ((await this.getAuditReceipts(orgId, 25)) as Record<string, unknown>[]).map(
+      (row) => rowToJson(coerceRowBooleans(row, ["published"])) as unknown as AuditReceiptRecord
+    );
+    const verifiedReceipts = recentReceipts.filter((receipt) => !receipt.published).length;
+    const publishedReceipts = recentReceipts.filter((receipt) => receipt.published).length;
+    const latestReceipt = recentReceipts.reduce<AuditReceiptRecord | null>((latest, receipt) => {
+      if (!latest) return receipt;
+      return receipt.blockNumber > latest.blockNumber ? receipt : latest;
+    }, null);
+
+    const safetyNotes = [
+      "Tier A compliance packages are aggregate-first and do not include employee salary rows.",
+      "Any on-chain evidence receipt must come from the auditor receipt flow, where decryptForTx is explicit.",
+      "This package is not a tax filing, jurisdiction model, or external authority integration.",
+      ...treasury.safetyNotes
+    ];
+
+    return {
+      orgId,
+      generatedAt: Date.now(),
+      packageKind: "tier_a_aggregate_compliance",
+      policy: {
+        policyId: `tier-a-${taxReserveBps}bps`,
+        label: formatCompliancePolicyLabel(taxReserveBps),
+        taxReserveBps,
+        aggregateOnly: true,
+        employeeRowsIncluded: false,
+        decryptForTxRequired: false,
+        scopeBoundary:
+          "Backend package uses indexed aggregate state, treasury posture, run counts, and receipt metadata only."
+      },
+      report,
+      treasury,
+      taxProvision: {
+        reserveBasis: "reserved_treasury_funds",
+        reservedTreasuryFunds: treasury.reservedTreasuryFunds,
+        estimatedTaxReserve: calculateAggregateReserveAmount(
+          treasury.reservedTreasuryFunds,
+          taxReserveBps
+        ),
+        pendingClaims: treasury.pendingClaims,
+        pendingSettlementRequests: treasury.pendingSettlementRequests,
+        settledPayments: treasury.settledPayments
+      },
+      evidence: {
+        verifiedReceipts,
+        publishedReceipts,
+        latestReceiptBlock: latestReceipt?.blockNumber ?? null,
+        latestReceiptTxHash: latestReceipt?.txHash ?? null,
+        evidenceModes: ["view-only aggregate package", "verify receipt", "publish receipt"]
+      },
+      recentReceipts,
+      safetyNotes
+    };
+  }
+
   async getOrganizationExportPackage(orgId: string): Promise<OrganizationExportPackage | null> {
     const summary = await this.getOrganizationReportSummary(orgId);
     if (!summary) return null;
+    const treasury = await this.getTreasuryExposureSummary(orgId);
+    if (!treasury) return null;
 
     const payrollRuns = ((await this.getPayrollRunsForOrganization(orgId)) as Record<string, unknown>[]).map(
       (row) => rowToJson(coerceRowBooleans(row, ["exists_flag"])) as unknown as PayrollRunRecord
@@ -869,6 +1142,7 @@ export class CipherRollDatabase {
       orgId,
       generatedAt: Date.now(),
       summary,
+      treasury,
       payrollRuns,
       auditReceipts,
       notifications

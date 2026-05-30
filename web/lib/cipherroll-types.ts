@@ -12,6 +12,10 @@ export type {
   CipherBotAnswer,
   CipherBotLiveContext,
   CipherBotScope,
+  CompliancePackage,
+  CompliancePolicySummary,
+  ComplianceEvidenceSummary,
+  ComplianceTaxProvisionSummary,
   EmployeePayrollView,
   IndexerStatus,
   NotificationRecord,
@@ -28,5 +32,8 @@ export type {
   PayrollSettlementRequestView,
   PermitBundle,
   RawEventRecord,
+  BatchPayrollManifestRecord,
+  TreasuryExposureSummary,
+  TreasuryPayrollRunFundingView,
   TreasuryAdapterConfig
 } from "../../packages/cipherroll-sdk/src";

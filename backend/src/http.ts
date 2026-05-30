@@ -1,4 +1,5 @@
 import { createServer, IncomingMessage, ServerResponse } from "node:http";
+import { randomUUID } from "node:crypto";
 import { URL } from "node:url";
 import { type CipherBotLiveContext, type CipherBotScope } from "../../packages/cipherroll-sdk/dist";
 import { generateCipherBotAnswer } from "./cipherbot-assistant";
@@ -6,6 +7,15 @@ import { backendConfig } from "./config";
 import { coerceRowBooleans, CipherRollDatabase, rowToJson } from "./db";
 import { CipherRollIndexer } from "./indexer";
 import type { AuditReceiptRecord, PaymentRecord, PayrollRunRecord, RawEventRecord } from "./types";
+
+const ADDRESS_PATTERN = /^0x[a-fA-F0-9]{40}$/;
+const BYTES32_PATTERN = /^0x[a-fA-F0-9]{64}$/;
+const TX_HASH_PATTERN = /^0x[a-fA-F0-9]{64}$/;
+
+function sanitizeManifestText(value: unknown, maxLength: number) {
+  if (typeof value !== "string") return "";
+  return value.trim().replace(/[^\w\s:./#-]/g, "").slice(0, maxLength);
+}
 
 function sendJson(response: ServerResponse, statusCode: number, payload: unknown) {
   response.statusCode = statusCode;
@@ -181,6 +191,64 @@ export function createCipherRollBackendServer(db: CipherRollDatabase, indexer: C
         return sendJson(response, 200, rowToJson(coerceRowBooleans(row, ["is_claimed"])));
       }
 
+      if (
+        request.method === "GET" &&
+        segments[0] === "api" &&
+        segments[1] === "organizations" &&
+        segments[2] &&
+        segments[3] === "batch-payroll-manifests"
+      ) {
+        const payrollRunId = url.searchParams.get("payrollRunId") || undefined;
+        if (payrollRunId && !BYTES32_PATTERN.test(payrollRunId)) {
+          return sendJson(response, 400, { error: "Invalid payroll run id." });
+        }
+
+        const manifests = await db.getBatchPayrollManifests(segments[2], payrollRunId);
+        return sendJson(response, 200, { manifests });
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/batch-payroll-manifests") {
+        const body = await readJsonBody(request);
+        const orgId = typeof body.orgId === "string" ? body.orgId : "";
+        const payrollRunId = typeof body.payrollRunId === "string" ? body.payrollRunId : "";
+        const employee = typeof body.employee === "string" ? body.employee : "";
+        const paymentId = typeof body.paymentId === "string" ? body.paymentId : "";
+        const txHash = typeof body.txHash === "string" ? body.txHash : "";
+        const roleSlug = sanitizeManifestText(body.roleSlug, 64);
+        const roleLabel = sanitizeManifestText(body.roleLabel, 96);
+
+        if (
+          !BYTES32_PATTERN.test(orgId) ||
+          !BYTES32_PATTERN.test(payrollRunId) ||
+          !ADDRESS_PATTERN.test(employee) ||
+          !BYTES32_PATTERN.test(paymentId) ||
+          !TX_HASH_PATTERN.test(txHash) ||
+          !roleSlug ||
+          !roleLabel
+        ) {
+          return sendJson(response, 400, {
+            error: "Batch payroll manifest requires safe org, run, employee, role, payment, and tx metadata."
+          });
+        }
+
+        const now = Date.now();
+        const record = {
+          id: randomUUID(),
+          orgId,
+          payrollRunId,
+          employee: employee.toLowerCase(),
+          roleSlug,
+          roleLabel,
+          paymentId,
+          txHash,
+          createdAt: now,
+          updatedAt: now
+        };
+
+        await db.upsertBatchPayrollManifest(record);
+        return sendJson(response, 200, record);
+      }
+
       if (request.method === "GET" && url.pathname === "/api/audit-receipts") {
         const orgId = url.searchParams.get("orgId") || undefined;
         const limit = Number.parseInt(url.searchParams.get("limit") || "100", 10);
@@ -243,6 +311,74 @@ export function createCipherRollBackendServer(db: CipherRollDatabase, indexer: C
         segments[1] === "reports" &&
         segments[2] === "organizations" &&
         segments[3] &&
+        segments[4] === "treasury"
+      ) {
+        const treasury = await db.getTreasuryExposureSummary(segments[3]);
+        if (!treasury) return notFound(response);
+        return sendJson(response, 200, treasury);
+      }
+
+      if (
+        request.method === "GET" &&
+        segments[0] === "api" &&
+        segments[1] === "compliance" &&
+        segments[2] === "organizations" &&
+        segments[3] &&
+        (segments[4] === "package" || segments[4] === "export")
+      ) {
+        const taxReserveBps = Number.parseInt(url.searchParams.get("taxReserveBps") || "", 10);
+        const compliancePackage = await db.getCompliancePackage(
+          segments[3],
+          Number.isFinite(taxReserveBps) ? taxReserveBps : undefined
+        );
+        if (!compliancePackage) return notFound(response);
+
+        if (segments[4] === "export" && url.searchParams.get("format") === "csv") {
+          const rows: Array<Record<string, unknown>> = [
+            {
+              section: "policy",
+              ...compliancePackage.policy
+            },
+            {
+              section: "tax_provision",
+              ...compliancePackage.taxProvision
+            },
+            {
+              section: "treasury",
+              routeHealth: compliancePackage.treasury.routeHealth,
+              availableTreasuryFunds: compliancePackage.treasury.availableTreasuryFunds,
+              reservedTreasuryFunds: compliancePackage.treasury.reservedTreasuryFunds,
+              payoutBacklog: compliancePackage.treasury.payoutBacklog,
+              activeRuns: compliancePackage.treasury.activeRuns,
+              fundedRuns: compliancePackage.treasury.fundedRuns
+            },
+            {
+              section: "evidence",
+              ...compliancePackage.evidence,
+              evidenceModes: compliancePackage.evidence.evidenceModes.join(" | ")
+            },
+            ...compliancePackage.recentReceipts.map((receipt: Record<string, unknown>) => ({
+              section: "audit_receipt",
+              ...receipt
+            }))
+          ];
+
+          response.setHeader(
+            "Content-Disposition",
+            `attachment; filename=\"cipherroll-${segments[3]}-compliance.csv\"`
+          );
+          return sendText(response, 200, "text/csv; charset=utf-8", toCsv(rows));
+        }
+
+        return sendJson(response, 200, compliancePackage);
+      }
+
+      if (
+        request.method === "GET" &&
+        segments[0] === "api" &&
+        segments[1] === "reports" &&
+        segments[2] === "organizations" &&
+        segments[3] &&
         segments[4] === "audit-package"
       ) {
         const auditPackage = await db.getOrganizationAuditPackage(segments[3]);
@@ -266,6 +402,12 @@ export function createCipherRollBackendServer(db: CipherRollDatabase, indexer: C
             {
               section: "summary",
               ...exportPackage.summary
+            },
+            {
+              section: "treasury",
+              ...exportPackage.treasury,
+              runExposures: JSON.stringify(exportPackage.treasury.runExposures),
+              safetyNotes: JSON.stringify(exportPackage.treasury.safetyNotes)
             },
             ...exportPackage.payrollRuns.map((run: Record<string, unknown>) => ({
               section: "payroll_run",
@@ -325,7 +467,13 @@ export function createCipherRollBackendServer(db: CipherRollDatabase, indexer: C
               settledPayments: reportSummary.settledPayments,
               availableTreasuryFunds: reportSummary.availableTreasuryFunds,
               reservedTreasuryFunds: reportSummary.reservedTreasuryFunds,
-              treasuryRouteConfigured: reportSummary.treasuryRouteConfigured
+              treasuryRouteConfigured: reportSummary.treasuryRouteConfigured,
+              supportsConfidentialSettlement: reportSummary.supportsConfidentialSettlement,
+              draftPayrollRuns: reportSummary.draftPayrollRuns,
+              fundedPayrollRuns: reportSummary.fundedPayrollRuns,
+              finalizedPayrollRuns: reportSummary.finalizedPayrollRuns,
+              totalPayments: reportSummary.totalPayments,
+              employeeRecipients: reportSummary.employeeRecipients
             };
           }
         }
@@ -334,10 +482,12 @@ export function createCipherRollBackendServer(db: CipherRollDatabase, indexer: C
           const status = await db.getIndexerStatus();
           liveContext.indexerStatus = {
             latestIndexedBlock: status.latestIndexedBlock,
+            latestKnownBlock: status.latestKnownBlock,
             organizations: status.organizations,
             payrollRuns: status.payrollRuns,
             payments: status.payments,
-            notifications: status.notifications
+            notifications: status.notifications,
+            lastSyncError: status.lastSyncError
           };
         }
 

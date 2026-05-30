@@ -56,6 +56,24 @@ function isChunkLoadFailure(error: unknown): boolean {
   );
 }
 
+function recoverFromCofheChunkFailure(error: unknown): never {
+  resetClient();
+
+  if (typeof window !== "undefined") {
+    const alreadyRetried = window.sessionStorage.getItem(COFHE_CHUNK_RELOAD_KEY) === "1";
+
+    if (!alreadyRetried) {
+      window.sessionStorage.setItem(COFHE_CHUNK_RELOAD_KEY, "1");
+      window.setTimeout(() => {
+        window.location.reload();
+      }, 150);
+      throw new Error("CipherRoll needs a quick refresh to finish loading privacy mode. Refreshing now.");
+    }
+  }
+
+  throw new Error("Privacy mode did not finish loading in this tab. Restart the frontend dev server, refresh the page, and try again.");
+}
+
 export async function getOrCreateSelfPermit() {
   const client = getClient();
   if (!client) {
@@ -299,18 +317,7 @@ export async function initCofhe(provider: any): Promise<void> {
     }
   } catch (error) {
     if (typeof window !== "undefined" && isChunkLoadFailure(error)) {
-      const alreadyRetried = window.sessionStorage.getItem(COFHE_CHUNK_RELOAD_KEY) === "1";
-      resetClient();
-
-      if (!alreadyRetried) {
-        window.sessionStorage.setItem(COFHE_CHUNK_RELOAD_KEY, "1");
-        window.setTimeout(() => {
-          window.location.reload();
-        }, 150);
-        throw new Error("CipherRoll needs a quick refresh to finish loading privacy mode. Refreshing now.");
-      }
-
-      throw new Error("Privacy mode did not finish loading in this tab. Please refresh the page once and try again.");
+      recoverFromCofheChunkFailure(error);
     }
 
     throw error;
@@ -325,12 +332,20 @@ export async function encryptUint128(value: bigint) {
   const client = getClient();
   if (!client) throw new Error("Cofhe client not initialized on server");
 
-  const [encrypted] = await client
-    .encryptInputs([Encryptable.uint128(value)])
-    .onStep((step: any) => { console.log(`Encrypt step: ${step}`); })
-    .execute();
-    
-  return encrypted;
+  try {
+    const [encrypted] = await client
+      .encryptInputs([Encryptable.uint128(value)])
+      .onStep((step: any) => { console.log(`Encrypt step: ${step}`); })
+      .execute();
+
+    return encrypted;
+  } catch (error) {
+    if (isChunkLoadFailure(error)) {
+      recoverFromCofheChunkFailure(error);
+    }
+
+    throw error;
+  }
 }
 
 /**

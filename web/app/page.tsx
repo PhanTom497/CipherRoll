@@ -43,7 +43,7 @@ const portals = [
   {
     title: "Tax",
     description:
-      "Review the current scope boundary for future tax and compliance-facing product work.",
+      "Build aggregate-first Tier A compliance packages with tax reserve policy and receipt metadata.",
     icon: Landmark,
     url: "/tax-authority"
   }

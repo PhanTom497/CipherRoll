@@ -1,5 +1,6 @@
 import type {
   AuditReceiptRecord,
+  CompliancePackage,
   IndexerStatus,
   NotificationRecord,
   OrganizationAuditPackage,
@@ -8,7 +9,9 @@ import type {
   OrganizationReportSummary,
   PaymentRecord,
   PayrollRunRecord,
-  RawEventRecord
+  RawEventRecord,
+  TreasuryExposureSummary,
+  BatchPayrollManifestRecord
 } from "./backend-types";
 import type { CipherBotAnswer, CipherBotLiveContext, CipherBotScope } from "./cipherbot";
 import { getCipherRollRuntimeConfig, type SupportedChainKey } from "./runtime";
@@ -64,6 +67,16 @@ export type QueryCipherBotOptions = {
   scope: CipherBotScope;
   question: string;
   liveContext?: CipherBotLiveContext;
+};
+
+export type CreateBatchPayrollManifestOptions = {
+  orgId: string;
+  payrollRunId: string;
+  employee: string;
+  roleSlug: string;
+  roleLabel: string;
+  paymentId: string;
+  txHash: string;
 };
 
 export type CipherRollBackendFetch = (
@@ -222,6 +235,27 @@ export class CipherRollBackendClient {
     return this.get<PaymentRecord>(`/api/payments/${paymentId}`);
   }
 
+  async getBatchPayrollManifests(
+    orgId: string,
+    payrollRunId?: string
+  ): Promise<BatchPayrollManifestRecord[]> {
+    const result = await this.get<{ manifests: BatchPayrollManifestRecord[] }>(
+      withQuery(`/api/organizations/${orgId}/batch-payroll-manifests`, {
+        payrollRunId
+      })
+    );
+    return result.manifests;
+  }
+
+  createBatchPayrollManifest(
+    options: CreateBatchPayrollManifestOptions
+  ): Promise<BatchPayrollManifestRecord> {
+    return this.post<BatchPayrollManifestRecord>(
+      "/api/batch-payroll-manifests",
+      options
+    );
+  }
+
   async getAuditReceipts(
     options: GetAuditReceiptsOptions = {}
   ): Promise<AuditReceiptRecord[]> {
@@ -264,6 +298,18 @@ export class CipherRollBackendClient {
 
   getOrganizationReportSummary(orgId: string): Promise<OrganizationReportSummary> {
     return this.get<OrganizationReportSummary>(`/api/reports/organizations/${orgId}/summary`);
+  }
+
+  getTreasuryExposureSummary(orgId: string): Promise<TreasuryExposureSummary> {
+    return this.get<TreasuryExposureSummary>(`/api/reports/organizations/${orgId}/treasury`);
+  }
+
+  getCompliancePackage(orgId: string, options: { taxReserveBps?: number } = {}): Promise<CompliancePackage> {
+    return this.get<CompliancePackage>(
+      withQuery(`/api/compliance/organizations/${orgId}/package`, {
+        taxReserveBps: options.taxReserveBps
+      })
+    );
   }
 
   getOrganizationAuditPackage(orgId: string): Promise<OrganizationAuditPackage> {

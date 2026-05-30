@@ -16,6 +16,8 @@ interface ITreasuryAdapter {
 
     function reservedPayrollFunds(bytes32 orgId) external view returns (uint256);
 
+    function reservedPayrollRunFunds(bytes32 payrollRunId) external view returns (uint256);
+
     function depositPayrollFunds(bytes32 orgId, uint256 amount) external;
 
     function reservePayrollFunding(

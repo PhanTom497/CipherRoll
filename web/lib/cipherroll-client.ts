@@ -12,6 +12,7 @@ import {
   mapPayrollRunResult,
   mapPayrollSettlementRequestResult,
   mapTreasuryAdapterDetailsResult,
+  mapTreasuryPayrollRunFundingResult,
   AUDITOR_DISCLOSURE_CONTRACT_ADDRESS,
   CONTRACT_ADDRESS,
   GOVERNANCE_CONTRACT_ADDRESS,
@@ -34,6 +35,7 @@ import type {
   OrganizationView,
   OrganizationInsightsView,
   PayrollRunView,
+  TreasuryPayrollRunFundingView,
   TreasuryAdapterConfig
 } from "./cipherroll-types";
 
@@ -494,6 +496,15 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
       const contract = await getEthersContract();
       const result = await contract.getTreasuryAdapterDetails(orgId);
       return mapTreasuryAdapterDetailsResult(result);
+    },
+
+    async getTreasuryPayrollRunFunding(
+      orgId: string,
+      payrollRunId: string
+    ): Promise<TreasuryPayrollRunFundingView> {
+      const contract = await getEthersContract();
+      const result = await contract.getTreasuryPayrollRunFunding(orgId, payrollRunId);
+      return mapTreasuryPayrollRunFundingResult(result);
     },
 
     async approveSettlementToken(tokenAddress: string, spender: string, amount: bigint) {

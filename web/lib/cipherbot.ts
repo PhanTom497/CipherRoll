@@ -29,6 +29,8 @@ export function getCipherBotStarterQuestions(scope: CipherBotScope) {
   return getSharedCipherBotStarterQuestions(scope)
 }
 
+export { answerCipherBotQuestion }
+
 export async function queryCipherBot(options: {
   scope: CipherBotScope
   question: string

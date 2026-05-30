@@ -35,6 +35,10 @@ contract Wave1TreasuryAdapter is ITreasuryAdapter {
         return 0;
     }
 
+    function reservedPayrollRunFunds(bytes32) external pure returns (uint256) {
+        return 0;
+    }
+
     function depositPayrollFunds(bytes32, uint256) external pure {
         revert("CipherRoll: settlement unsupported");
     }

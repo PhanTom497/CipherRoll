@@ -85,12 +85,15 @@ Verify the backend can return frontend-facing data:
 - `GET /api/organizations/:orgId/runs`
 - `GET /api/organizations/:orgId/payments`
 - `GET /api/notifications?orgId=:orgId`
+- `GET /api/compliance/organizations/:orgId/package?taxReserveBps=1500`
+- `GET /api/compliance/organizations/:orgId/export?format=csv&taxReserveBps=1500`
 - `GET /api/reports/organizations/:orgId/export`
 
 Expected boundary:
 
 - summaries are aggregate-first
 - exports are useful for operators
+- compliance packages include policy, aggregate tax provision, treasury posture, and receipt metadata
 - employee plaintext salary rows do not appear in reports or exports
 
 ---
@@ -103,10 +106,11 @@ Expected boundary:
 4. Create a workspace / organization.
 5. Fund encrypted budget.
 6. Create a payroll run.
-7. Fund the payroll run from treasury-backed inventory.
-8. Activate claims.
-9. Issue at least one payroll allocation.
-10. Refresh the admin portal and confirm the backend reporting panel loads.
+7. Issue at least one payroll allocation, either through the one-row flow or the non-governed batch payroll workspace.
+8. Fund the payroll run from treasury-backed inventory.
+9. Refresh backend reporting and confirm the treasury exposure panel shows route health, available/reserved inventory, payout backlog, and funded/active run exposure without salary rows.
+10. Activate claims.
+11. Refresh the admin portal and confirm the backend reporting panel loads.
 
 Verify:
 
@@ -114,6 +118,8 @@ Verify:
 - operator role is recognized
 - encrypted summary cards can be read after CoFHE init
 - backend reporting cards load without 404 or JSON parse errors
+- batch payroll CSV import stays browser-local, sealed rows mask salaries, and each submitted row maps to one existing issuance transaction
+- batch payroll manifests contain role labels and tx refs but no salary amounts
 - exports work
 - workflow notifications appear
 
@@ -202,7 +208,8 @@ CipherBot is now part of the shipped Wave 4 surface and should be verified expli
 - answers are relevant to the current portal
 - the chat route responds without hanging
 - Gemini-backed answers work on the deployed frontend
-- fallback behavior remains readable if the model path is unavailable
+- the route rotates across the configured Gemini flash models instead of answering from a local-doc fallback
+- if every Gemini model is unavailable, the UI shows a clear provider/quota message rather than a stitched local-doc answer
 
 ### Useful browser check
 
@@ -212,7 +219,7 @@ In DevTools `Network`, inspect the `/api/chat` response headers:
 - `X-CipherBot-Model`
 - `X-CipherBot-Reason`
 
-This helps distinguish real model responses from fallback behavior.
+This helps distinguish real model responses from missing-key or all-models-unavailable states.
 
 ---
 

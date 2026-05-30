@@ -143,10 +143,21 @@ export type PayrollAllocationMetaView = {
 
 export type PayrollSettlementRequestView = {
   requestId: string;
+  adapter: string;
   payoutAsset: string;
   confidentialAsset: string;
   requestedAt: number;
   exists: boolean;
+};
+
+export type TreasuryPayrollRunFundingView = {
+  adapter: string;
+  routeId: string;
+  settlementAsset: string;
+  supportsConfidentialSettlement: boolean;
+  availablePayrollFunds: string;
+  reservedPayrollFunds: string;
+  reservedPayrollRunFunds: string;
 };
 
 export type PayrollAllocationHandle = {

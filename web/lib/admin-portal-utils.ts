@@ -18,6 +18,7 @@ const KNOWN_REVERT_REASONS = [
   "quorum required",
   "employee required",
   "payroll run has no allocations",
+  "payroll run full",
   "funding window closed",
   "invalid vesting",
   "payment missing",
@@ -166,6 +167,10 @@ export function extractCipherRollErrorMessage(error: unknown): string {
 
   if (/payroll run has no allocations/i.test(message)) {
     return "Add the employee allocation to this payroll run before funding or activating it.";
+  }
+
+  if (/payroll run full/i.test(message)) {
+    return "This payroll run has reached its planned headcount. Create a new run with enough planned employees for the batch rows.";
   }
 
   if (/funding window closed/i.test(message)) {

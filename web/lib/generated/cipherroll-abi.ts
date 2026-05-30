@@ -1191,6 +1191,11 @@ export const CIPHERROLL_ABI = [
           },
           {
             "internalType": "address",
+            "name": "adapter",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
             "name": "payoutAsset",
             "type": "address"
           },
@@ -1271,6 +1276,60 @@ export const CIPHERROLL_ABI = [
       {
         "internalType": "uint256",
         "name": "reservedPayrollFunds",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "orgId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "payrollRunId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getTreasuryPayrollRunFunding",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "adapter",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "routeId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "settlementAsset",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "supportsConfidentialSettlement",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "availablePayrollFunds",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "reservedPayrollFunds",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "reservedPayrollRunFunds",
         "type": "uint256"
       }
     ],

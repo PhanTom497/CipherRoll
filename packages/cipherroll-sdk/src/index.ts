@@ -4,3 +4,4 @@ export * from "./backend-types";
 export * from "./contract-views";
 export * from "./backend-client";
 export * from "./cipherbot";
+export * from "./compliance";
