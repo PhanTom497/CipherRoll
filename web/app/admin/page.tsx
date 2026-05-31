@@ -3402,7 +3402,7 @@ export default function AdminPage() {
         )}
 
         {activePortal === 'governance' && (
-          <div className="grid lg:grid-cols-[0.92fr,1.08fr] gap-8 mt-8">
+          <div className="space-y-8 mt-8">
             <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
@@ -3411,8 +3411,8 @@ export default function AdminPage() {
                     Multi-Admin Approval
                   </div>
                   <h2 className="mt-4 text-2xl font-bold text-white">Multi-Admin Controls</h2>
-                  <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#c9c9d0]">
-                    Use this surface to bootstrap M-of-N governance, link the payroll executor, and review sensitive treasury-route or payroll-issuance actions before they execute.
+                  <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[#c9c9d0]">
+                    Set up M-of-N approval for sensitive payroll and treasury actions. Operational actions still stay usable from the admin wallet.
                   </p>
                 </div>
                 <button
@@ -3438,62 +3438,69 @@ export default function AdminPage() {
                 </div>
               ) : null}
 
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 {[
                   {
                     label: 'Status',
                     value: governanceActive ? 'Active' : governanceInitialized ? 'Bootstrapping' : 'Not initialized',
                     detail: governanceActive
                       ? 'Sensitive actions now follow approval rules.'
-                      : 'Still using single-admin control until multi-admin is ready.'
+                      : 'Single-admin control remains active until setup is finished.'
                   },
                   {
                     label: 'Approval threshold',
                     value: governanceInitialized ? `${governanceAdminCount}/${governanceQuorum}` : '—',
-                    detail: governanceInitialized ? 'Current admin count versus required quorum.' : 'Bootstrap governance first.'
+                    detail: governanceInitialized ? 'Registered admins versus required approvals.' : 'Set up multi-admin first.'
                   },
                   {
-                    label: 'Linked to multi-admin',
+                    label: 'Payroll executor',
                     value: governanceLinkedAddress
                       ? governanceLinkedAddress.toLowerCase() === (GOVERNANCE_CONTRACT_ADDRESS || '').toLowerCase()
                         ? 'Linked'
                         : 'Custom'
                       : 'Not linked',
-                    detail: governanceLinkedAddress
-                      ? shortHash(governanceLinkedAddress)
-                      : 'Payroll still accepts direct single-admin privileged actions.'
+                    detail: governanceLinkedAddress ? shortHash(governanceLinkedAddress) : 'Payroll has not been bound to multi-admin yet.'
                   },
                   {
-                    label: 'Ready proposals',
+                    label: 'Ready approvals',
                     value: String(governanceReadyProposals.length),
                     detail: governanceReadyProposals.length
-                      ? 'Waiting for execution from a governance admin or the proposing wallet.'
-                      : 'No approval-ready actions at the moment.'
+                      ? 'Ready for execution or final proposer action.'
+                      : 'No approval-ready actions right now.'
                   }
                 ].map((item) => (
                   <div key={item.label} className="rounded-2xl border border-white/10 bg-white/5 p-5">
                     <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold">{item.label}</p>
                     <p className="mt-3 text-3xl font-black text-white">{item.value}</p>
-                    <p className="mt-2 text-sm text-[#a1a1aa]">{item.detail}</p>
+                    <p className="mt-2 text-sm leading-5 text-[#a1a1aa]">{item.detail}</p>
                   </div>
                 ))}
               </div>
+            </GlassCard>
 
-              <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
-                <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold">Recommended order</p>
-                <div className="mt-4 space-y-3 text-sm text-[#c9c9d0]">
-                  <p><span className="font-semibold text-white">1.</span> Bootstrap governance from the primary admin wallet.</p>
-                  <p><span className="font-semibold text-white">2.</span> Add enough bootstrap admins to meet the reserved quorum.</p>
-                  <p><span className="font-semibold text-white">3.</span> Link the payroll workspace to the configured governance executor.</p>
-                  <p><span className="font-semibold text-white">4.</span> From then on, treasury-route changes and payroll issuance actions route through governance. Operational actions like run creation, run funding, and run activation stay single-admin so payroll execution remains usable.</p>
+            <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-white">Setup order</p>
+                    <p className="mt-1 text-xs leading-5 text-[#a1a1aa]">Follow these from left to right. Once linked, sensitive actions move into the approval queue.</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/55">
+                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5">1 Bootstrap</span>
+                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5">2 Add signers</span>
+                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5">3 Link payroll</span>
+                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5">4 Propose changes</span>
+                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5">5 Approve / execute</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-6 xl:grid-cols-2">
+              <div className="mt-6 grid gap-4 xl:grid-cols-3">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
                   <div>
-                    <p className="text-sm font-semibold text-white">Bootstrap governance</p>
-                    <p className="mt-1 text-sm text-[#a1a1aa]">Initializes the governance contract using the workspace&apos;s reserved admin slots and quorum.</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Step 1</p>
+                    <p className="mt-2 text-sm font-semibold text-white">Bootstrap multi-admin</p>
+                    <p className="mt-1 text-xs leading-5 text-[#a1a1aa]">Initialize governance using the workspace reserved admin slots and quorum.</p>
                   </div>
                   <button
                     type="button"
@@ -3507,25 +3514,9 @@ export default function AdminPage() {
 
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
                   <div>
-                    <p className="text-sm font-semibold text-white">Link payroll executor</p>
-                    <p className="mt-1 text-sm text-[#a1a1aa]">Once quorum is bootstrapped, bind the payroll workspace to this governance address so sensitive actions stop bypassing approval rules.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={linkGovernanceExecutor}
-                    disabled={!canSubmitTransactions || !organization.exists || isBusy || !governanceInitialized || !isAdmin}
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
-                  >
-                    Link Governance Executor
-                  </button>
-                </div>
-              </div>
-
-              <div className="mt-6 grid gap-6 xl:grid-cols-2">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
-                  <div>
-                    <p className="text-sm font-semibold text-white">Bootstrap the next admin signer</p>
-                    <p className="mt-1 text-sm text-[#a1a1aa]">Use this only before governance becomes active. It is the cleanest path for adding the second signer without already requiring quorum.</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Step 2</p>
+                    <p className="mt-2 text-sm font-semibold text-white">Add bootstrap admin</p>
+                    <p className="mt-1 text-xs leading-5 text-[#a1a1aa]">Use before governance is active to add the next signer without already needing quorum.</p>
                   </div>
                   <input
                     value={bootstrapAdminAddress}
@@ -3543,8 +3534,32 @@ export default function AdminPage() {
                   </button>
                 </div>
 
+                <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-5 space-y-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-50/65">Step 3</p>
+                    <p className="mt-2 text-sm font-semibold text-cyan-50">Link payroll executor</p>
+                    <p className="mt-1 text-xs leading-5 text-cyan-50/75">Bind this payroll workspace to governance so sensitive actions stop bypassing approval rules.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={linkGovernanceExecutor}
+                    disabled={!canSubmitTransactions || !organization.exists || isBusy || !governanceInitialized || !isAdmin}
+                    className="w-full rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-50 hover:bg-cyan-400/15 disabled:opacity-50"
+                  >
+                    Link Governance Executor
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-4 lg:grid-cols-[0.9fr,1.1fr]">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                  <p className="text-sm font-semibold text-white">Current governance admins</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Current signers</p>
+                      <p className="mt-2 text-sm font-semibold text-white">Governance admins</p>
+                    </div>
+                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs font-semibold text-white/65">{governanceAdmins.length} admin{governanceAdmins.length === 1 ? '' : 's'}</span>
+                  </div>
                   <div className="mt-4 space-y-3">
                     {governanceAdmins.length === 0 ? (
                       <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#a1a1aa]">
@@ -3553,9 +3568,9 @@ export default function AdminPage() {
                     ) : (
                       governanceAdmins.map((admin) => (
                         <div key={admin} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                          <div className="flex items-center justify-between gap-3">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <p className="font-mono text-sm text-white break-all">{admin}</p>
-                            <span className="text-[11px] uppercase tracking-[0.16em] text-white/45">
+                            <span className="shrink-0 text-[11px] uppercase tracking-[0.16em] text-white/45">
                               {governanceOverview?.primaryAdmin?.toLowerCase() === admin.toLowerCase() ? 'Primary' : 'Signer'}
                             </span>
                           </div>
@@ -3564,80 +3579,93 @@ export default function AdminPage() {
                     )}
                   </div>
                 </div>
-              </div>
 
-              <div className="mt-6 grid gap-6 xl:grid-cols-3">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
-                  <p className="text-sm font-semibold text-white">Propose admin addition</p>
-                  <input
-                    value={newGovernanceAdminAddress}
-                    onChange={(event) => setNewGovernanceAdminAddress(event.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                    placeholder="0x... new admin"
-                  />
-                  <button
-                    type="button"
-                    onClick={proposeGovernanceAdminAddition}
-                    disabled={!canSubmitTransactions || !governanceActive || isBusy || !newGovernanceAdminSafeAddress}
-                    className="w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-gray-200 disabled:opacity-50"
-                  >
-                    Add Admin Through Governance
-                  </button>
-                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Step 4</p>
+                    <p className="mt-2 text-sm font-semibold text-white">Propose governance changes</p>
+                    <p className="mt-1 text-xs leading-5 text-[#a1a1aa]">After multi-admin is active, admin and quorum changes enter the approval queue.</p>
+                  </div>
+                  <div className="mt-4 grid gap-3 xl:grid-cols-3">
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
+                      <p className="text-sm font-semibold text-white">Add admin</p>
+                      <input
+                        value={newGovernanceAdminAddress}
+                        onChange={(event) => setNewGovernanceAdminAddress(event.target.value)}
+                        className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                        placeholder="0x... new admin"
+                      />
+                      <button
+                        type="button"
+                        onClick={proposeGovernanceAdminAddition}
+                        disabled={!canSubmitTransactions || !governanceActive || isBusy || !newGovernanceAdminSafeAddress}
+                        className="w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-gray-200 disabled:opacity-50"
+                      >
+                        Propose Add
+                      </button>
+                    </div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
-                  <p className="text-sm font-semibold text-white">Propose admin removal</p>
-                  <input
-                    value={governanceAdminToRemove}
-                    onChange={(event) => setGovernanceAdminToRemove(event.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                    placeholder="0x... admin to remove"
-                  />
-                  <button
-                    type="button"
-                    onClick={proposeGovernanceAdminRemoval}
-                    disabled={!canSubmitTransactions || !governanceActive || isBusy || !governanceAdminToRemoveSafeAddress}
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
-                  >
-                    Remove Admin Through Governance
-                  </button>
-                </div>
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
+                      <p className="text-sm font-semibold text-white">Remove admin</p>
+                      <input
+                        value={governanceAdminToRemove}
+                        onChange={(event) => setGovernanceAdminToRemove(event.target.value)}
+                        className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                        placeholder="0x... admin"
+                      />
+                      <button
+                        type="button"
+                        onClick={proposeGovernanceAdminRemoval}
+                        disabled={!canSubmitTransactions || !governanceActive || isBusy || !governanceAdminToRemoveSafeAddress}
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                      >
+                        Propose Remove
+                      </button>
+                    </div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
-                  <p className="text-sm font-semibold text-white">Propose quorum update</p>
-                  <input
-                    value={nextGovernanceQuorum}
-                    onChange={(event) => setNextGovernanceQuorum(event.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                    placeholder="2"
-                  />
-                  <button
-                    type="button"
-                    onClick={proposeGovernanceQuorumUpdate}
-                    disabled={!canSubmitTransactions || !governanceActive || isBusy || nextGovernanceQuorumValue === null}
-                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
-                  >
-                    Update Quorum Through Governance
-                  </button>
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
+                      <p className="text-sm font-semibold text-white">Update quorum</p>
+                      <input
+                        value={nextGovernanceQuorum}
+                        onChange={(event) => setNextGovernanceQuorum(event.target.value)}
+                        className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                        placeholder="2"
+                      />
+                      <button
+                        type="button"
+                        onClick={proposeGovernanceQuorumUpdate}
+                        disabled={!canSubmitTransactions || !governanceActive || isBusy || nextGovernanceQuorumValue === null}
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                      >
+                        Propose Quorum
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </GlassCard>
 
             <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
-              <div className="flex items-center gap-3 mb-6">
-                <FolderCog className="w-5 h-5 text-cyan-300" />
-                <div>
-                  <h2 className="text-2xl font-bold text-white">Pending approvals</h2>
-                  <p className="mt-1 text-sm text-[#a1a1aa]">Cleartext actions execute directly from this queue once quorum is met. Encrypted actions show when the proposing admin must come back and submit the final wallet transaction.</p>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex items-start gap-3">
+                  <FolderCog className="mt-1 h-5 w-5 text-cyan-300" />
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Step 5</p>
+                    <h2 className="mt-2 text-2xl font-bold text-white">Pending approvals</h2>
+                    <p className="mt-1 max-w-3xl text-sm leading-6 text-[#a1a1aa]">Approve, revoke, or execute governance proposals once enough admins have signed. Encrypted proposals may require the original proposer to return for the final wallet action.</p>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white">
+                  {governanceProposals.length} proposal{governanceProposals.length === 1 ? '' : 's'}
                 </div>
               </div>
 
               {governanceProposals.length === 0 ? (
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-[#a1a1aa]">
+                <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-[#a1a1aa]">
                   No governance proposals have been created for this workspace yet.
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="mt-6 space-y-4">
                   {governanceProposals.map((proposal) => {
                     const expired = proposal.expiresAt <= Math.floor(Date.now() / 1000)
                     const quorumMet = governanceQuorum > 0 && proposal.approvalCount >= governanceQuorum
@@ -3647,8 +3675,8 @@ export default function AdminPage() {
 
                     return (
                       <div key={proposal.proposalId} className="rounded-3xl border border-white/10 bg-white/5 p-5">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                          <div>
+                        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                          <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="text-lg font-semibold text-white">{proposal.actionLabel}</p>
                               {proposal.executed ? (
@@ -3659,16 +3687,16 @@ export default function AdminPage() {
                                 <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-300">Expired</span>
                               ) : quorumMet ? (
                                 <span className="rounded-full bg-cyan-500/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-300">
-                                  {proposal.requiresWalletExecutor ? 'Ready for proposing admin' : 'Ready to execute'}
+                                  {proposal.requiresWalletExecutor ? 'Ready for proposer' : 'Ready to execute'}
                                 </span>
                               ) : (
                                 <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/55">Collecting approvals</span>
                               )}
                             </div>
                             <p className="mt-2 text-sm text-[#c9c9d0]">
-                              Proposed by <span className="font-mono text-white/80">{proposal.proposer}</span>
+                              Proposed by <span className="font-mono text-white/80 break-all">{proposal.proposer}</span>
                             </p>
-                            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                            <div className="mt-4 grid gap-3 md:grid-cols-3">
                               <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
                                 <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Approvals</p>
                                 <p className="mt-2 text-xl font-black text-white">{proposal.approvalCount}/{governanceQuorum || '—'}</p>
@@ -3684,7 +3712,7 @@ export default function AdminPage() {
                             </div>
                             <p className="mt-3 text-xs font-mono text-white/45 break-all">Proposal ID: {proposal.proposalId}</p>
                           </div>
-                          <div className="flex flex-wrap gap-3">
+                          <div className="grid gap-2 sm:grid-cols-3 xl:w-[330px] xl:grid-cols-1">
                             <button
                               type="button"
                               onClick={() => void approveGovernanceProposal(proposal.proposalId)}
@@ -4316,134 +4344,33 @@ export default function AdminPage() {
               ) : null}
 
               <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-white">Batch run sequence</p>
+                    <p className="text-sm font-semibold text-white">Execution order</p>
                     <p className="mt-1 text-xs leading-5 text-[#a1a1aa]">
-                      Import rows first, then create a run sized to {plannedHeadcountForCreate} employee{plannedHeadcountForCreate === 1 ? '' : 's'}. After sealing and submitting rows, fund and activate this same run.
+                      Import and clean rows, create the run, review and seal salaries, submit the batch, then fund and activate claims.
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowAdvancedRunSettings((current) => !current)}
-                    className="w-fit rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
-                  >
-                    {showAdvancedRunSettings ? 'Hide advanced run settings' : 'Advanced run settings'}
-                  </button>
-                </div>
-
-                {showAdvancedRunSettings ? (
-                  <div className="mt-4 grid gap-3 lg:grid-cols-[1fr,1fr]">
-                    <label className="space-y-2 text-sm block">
-                      <span className="text-white/70">Payroll run label</span>
-                      <input
-                        value={selectedPayrollRunInput}
-                        onChange={(event) => setSelectedPayrollRunInput(event.target.value)}
-                        className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                        placeholder="may-2026-payroll"
-                      />
-                    </label>
-                    <label className="space-y-2 text-sm block">
-                      <span className="text-white/70">Funding deadline</span>
-                      <input
-                        type="datetime-local"
-                        value={payrollFundingDeadlineInput}
-                        onChange={(event) => setPayrollFundingDeadlineInput(event.target.value)}
-                        className="cipherroll-date-input w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white"
-                      />
-                    </label>
-                    <div className="lg:col-span-2 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-xs text-[#a1a1aa]">
-                      <p>Advanced privacy note: readable run labels are easier to guess. Use a safer run ID when that matters.</p>
-                      <button
-                        type="button"
-                        onClick={assignHighEntropyPayrollRunLabel}
-                        className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-white transition-colors hover:bg-white/10"
-                      >
-                        Use safer run ID
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="mt-4 grid gap-3 xl:grid-cols-4">
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Step 1</p>
-                    <p className="mt-2 text-sm font-semibold text-white">Import CSV rows</p>
-                    <p className="mt-2 text-xs leading-5 text-[#a1a1aa]">Use the CSV import below, or add rows manually.</p>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Step 2</p>
-                    <p className="text-sm font-semibold text-white">Create payroll run</p>
-                    <button
-                      onClick={createPayrollRun}
-                      disabled={!canSubmitTransactions || isBusy || !organization.exists || plannedHeadcountForCreate > 500}
-                      className="w-full rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
-                    >
-                      Create Run
-                    </button>
-                  </div>
-                  {hasTreasuryRoute ? (
-                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Step 6</p>
-                      <p className="text-sm font-semibold text-white">Fund treasury</p>
-                      <div className="space-y-3">
-                        <input
-                          value={treasuryDepositAmount}
-                          onChange={(event) => setTreasuryDepositAmount(event.target.value)}
-                          className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                          placeholder={suggestedPayrollAmountDisplay ?? 'Treasury deposit amount'}
-                        />
-                        <button
-                          onClick={depositTreasuryFunds}
-                          disabled={!canSubmitTransactions || isBusy || treasuryDepositAmountInWei === null}
-                          className="w-full rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
-                        >
-                          Fund Treasury
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">
-                      {hasTreasuryRoute ? 'Step 7 / 8' : 'Step 6 / 7'}
-                    </p>
-                    <p className="text-sm font-semibold text-white">{hasTreasuryRoute ? 'Reserve and activate' : 'Fund and activate'}</p>
-                    <input
-                      value={payrollFundingAmount}
-                      onChange={(event) => setPayrollFundingAmount(event.target.value)}
-                      className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                      placeholder={suggestedPayrollAmountDisplay ?? 'Funding amount'}
-                    />
-                    <button
-                      onClick={fundPayrollRun}
-                      disabled={
-                        !(hasTreasuryRoute ? canSubmitTransactions : canEncryptInputs) ||
-                        isBusy ||
-                        !payrollRunExists ||
-                        payrollFundingAmountInWei === null
-                      }
-                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
-                    >
-                      {hasTreasuryRoute ? 'Reserve Treasury Funds' : 'Fund Run'}
-                    </button>
-                    <button
-                      onClick={activatePayrollRun}
-                      disabled={!canSubmitTransactions || isBusy || !payrollRunExists || payrollRun.status !== 1}
-                      className="w-full rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-50 hover:bg-cyan-400/15 disabled:opacity-50"
-                    >
-                      Activate Claim Window
-                    </button>
+                  <div className="flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/55">
+                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5">1 Import</span>
+                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5">2 Create run</span>
+                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5">3 Review</span>
+                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5">4 Seal</span>
+                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5">5 Submit</span>
+                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5">6 Fund</span>
+                    <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5">7 Activate</span>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-4 lg:grid-cols-[0.9fr,1.1fr]">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <div className="mt-6 grid gap-4 lg:grid-cols-[1.15fr,0.85fr]">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 lg:order-2">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-white">Role salaries</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Optional setup</p>
+                      <p className="mt-2 text-sm font-semibold text-white">Role salaries</p>
                       {!showBatchRoleEditor ? (
-                        <p className="mt-1 text-xs text-[#a1a1aa]">Hidden unless a CSV needs base salary cleanup.</p>
+                        <p className="mt-1 text-xs text-[#a1a1aa]">Only edit when CSV rows use role salaries or validation asks for cleanup.</p>
                       ) : null}
                     </div>
                     <button
@@ -4494,10 +4421,11 @@ export default function AdminPage() {
                   )}
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 lg:order-1">
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-white">Batch controls</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Step 1</p>
+                      <p className="mt-2 text-sm font-semibold text-white">Import employee CSV</p>
                       <p className="mt-1 text-xs text-[#a1a1aa]">
                         CSV columns: <span className="font-semibold text-white/80">employee, role, salary, memo</span>. Headers and role names are case-insensitive; save Excel files as CSV UTF-8 first.
                       </p>
@@ -4600,7 +4528,78 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="mt-6 overflow-x-auto rounded-2xl border border-white/10">
+              <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Step 2</p>
+                    <p className="mt-2 text-sm font-semibold text-white">Create the payroll run</p>
+                    <p className="mt-1 text-xs leading-5 text-[#a1a1aa]">
+                      The run is auto-sized to {plannedHeadcountForCreate} employee{plannedHeadcountForCreate === 1 ? '' : 's'} from the current batch rows.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvancedRunSettings((current) => !current)}
+                      className="rounded-2xl border border-white/15 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10"
+                    >
+                      {showAdvancedRunSettings ? 'Hide Advanced' : 'Advanced Run Settings'}
+                    </button>
+                    <button
+                      onClick={createPayrollRun}
+                      disabled={!canSubmitTransactions || isBusy || !organization.exists || plannedHeadcountForCreate > 500}
+                      className="rounded-2xl bg-white text-black px-6 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
+                    >
+                      Create Run
+                    </button>
+                  </div>
+                </div>
+
+                {showAdvancedRunSettings ? (
+                  <div className="mt-4 grid gap-3 lg:grid-cols-[1fr,1fr]">
+                    <label className="space-y-2 text-sm block">
+                      <span className="text-white/70">Payroll run label</span>
+                      <input
+                        value={selectedPayrollRunInput}
+                        onChange={(event) => setSelectedPayrollRunInput(event.target.value)}
+                        className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                        placeholder="may-2026-payroll"
+                      />
+                    </label>
+                    <label className="space-y-2 text-sm block">
+                      <span className="text-white/70">Funding deadline</span>
+                      <input
+                        type="datetime-local"
+                        value={payrollFundingDeadlineInput}
+                        onChange={(event) => setPayrollFundingDeadlineInput(event.target.value)}
+                        className="cipherroll-date-input w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white"
+                      />
+                    </label>
+                    <div className="lg:col-span-2 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-xs text-[#a1a1aa]">
+                      <p>Advanced privacy note: readable run labels are easier to guess. Use a safer run ID when that matters.</p>
+                      <button
+                        type="button"
+                        onClick={assignHighEntropyPayrollRunLabel}
+                        className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-white transition-colors hover:bg-white/10"
+                      >
+                        Use safer run ID
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-white">Employee rows</p>
+                    <p className="mt-1 text-xs leading-5 text-[#a1a1aa]">Check imported addresses, roles, optional salary overrides, and memos before reviewing the batch.</p>
+                  </div>
+                  <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs font-semibold capitalize text-white/65">
+                    Stage: {batchPayrollStage}
+                  </div>
+                </div>
+                <div className="overflow-x-auto rounded-2xl border border-white/10">
                 <table className="min-w-[900px] w-full text-left text-sm">
                   <thead className="bg-white/5 text-[11px] uppercase tracking-[0.16em] text-white/45">
                     <tr>
@@ -4690,41 +4689,53 @@ export default function AdminPage() {
                     })}
                   </tbody>
                 </table>
+                </div>
               </div>
 
-              <div className="mt-6 flex flex-col gap-3 lg:flex-row">
-                <button
-                  type="button"
-                  onClick={addBatchPayrollRow}
-                  disabled={batchPayrollStage === 'sealed'}
-                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
-                >
-                  Add Manual Row
-                </button>
-                <button
-                  type="button"
-                  onClick={prepareBatchPayrollReview}
-                  disabled={governanceActive || isBusy || batchPayrollRows.length === 0}
-                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
-                >
-                  Step 3: Review Batch
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void sealBatchPayroll()}
-                  disabled={governanceActive || isBatchPayrollSealing || batchPayrollStage !== 'review' || !canEncryptInputs}
-                  className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-gray-200 disabled:opacity-50"
-                >
-                  {isBatchPayrollSealing ? 'Sealing...' : 'Step 4: Seal Salaries'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void submitBatchPayrollQueue()}
-                  disabled={governanceActive || isBatchPayrollSubmitting || batchPayrollStage !== 'sealed' || !payrollRunOpenForAllocations || payrollRunRemainingAllocationSlots <= 0 || batchPayrollSubmittableRows.length === 0 || batchPayrollSubmittableRows.length > payrollRunRemainingAllocationSlots}
-                  className="rounded-2xl border border-violet-400/20 bg-violet-400/10 px-4 py-3 text-sm font-semibold text-violet-50 hover:bg-violet-400/15 disabled:opacity-50"
-                >
-                  {isBatchPayrollSubmitting ? 'Submitting...' : 'Step 5: Submit Batch'}
-                </button>
+              <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Steps 3–5</p>
+                    <p className="mt-2 text-sm font-semibold text-white">Review, seal, and submit allocations</p>
+                    <p className="mt-1 text-xs leading-5 text-[#a1a1aa]">
+                      Review validates rows, seal encrypts salaries in-browser, and submit sends one wallet transaction per payable employee.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addBatchPayrollRow}
+                    disabled={batchPayrollStage === 'sealed'}
+                    className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                  >
+                    Add Manual Row
+                  </button>
+                </div>
+                <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                  <button
+                    type="button"
+                    onClick={prepareBatchPayrollReview}
+                    disabled={governanceActive || isBusy || batchPayrollRows.length === 0}
+                    className="rounded-2xl border border-white/10 bg-black/20 px-4 py-4 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                  >
+                    Step 3: Review Batch
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void sealBatchPayroll()}
+                    disabled={governanceActive || isBatchPayrollSealing || batchPayrollStage !== 'review' || !canEncryptInputs}
+                    className="rounded-2xl bg-white px-4 py-4 text-sm font-semibold text-black hover:bg-gray-200 disabled:opacity-50"
+                  >
+                    {isBatchPayrollSealing ? 'Sealing...' : 'Step 4: Seal Salaries'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void submitBatchPayrollQueue()}
+                    disabled={governanceActive || isBatchPayrollSubmitting || batchPayrollStage !== 'sealed' || !payrollRunOpenForAllocations || payrollRunRemainingAllocationSlots <= 0 || batchPayrollSubmittableRows.length === 0 || batchPayrollSubmittableRows.length > payrollRunRemainingAllocationSlots}
+                    className="rounded-2xl border border-violet-400/20 bg-violet-400/10 px-4 py-4 text-sm font-semibold text-violet-50 hover:bg-violet-400/15 disabled:opacity-50"
+                  >
+                    {isBatchPayrollSubmitting ? 'Submitting...' : 'Step 5: Submit Batch'}
+                  </button>
+                </div>
               </div>
 
               {batchPayrollProgress ? (
@@ -4732,6 +4743,70 @@ export default function AdminPage() {
                   {batchPayrollProgress}
                 </div>
               ) : null}
+
+              <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">
+                    {hasTreasuryRoute ? 'Steps 6–8' : 'Steps 6–7'}
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-white">{hasTreasuryRoute ? 'Fund treasury, reserve, and activate claims' : 'Fund run and activate claims'}</p>
+                  <p className="mt-1 text-xs leading-5 text-[#a1a1aa]">
+                    These final actions happen after batch row transactions are confirmed.
+                  </p>
+                </div>
+                <div className={`mt-4 grid gap-3 ${hasTreasuryRoute ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
+                  {hasTreasuryRoute ? (
+                    <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 space-y-3">
+                      <p className="text-sm font-semibold text-emerald-50">Step 6: Fund treasury</p>
+                      <input
+                        value={treasuryDepositAmount}
+                        onChange={(event) => setTreasuryDepositAmount(event.target.value)}
+                        className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                        placeholder={suggestedPayrollAmountDisplay ?? 'Treasury deposit amount'}
+                      />
+                      <button
+                        onClick={depositTreasuryFunds}
+                        disabled={!canSubmitTransactions || isBusy || treasuryDepositAmountInWei === null}
+                        className="w-full rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
+                      >
+                        Fund Treasury
+                      </button>
+                    </div>
+                  ) : null}
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
+                    <p className="text-sm font-semibold text-white">{hasTreasuryRoute ? 'Step 7: Reserve funds' : 'Step 6: Fund run'}</p>
+                    <input
+                      value={payrollFundingAmount}
+                      onChange={(event) => setPayrollFundingAmount(event.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                      placeholder={suggestedPayrollAmountDisplay ?? 'Funding amount'}
+                    />
+                    <button
+                      onClick={fundPayrollRun}
+                      disabled={
+                        !(hasTreasuryRoute ? canSubmitTransactions : canEncryptInputs) ||
+                        isBusy ||
+                        !payrollRunExists ||
+                        payrollFundingAmountInWei === null
+                      }
+                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                    >
+                      {hasTreasuryRoute ? 'Reserve Treasury Funds' : 'Fund Run'}
+                    </button>
+                  </div>
+                  <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4 space-y-3">
+                    <p className="text-sm font-semibold text-cyan-50">{hasTreasuryRoute ? 'Step 8: Activate claims' : 'Step 7: Activate claims'}</p>
+                    <p className="text-xs leading-5 text-cyan-50/70">Open the employee claim window once the run is funded.</p>
+                    <button
+                      onClick={activatePayrollRun}
+                      disabled={!canSubmitTransactions || isBusy || !payrollRunExists || payrollRun.status !== 1}
+                      className="w-full rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-50 hover:bg-cyan-400/15 disabled:opacity-50"
+                    >
+                      Activate Claim Window
+                    </button>
+                  </div>
+                </div>
+              </div>
 
               <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
                 <div className="flex items-center justify-between gap-3">
