@@ -1,8 +1,11 @@
 # Hardhat and TypeScript build artifacts
+.next/
 artifacts/
 cache/
 coverage/
 dist/
+forge-cache/
+out/
 typechain-types/
 
 # Environment and secrets
@@ -25,6 +28,17 @@ Thumbs.db
 node_modules/
 backend/dist/
 backend/data/*.sqlite
+backend/data/*.sqlite-shm
+backend/data/*.sqlite-wal
 packages/*/dist/
+web/.next/
+web/node_modules/
+web/out/
+
+# Local logs and deployment caches
+*.log
+.vercel/
+docs/ROADMAP.md
+ignition/deployments/
 
 account.txt

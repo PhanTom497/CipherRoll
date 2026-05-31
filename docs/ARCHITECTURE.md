@@ -394,7 +394,6 @@ Current active chain target:
 ## 13. Related Docs
 
 - [README.md](../README.md)
-- [ROADMAP.md](./ROADMAP.md)
 - [TESTING.md](./TESTING.md)
 - [FRONTEND_MANUAL_QA.md](./FRONTEND_MANUAL_QA.md)
 - [PRIVACY_MATRIX.md](./PRIVACY_MATRIX.md)
