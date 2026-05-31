@@ -80,7 +80,7 @@ export default function WaveTwoNotesModal() {
     }
   }, []);
 
-  const currentMonthLabel = useMemo(() => "MAY 2026", []);
+  const currentMonthLabel = useMemo(() => "JUN 2026", []);
 
   if (!mounted) return null;
 

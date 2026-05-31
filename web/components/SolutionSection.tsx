@@ -70,12 +70,28 @@ const solutionCards = [
   },
   {
     icon: KeyRound,
-    title: "Platform-Ready Operations",
+    title: "Governed Execution & Operator Platform",
     desc:
-      "The current release pairs real payroll settlement with backend-assisted reporting, exports, workflow notifications, safer deployment paths, and contextual in-product guidance for operators and auditors.",
+      "M-of-N governance gates sensitive actions like payroll issuance, treasury route changes, and quorum updates. Batch payroll stays browser-local with sealed salaries and retryable submissions. Backend-assisted reporting, treasury exposure, workflow notifications, and Tier A compliance exports complete the operator surface.",
     accentLine: "via-zinc-200/38",
     glow: "bg-white/8"
   }
+];
+
+const capabilityCards = solutionCards.slice(0, 4);
+const governedExecutionCard = solutionCards[4];
+
+const privacyHighlights = [
+  { label: "Encrypted state", value: "Budget + payroll handles" },
+  { label: "Claim flow", value: "Employee wallet finalizes" },
+  { label: "Audit path", value: "Permit-based summaries" },
+  { label: "Evidence", value: "Verify / publish receipts" },
+  { label: "Governance", value: "M-of-N sensitive actions" },
+  { label: "Batch payroll", value: "Browser-local, sealed" },
+  { label: "Treasury", value: "Exposure + route health" },
+  { label: "Compliance", value: "Tier A aggregate export" },
+  { label: "Support", value: "CipherBot in product" },
+  { label: "Privacy", value: "Truthful boundary model" }
 ];
 
 export default function SolutionSection() {
@@ -129,12 +145,12 @@ export default function SolutionSection() {
 
           <p className={`mx-auto mt-6 max-w-3xl text-[16px] leading-[1.85] md:text-[19px] ${solutionBodyTone}`}>
             CipherRoll is a confidential payroll system built on the official CoFHE stack for{" "}
-            {TARGET_CHAIN_NAME}. It keeps payroll budgets, commitments, allocations, and audit summaries encrypted while still giving teams a real settlement path, employee self-claim flow, and compliance-safe disclosure surface.
+            {TARGET_CHAIN_NAME}. It keeps payroll budgets, commitments, allocations, and audit summaries encrypted while still giving teams a real settlement path, employee self-claim flow, M-of-N governed execution, browser-local batch payroll, and Tier A compliance-safe disclosure surface.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-6">
-          <div className="relative group lg:col-span-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-12">
+          <div className="relative group lg:col-span-7">
             <div className="absolute -inset-[1px] rounded-[28px] blur-sm bg-white/10" />
             <div className="relative h-full overflow-hidden rounded-[28px] border border-white/12 bg-[#090909]/84 p-8 md:p-10 backdrop-blur-sm">
               <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
@@ -164,10 +180,10 @@ export default function SolutionSection() {
             desc="CipherRoll’s preferred settlement path uses a treasury-backed FHERC20 wrapper route so payroll stays encrypted before wrapper-request decryption, while the request/finalize proof path is treated honestly as an on-chain disclosure point."
             accentLine="via-white/35"
             glow="bg-white/6"
-            className="lg:col-span-2"
+            className="lg:col-span-5"
           />
 
-          {solutionCards.map((card) => (
+          {capabilityCards.map((card) => (
             <FeatureCard
               key={card.title}
               icon={card.icon}
@@ -179,43 +195,62 @@ export default function SolutionSection() {
             />
           ))}
 
-          <div className="relative group lg:col-span-6">
-            <div className="absolute -inset-[1px] rounded-[28px] blur-sm bg-cyan-500/8" />
-            <div className="relative overflow-hidden rounded-[28px] border border-cyan-400/12 bg-[#090909]/84 p-8 md:p-10 backdrop-blur-sm">
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/35 to-transparent" />
-              <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-8">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] border border-cyan-300/16 bg-cyan-300/6">
-                    <KeyRound className="h-7 w-7 text-cyan-200" />
-                  </div>
-                  <div>
-                    <h3 className="mb-4 text-[24px] font-semibold tracking-[-0.03em] text-white md:text-[30px]">
-                      Private by default, selective by design
-                    </h3>
-                    <p className={`max-w-3xl text-[15px] leading-[1.82] ${solutionBodyTone}`}>
-                      CipherRoll does not promise a fake “everything is hidden” story. Salary amounts, budget summaries,
-                      runway, and aggregate disclosures stay encrypted. Wallet addresses, workflow states, deadlines,
-                      and settlement transactions remain public. When teams need audit evidence, CipherRoll upgrades
-                      shared aggregate values from simple viewing into verifiable receipts without exposing employee-level payroll history.
-                    </p>
-                  </div>
-                </div>
+          <FeatureCard
+            icon={governedExecutionCard.icon}
+            title={governedExecutionCard.title}
+            desc={governedExecutionCard.desc}
+            accentLine={governedExecutionCard.accentLine}
+            glow={governedExecutionCard.glow}
+            className="lg:col-span-5"
+          />
 
-                <div className="grid grid-cols-2 gap-3 md:w-[320px]">
-                  {[
-                    { label: "Encrypted state", value: "Budget + payroll handles" },
-                    { label: "Claim flow", value: "Employee wallet finalizes" },
-                    { label: "Audit path", value: "Permit-based summaries" },
-                    { label: "Evidence", value: "Verify / publish receipts" },
-                    { label: "Hardening", value: "Truthful privacy boundary" },
-                    { label: "Support", value: "CipherBot in product" }
-                  ].map((item) => (
-                    <div key={item.label} className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
-                      <div className="text-[10px] uppercase tracking-[0.2em] text-white/34">{item.label}</div>
-                      <div className={`mt-2 text-[13px] leading-[1.5] ${solutionBodyTone}`}>{item.value}</div>
-                    </div>
-                  ))}
+          <div className="relative group lg:col-span-7">
+            <div className="absolute -inset-[1px] rounded-[28px] blur-sm bg-cyan-500/8" />
+            <div className="relative h-full overflow-hidden rounded-[28px] border border-cyan-400/12 bg-[#090909]/84 p-8 md:p-10 backdrop-blur-sm">
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/35 to-transparent" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-[22px] border border-cyan-300/16 bg-cyan-300/6">
+                <KeyRound className="h-7 w-7 text-cyan-200" />
+              </div>
+              <div className="mt-10">
+                <h3 className="mb-4 text-[24px] font-semibold tracking-[-0.03em] text-white md:text-[30px]">
+                  Private by default, selective by design
+                </h3>
+                <p className={`max-w-4xl text-[15px] leading-[1.82] ${solutionBodyTone}`}>
+                  CipherRoll does not promise a fake &ldquo;everything is hidden&rdquo; story. Salary amounts, budget summaries,
+                  runway, and aggregate disclosures stay encrypted on-chain. Wallet addresses, workflow states, deadlines,
+                  and settlement transactions remain public by EVM design. When teams need audit evidence, CipherRoll upgrades
+                  shared aggregate values from simple viewing into verifiable on-chain receipts without exposing employee-level payroll history.
+                  Governance gates sensitive execution, batch payroll stays browser-local, and compliance exports carry only aggregate policy data.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative group lg:col-span-12">
+            <div className="absolute -inset-[1px] rounded-[28px] blur-sm bg-cyan-500/8" />
+            <div className="relative h-full overflow-hidden rounded-[28px] border border-cyan-400/12 bg-[#090909]/84 p-7 md:p-8 backdrop-blur-sm">
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/35 to-transparent" />
+              <div className="mb-6 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/60">
+                    Selective disclosure map
+                  </p>
+                  <h3 className="mt-2 text-[22px] font-semibold tracking-[-0.03em] text-white">
+                    What stays private, what stays operational
+                  </h3>
                 </div>
+                <p className={`max-w-xl text-[13px] leading-[1.65] ${solutionBodyTone}`}>
+                  A quick operator map of the privacy boundary and the surfaces intentionally kept usable.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+                {privacyHighlights.map((item) => (
+                  <div key={item.label} className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-white/34">{item.label}</div>
+                    <div className={`mt-2 text-[13px] leading-[1.5] ${solutionBodyTone}`}>{item.value}</div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
