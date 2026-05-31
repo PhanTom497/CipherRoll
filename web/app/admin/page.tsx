@@ -4882,7 +4882,7 @@ export default function AdminPage() {
                 </div>
 
                 <p className="mb-5 max-w-2xl text-[13px] leading-6 text-white/42">
-                  Use this order for the cleanest operator pass. It matches the real product flow from workspace creation through settlement review and avoids the most common demo mistakes.
+                  Follow this sequence for the cleanest operator experience. It reflects the real Wave 5 product flow from workspace creation through settlement review and covers governance, batch payroll, treasury exposure, and compliance exports.
                 </p>
 
                 <div className="space-y-3">
@@ -4890,43 +4890,43 @@ export default function AdminPage() {
                     {
                       step: "01",
                       title: "Connect the admin wallet on Arbitrum Sepolia",
-                      desc: "Start by connecting your admin wallet and confirming the network is correct before loading the workspace.",
+                      desc: "Connect your admin wallet and confirm the network. CipherRoll will initialize the CoFHE client automatically.",
                       icon: Wallet
                     },
                     {
                       step: "02",
-                       title: "Turn on secure view before private actions",
-                       desc: "Turn on secure view before adding private budget, viewing summary details, or any flow that depends on encrypted data.",
+                      title: "Enable secure view before any encrypted operations",
+                      desc: "Turn on secure view before funding budget, viewing summaries, or performing any action that depends on encrypted data. This authorizes your browser to decrypt ciphertext handles locally.",
                       icon: KeyRound
                     },
                     {
                       step: "03",
-                       title: "Create the workspace and payout route",
-                       desc: "Register the workspace, set up the payout route, and refresh until the workspace details and admin role look correct.",
+                      title: "Create the workspace and configure the treasury route",
+                      desc: "Register the organization, set up the treasury route (direct or FHERC20 wrapper-backed), and refresh until workspace details and admin role appear correctly.",
                       icon: Building2
                     },
                     {
                       step: "04",
-                       title: "Set up multi-admin before sensitive actions",
-                       desc: "If this workspace needs multi-admin approval, set it up, add the remaining admins, and link payroll before treasury changes or payroll issuance require approvals.",
+                      title: "Set up M-of-N governance for sensitive actions",
+                      desc: "If this workspace needs governed execution, add governance admins and set the quorum before any payroll issuance, treasury route changes, or quorum updates require approval. Operational actions like funding and activation remain single-admin.",
                       icon: ShieldCheck
                     },
                     {
                       step: "05",
-                       title: "Add budget and confirm summary refresh",
-                       desc: "Deposit payroll funds into the treasury, then refresh the dashboard so the available budget and committed amounts are up to date.",
+                      title: "Fund the encrypted budget and confirm summary refresh",
+                      desc: "Deposit payroll funds into the treasury, then refresh the dashboard so the encrypted budget, committed payroll, and available runway update correctly.",
                       icon: FolderCog
                     },
                     {
                       step: "06",
-                       title: "Create a payroll cycle, issue payments, then fund and activate",
-                       desc: "Import the CSV first for batch payroll, create the cycle, add private payments, reserve funds, and then open employee claims.",
+                      title: "Create a payroll run, issue allocations, fund, and activate claims",
+                      desc: "Create the payroll cycle. Use single-row issuance for governed workspaces or the batch workspace for browser-local CSV import with sealed salaries. Reserve treasury funds, then activate claims so employees can self-claim.",
                       icon: ShieldCheck
                     },
                     {
                       step: "07",
-                       title: "Use reporting and auditor access for review",
-                       desc: "Refresh the workflow feed, export reports when needed, and set up auditor access only after the payroll is in the state you want to share.",
+                      title: "Review treasury exposure, reporting, and auditor access",
+                      desc: "Check the treasury exposure panel for route health, payout backlog, and reserve posture. Export reports, review workflow notifications, and set up auditor permit sharing only after payroll is in the state you want to disclose.",
                       icon: FileKey2
                     }
                   ].map((item) => (

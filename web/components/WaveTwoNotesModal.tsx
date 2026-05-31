@@ -16,11 +16,11 @@ const STORAGE_KEY = "cipherroll-submission-notes-dismissed";
 const notes = [
   {
     id: "01",
-    eyebrow: "Final Build",
+    eyebrow: "Product",
     badge: "Wave 5",
-    title: "CipherRoll is now a complete confidential payroll product surface",
+    title: "Full-stack confidential payroll from workspace creation to employee payout",
     body:
-      "Wave 5 closes the final roadmap with governed sensitive actions, browser-local batch payroll, treasury exposure reporting, aggregate compliance packages, and a read-only product copilot layered on top of the encrypted payroll core.",
+      "CipherRoll ships encrypted on-chain payroll state, real treasury-backed settlement, M-of-N governed execution, browser-local batch payroll, aggregate-only audit review with verifiable receipts, Tier A compliance exports, backend-assisted reporting, and an in-product copilot. This is the final verified build on the current roadmap.",
     icon: Wallet,
     accent: "from-emerald-300/18 via-emerald-300/8 to-transparent"
   },
@@ -28,29 +28,29 @@ const notes = [
     id: "02",
     eyebrow: "Governance",
     badge: "M-of-N",
-    title: "Sensitive execution is governed without freezing live payroll operations",
+    title: "Sensitive actions require multi-admin approval without blocking operations",
     body:
-      "Payroll issuance, vesting issuance, treasury route changes, governance membership, and quorum changes now route through M-of-N governance. Create run, fund run, reserve funds, and activate run stay single-admin operational actions so the product remains usable.",
+      "Payroll issuance, vesting issuance, treasury route changes, governance membership, and quorum updates route through M-of-N governance proposals. Operational actions like creating runs, funding runs, reserving treasury funds, and activating claims remain single-admin so the day-to-day workflow stays frictionless.",
     icon: ShieldCheck,
     accent: "from-cyan-300/18 via-cyan-300/8 to-transparent"
   },
   {
     id: "03",
-    eyebrow: "Operations",
-    badge: "Batch",
-    title: "Batch payroll is browser-local, sealed, retryable, and salary-safe",
+    eyebrow: "Batch Payroll",
+    badge: "Sealed",
+    title: "Browser-local batch authoring with sealed salaries and retryable submission",
     body:
-      "Operators can import CSV rows locally, validate employee addresses and roles, seal encrypted salaries in the browser, and submit one explicit wallet transaction per employee row. Backend manifests store safe role and transaction metadata, not salary amounts.",
+      "Import CSV rows locally, validate employee addresses and role assignments, review before encryption, then seal salaries in the browser using CoFHE. Each row submits as one explicit wallet transaction. Backend manifests store org id, run id, employee address, role, and tx hash\u2014never salary amounts. Governed workspaces see a warning and cannot seal batch rows.",
     icon: Lock,
     accent: "from-white/14 via-white/5 to-transparent"
   },
   {
     id: "04",
     eyebrow: "Treasury",
-    badge: "Hardened",
-    title: "Treasury exposure and payout policy are visible without salary disclosure",
+    badge: "Exposure",
+    title: "Route health, payout backlog, and reserve posture without salary disclosure",
     body:
-      "The backend and admin portal now expose route health, available and reserved inventory, payout backlog, funded or active run exposure, and adapter-pinned wrapper finalization safety. These are operational signals, not plaintext salary reports.",
+      "The backend and admin portal surface route health, available and reserved treasury inventory, payout backlog, funded and active run exposure, and adapter-pinned wrapper finalization safety. Wrapper settlement requests are pinned to the adapter that created them so route changes cannot silently finalize against a different path. These are operational signals, not plaintext salary reports.",
     icon: Eye,
     accent: "from-violet-300/18 via-violet-300/8 to-transparent"
   },
@@ -58,9 +58,9 @@ const notes = [
     id: "05",
     eyebrow: "Compliance",
     badge: "Tier A",
-    title: "Auditor evidence now feeds aggregate compliance packages",
+    title: "Aggregate compliance packages with reserve policy and receipt evidence",
     body:
-      "The tax route now produces aggregate-first compliance packages with reserve policy, treasury posture, and receipt metadata. It is intentionally not a tax filing, not an authority integration, and not an employee salary export.",
+      "The compliance route produces aggregate-first packages with an explicit tax reserve basis-point policy, treasury posture summary, and receipt metadata, exportable as JSON or CSV. This is not a tax filing, not an external authority integration, and not an employee salary export. Regulator-facing review remains aggregate-first.",
     icon: FileCheck2,
     accent: "from-amber-300/18 via-amber-300/8 to-transparent"
   }
@@ -120,17 +120,21 @@ export default function WaveTwoNotesModal() {
                   Wave 5
                 </span>
                 <span>{currentMonthLabel}</span>
-                <span>Final Build</span>
+                <span>Final Submission</span>
               </div>
 
-              <div className="mb-7 md:mb-9">
+              <div className="mb-4 md:mb-5">
                 <div className="bg-gradient-to-r from-white via-zinc-300 to-white/75 bg-clip-text text-[38px] font-semibold italic tracking-[-0.05em] text-transparent md:text-[50px]">
                   CipherRoll
                 </div>
                 <div className="mt-1 text-[20px] font-medium tracking-[-0.04em] text-white/46 md:text-[30px]">
-                  Final Wave 5 Build
+                  Final Submission
                 </div>
               </div>
+
+              <p className="mb-6 max-w-3xl text-[13px] leading-[1.8] text-white/36 md:mb-7 md:text-[14px]">
+                The items below represent the Wave 5 scope only. Earlier waves established the encrypted payroll core, real settlement paths, auditor selective disclosure, submission hardening, and the backend platform layer. See the docs roadmap for the full progression.
+              </p>
 
               <div className="space-y-4 md:space-y-5">
                 {notes.map((note) => {
