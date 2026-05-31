@@ -58,41 +58,41 @@ CipherRoll keeps the **financial core private** while staying honest about what 
 
 ## What CipherRoll Solves
 
-CipherRoll is a confidential payroll system where **sensitive financial values stay encrypted on-chain as FHE handles** while the product still supports a complete payroll workflow — from workspace creation through employee payout and audit evidence.
+CipherRoll is a confidential payroll system where **sensitive financial values stay encrypted on-chain as FHE handles** while the product still supports a **complete payroll workflow** — from workspace creation through employee payout and audit evidence.
 
 ### 🔐 Encrypted Payroll Core
 
-Salary amounts, budget state, committed payroll, and runway-sensitive values stay encrypted on-chain as `euint128` CoFHE handles. The contract performs arithmetic over ciphertext — the underlying integers are never exposed to host operators.
+**Salary amounts**, **budget state**, **committed payroll**, and **runway** stay encrypted on-chain as `euint128` CoFHE handles. The contract performs **arithmetic over ciphertext** — the underlying integers are never exposed to host operators.
 
 ### 💸 Real Treasury-Backed Settlement
 
-CipherRoll does not stop at encrypted bookkeeping. Payroll runs reserve real treasury inventory and settle through live payout paths:
-- **Direct settlement** — immediate ERC20 token release to the employee
-- **Wrapper-backed settlement** — confidential FHERC20-style request/finalize unshield flow that keeps balances encrypted before on-chain proof submission
+CipherRoll does not stop at encrypted bookkeeping. Payroll runs **reserve real treasury inventory** and settle through live payout paths:
+- **Direct settlement** — immediate **ERC20 token release** to the employee
+- **Wrapper-backed settlement** — confidential **FHERC20-style request/finalize unshield** flow that keeps balances encrypted before on-chain proof submission
 
 ### 🛡️ M-of-N Governed Execution
 
-Payroll issuance, vesting issuance, treasury route changes, governance membership, and quorum updates route through M-of-N governance proposals with approval, revocation, expiration, and cancellation. Operational actions like creating runs, funding, and activating claims remain single-admin so the day-to-day workflow stays frictionless.
+**Payroll issuance**, **vesting issuance**, **treasury route changes**, **governance membership**, and **quorum updates** route through **M-of-N governance proposals** with approval, revocation, expiration, and cancellation. **Operational actions** like creating runs, funding, and activating claims remain **single-admin** so the day-to-day workflow stays frictionless.
 
 ### 📦 Browser-Local Batch Payroll
 
-CSV import, row validation, review-before-encryption, salary sealing in the browser, and retryable one-transaction-per-row submission. Backend manifests store only org id, run id, employee address, role, and tx hash — never salary amounts.
+**CSV import**, **row validation**, **review-before-encryption**, **salary sealing in the browser**, and **retryable one-transaction-per-row** submission. Backend manifests store only org id, run id, employee address, role, and tx hash — **never salary amounts**.
 
 ### 🧾 Aggregate-Only Audit Review
 
-Auditors import a shared permit and review organization-level summaries — budget, committed payroll, available runway, run counts, treasury status — without unlocking individual employee salary rows. When view-only review is insufficient, CipherRoll upgrades shared aggregates into **verifiable or published on-chain receipts**.
+Auditors import a **shared permit** and review **organization-level summaries** — budget, committed payroll, available runway, run counts, treasury status — without unlocking **individual employee salary rows**. When view-only review is insufficient, CipherRoll upgrades shared aggregates into **verifiable or published on-chain receipts**.
 
 ### 📊 Tier A Compliance Exports
 
-The compliance route produces aggregate-first packages with an explicit tax reserve basis-point policy, treasury posture, and receipt metadata — exportable as JSON or CSV. This is not a tax filing, not an authority integration, and not an employee salary export.
+The compliance route produces **aggregate-first packages** with an **explicit tax reserve basis-point policy**, **treasury posture**, and **receipt metadata** — exportable as **JSON or CSV**. This is not a tax filing, not an authority integration, and not an employee salary export.
 
 ### 🧠 In-Product Copilot
 
-CipherBot is a retrieval-backed product assistant live across docs and all four product portals. It answers workflow questions, explains disclosure boundaries, and helps operators troubleshoot common issues — without taking autonomous actions.
+**CipherBot** is a **retrieval-backed** product assistant live across docs and all four product portals. It answers workflow questions, explains **disclosure boundaries**, and helps operators troubleshoot common issues — **without taking autonomous actions**.
 
 ### ☁️ Hosted Full-Stack Deployment
 
-Vercel frontend, Render backend, Supabase-backed Postgres persistence. The deployed product depends on all three layers being in place.
+**Vercel** frontend, **Render** backend, **Supabase-backed Postgres** persistence. The deployed product depends on **all three layers** being in place.
 
 ---
 
@@ -169,11 +169,11 @@ flowchart TD
 
 | Layer | Role |
 | --- | --- |
-| **Contracts** | Confidential payroll logic, M-of-N governance, aggregate-only auditor disclosure, and settlement coordination |
-| **Frontend** | Admin, employee, auditor, compliance, and docs surfaces with wallet-local decrypt |
-| **Backend** | Chain indexer, read models, reporting APIs, treasury exposure, compliance packages, notifications, exports |
-| **Shared SDK** | Runtime config, backend client, shared types, compliance helpers, and CipherBot knowledge base |
-| **Database** | Supabase-backed Postgres for durable indexed persistence |
+| **Contracts** | **Confidential payroll logic**, **M-of-N governance**, **aggregate-only auditor disclosure**, and **settlement coordination** |
+| **Frontend** | Admin, employee, auditor, compliance, and docs surfaces with **wallet-local decrypt** |
+| **Backend** | **Chain indexer**, **read models**, **reporting APIs**, **treasury exposure**, **compliance packages**, **notifications**, **exports** |
+| **Shared SDK** | **Runtime config**, **backend client**, **shared types**, **compliance helpers**, and **CipherBot knowledge base** |
+| **Database** | **Supabase-backed Postgres** for **durable indexed persistence** |
 
 ---
 
@@ -181,28 +181,28 @@ flowchart TD
 
 ### CipherRollPayroll
 
-The core payroll contract handles the complete confidential payroll lifecycle:
+The core payroll contract handles the **complete confidential payroll lifecycle**:
 
 **Write operations:**
 
 | Function | Access | Governance-gated? |
 | --- | --- | --- |
 | `createOrganization` | Any | No |
-| `configureOrganizationGovernanceExecutor` | Primary admin | No |
-| `configureTreasury` | Admin | **Yes** — direct execution by governance contract |
+| `configureOrganizationGovernanceExecutor` | **Primary admin** | No |
+| `configureTreasury` | Admin | **Yes** — **direct execution** by governance contract |
 | `depositBudget` | Admin | No |
-| `createPayrollRun` | Operational admin | No |
+| `createPayrollRun` | **Operational admin** | No |
 | `fundPayrollRun` | Admin | No |
-| `fundPayrollRunFromTreasury` | Operational admin | No |
-| `activatePayrollRun` | Operational admin | No |
-| `issueConfidentialPayroll` | Admin | **Yes** — wallet execution with governance check |
-| `issueConfidentialPayrollToRun` | Admin | **Yes** — wallet execution with governance check |
-| `issueVestingAllocation` | Admin | **Yes** — wallet execution with governance check |
-| `issueVestingAllocationToRun` | Admin | **Yes** — wallet execution with governance check |
-| `claimPayroll` | Employee | No |
-| `claimPayrollWithSettlement` | Employee | No |
-| `requestPayrollSettlement` | Employee | No |
-| `finalizePayrollSettlement` | Employee | No |
+| `fundPayrollRunFromTreasury` | **Operational admin** | No |
+| `activatePayrollRun` | **Operational admin** | No |
+| `issueConfidentialPayroll` | Admin | **Yes** — **wallet execution** with governance check |
+| `issueConfidentialPayrollToRun` | Admin | **Yes** — **wallet execution** with governance check |
+| `issueVestingAllocation` | Admin | **Yes** — **wallet execution** with governance check |
+| `issueVestingAllocationToRun` | Admin | **Yes** — **wallet execution** with governance check |
+| `claimPayroll` | **Employee** | No |
+| `claimPayrollWithSettlement` | **Employee** | No |
+| `requestPayrollSettlement` | **Employee** | No |
+| `finalizePayrollSettlement` | **Employee** | No |
 
 **Encrypted state (`euint128`):**
 
@@ -213,37 +213,37 @@ The core payroll contract handles the complete confidential payroll lifecycle:
 | Available runway | `_encryptedAvailable[orgId]` |
 | Employee allocation amount | `_allocationAmounts[paymentId]` |
 
-All encrypted values use the `bytes32` ciphertext-handle model and are operated on through CoFHE coprocessor instructions (`FHE.add`, `FHE.sub`, `FHE.gte`, `FHE.select`, `FHE.asEuint128`). The contract calls `FHE.allowThis` on every new encrypted value so it can perform subsequent operations, and `FHE.allow(value, address)` to grant decrypt access to the intended viewer.
+All encrypted values use the **`bytes32` ciphertext-handle model** and are operated on through **CoFHE coprocessor instructions** (`FHE.add`, `FHE.sub`, `FHE.gte`, `FHE.select`, `FHE.asEuint128`). The contract calls **`FHE.allowThis`** on every new encrypted value so it can perform subsequent operations, and **`FHE.allow(value, address)`** to grant decrypt access to the intended viewer.
 
 ### CipherRollAuditorDisclosure
 
-A dedicated contract for audit-safe reads that **never exposes employee-level data**:
+A dedicated contract for **audit-safe reads** that **never exposes employee-level data**:
 
 | Surface | What it returns |
 | --- | --- |
-| `getAuditorOrganizationSummary` | Treasury status, run counts, item counts, employee recipients, last issued/claimed timestamps — all aggregate |
-| `getAuditorEncryptedSummaryHandles` | Three `euint128` handles: budget, committed, available — for permit-backed `decryptForView` |
-| `verifyAuditorAggregateDisclosure` | Verifies a decrypt proof via `FHE.verifyDecryptResult`, emits an on-chain receipt |
-| `publishAuditorAggregateDisclosure` | Verifies and calls `FHE.publishDecryptResult`, emits a published receipt |
+| `getAuditorOrganizationSummary` | Treasury status, run counts, item counts, employee recipients, last issued/claimed timestamps — **all aggregate** |
+| `getAuditorEncryptedSummaryHandles` | Three `euint128` handles: **budget, committed, available** — for **permit-backed** `decryptForView` |
+| `verifyAuditorAggregateDisclosure` | Verifies a decrypt proof via **`FHE.verifyDecryptResult`**, emits an **on-chain receipt** |
+| `publishAuditorAggregateDisclosure` | Verifies and calls **`FHE.publishDecryptResult`**, emits a **published receipt** |
 | `verifyAuditorAggregateDisclosureBatch` | Batch verify for multiple aggregate metrics |
 | `publishAuditorAggregateDisclosureBatch` | Batch publish for multiple aggregate metrics |
 
 ### CipherRollGovernance
 
-M-of-N governance with dual execution modes:
+**M-of-N governance** with **dual execution modes**:
 
 | Mode | How it works | Used for |
 | --- | --- | --- |
 | **Direct execution** | Governance contract calls payroll directly via `executeGovernanceProposal` | `ConfigureTreasury` |
 | **Wallet execution** | Admin calls payroll; payroll internally verifies governance approval via `_consumeGovernanceWalletAction` | `IssueConfidentialPayroll`, `IssueConfidentialPayrollToRun`, `IssueVestingAllocation`, `IssueVestingAllocationToRun` |
 
-Each proposal has: proposer auto-approval, multi-admin approval tracking, revocation, expiration (`expiresAt`), and cancellation by proposer or primary admin. Execution requires `approvalCount >= quorum`.
+Each proposal has: **proposer auto-approval**, **multi-admin approval tracking**, **revocation**, **expiration** (`expiresAt`), and **cancellation** by proposer or primary admin. Execution requires `approvalCount >= quorum`.
 
 ---
 
 ## Payroll Lifecycle
 
-CipherRoll models payroll as an explicit state machine, not a single-step action:
+CipherRoll models payroll as an **explicit state machine**, not a single-step action:
 
 ```mermaid
 stateDiagram-v2
@@ -268,44 +268,44 @@ stateDiagram-v2
     end note
 ```
 
-This sequencing matters because claimability depends on successful treasury funding and explicit activation — not on allocation issuance alone.
+This sequencing matters because **claimability depends on successful treasury funding and explicit activation** — not on allocation issuance alone.
 
 ### Admin Flow
 
 1. Connect admin wallet on **Arbitrum Sepolia**
-2. Initialize **CoFHE** client and enable secure view
-3. Create workspace / organization
-4. Fund encrypted organization budget via `depositBudget`
-5. Configure treasury route (direct or wrapper-backed) — **governed** if M-of-N is active
-6. Optionally bootstrap M-of-N governance and add admins
-7. Create payroll run
-8. Issue confidential allocations — **governed** if M-of-N is active, or use batch workspace for CSV-driven issuance
-9. Reserve treasury-backed run funding
-10. Activate claims
-11. Review treasury exposure, notifications, compliance packages, and exports
+2. Initialize **CoFHE** client and **enable secure view**
+3. **Create workspace** / organization
+4. **Fund encrypted organization budget** via `depositBudget`
+5. **Configure treasury route** (direct or wrapper-backed) — **governed** if M-of-N is active
+6. Optionally **bootstrap M-of-N governance** and add admins
+7. **Create payroll run**
+8. **Issue confidential allocations** — **governed** if M-of-N is active, or use **batch workspace** for CSV-driven issuance
+9. **Reserve treasury-backed** run funding
+10. **Activate claims**
+11. Review **treasury exposure**, **notifications**, **compliance packages**, and **exports**
 
 ### Employee Flow
 
 1. Connect employee wallet
-2. Create or reuse local permit session via `@cofhe/sdk`
+2. Create or reuse **local permit session** via `@cofhe/sdk`
 3. Review payroll allocations
-4. Decrypt amounts locally in the browser via `decryptForView`
-5. Claim payroll
-6. Finalize wrapper-backed payout when the route requires it (`requestPayrollSettlement` → `finalizePayrollSettlement`)
+4. **Decrypt amounts locally** in the browser via `decryptForView`
+5. **Claim payroll**
+6. **Finalize wrapper-backed payout** when the route requires it (`requestPayrollSettlement` → `finalizePayrollSettlement`)
 
 ### Auditor Flow
 
-1. Import admin-shared recipient permit payload
-2. Activate permit locally
-3. Review aggregate-only organization metrics (budget, committed, available, run counts, treasury status)
-4. Decrypt only the allowed summary values
-5. Generate verify or publish receipts when on-chain evidence is needed
+1. Import **admin-shared recipient permit** payload
+2. **Activate permit** locally
+3. Review **aggregate-only** organization metrics (budget, committed, available, run counts, treasury status)
+4. **Decrypt only the allowed summary values**
+5. Generate **verify or publish receipts** when on-chain evidence is needed
 
 ---
 
 ## Treasury Architecture
 
-CipherRoll uses treasury adapters so payroll value comes from a real token inventory, not from implied contract-internal balances:
+CipherRoll uses **treasury adapters** so payroll value comes from a **real token inventory**, not from implied contract-internal balances:
 
 ```mermaid
 flowchart LR
@@ -336,26 +336,26 @@ flowchart LR
 
 ### Direct settlement
 
-Useful when a workspace uses standard ERC20 settlement without requiring confidential balances at the payout step. The adapter transfers tokens directly to the employee upon verified claim.
+Useful when a workspace uses **standard ERC20 settlement** without requiring confidential balances at the payout step. The adapter **transfers tokens directly** to the employee upon verified claim.
 
 ### Wrapper-backed settlement
 
-Useful when payroll should stay confidential deeper into the payout path. The adapter shields ERC20 into a confidential payroll token, then the employee initiates a two-phase unshield flow:
+Useful when payroll should **stay confidential deeper into the payout path**. The adapter **shields ERC20 into a confidential payroll token**, then the employee initiates a **two-phase unshield flow**:
 
 1. **`requestPayrollSettlement`** — creates a pending unshield request stored on-chain
 2. **`finalizePayrollSettlement`** — submits a `decryptForTx` proof, the adapter calls `claimUnshielded`, and the underlying ERC20 is released
 
-**Route-pinning safety:** Wrapper settlement requests are pinned to the adapter that created them. If the org's treasury route changes between request and finalize, the finalize reverts with `"CipherRoll: settlement route changed"`. This prevents silent finalization against a different path.
+**Route-pinning safety:** Wrapper settlement requests are **pinned to the adapter that created them**. If the org's treasury route changes between request and finalize, the finalize **reverts** with `"CipherRoll: settlement route changed"`. This prevents **silent finalization against a different path**.
 
 ### Privacy note
 
-Wrapper-backed confidential balances stay private before the unshield request is decrypted. Once a `decryptForTx` finalize proof is submitted on-chain, the finalized settlement amount becomes public — this is an explicit disclosure event, not a leak.
+Wrapper-backed confidential balances **stay private before the unshield request is decrypted**. Once a `decryptForTx` finalize proof is submitted on-chain, the finalized settlement amount **becomes public** — this is an **explicit disclosure event**, not a leak.
 
 ---
 
 ## M-of-N Governance
 
-CipherRoll implements dual-mode M-of-N governance for sensitive actions while keeping day-to-day operations single-admin:
+CipherRoll implements **dual-mode M-of-N governance** for sensitive actions while keeping day-to-day operations **single-admin**:
 
 ```mermaid
 sequenceDiagram
@@ -405,7 +405,7 @@ Each proposal includes: proposer auto-approval, multi-admin approval tracking, a
 
 ## Auditor Architecture
 
-CipherRoll's auditor model is intentionally narrow — auditors see **organization-level aggregates**, never employee salary rows:
+CipherRoll's auditor model is **intentionally narrow** — auditors see **organization-level aggregates**, never employee salary rows:
 
 ```mermaid
 flowchart LR
@@ -430,20 +430,20 @@ flowchart LR
 
 ### What auditors CAN see
 
-- Treasury configuration and route health
-- Available and reserved treasury funds
-- Total / draft / funded / active / finalized payroll run counts
-- Total / active / claimed / vesting payroll item counts
-- Employee recipient count and last issued/claimed timestamps
-- Encrypted budget, committed, and available handles (via `decryptForView`)
-- Audit receipt history
+- **Treasury configuration** and route health
+- **Available and reserved** treasury funds
+- Total / draft / funded / active / finalized **payroll run counts**
+- Total / active / claimed / vesting **payroll item counts**
+- **Employee recipient count** and last issued/claimed timestamps
+- **Encrypted budget, committed, and available** handles (via `decryptForView`)
+- **Audit receipt history**
 
 ### What auditors CANNOT see
 
-- Individual employee salary amounts
-- Raw employee allocation handles
-- Per-employee payment details
-- Broad admin-only views
+- **Individual employee salary amounts**
+- **Raw employee allocation handles**
+- **Per-employee payment details**
+- **Broad admin-only views**
 
 ### Evidence modes
 
@@ -474,23 +474,22 @@ flowchart TD
 
 ### How it works
 
-1. **CSV import** — browser-local CSV parsing with encoding detection (UTF-8, UTF-16 LE/BE, BOM), column auto-detection
-2. **Row validation** — employee address checks, role assignment, base salary mapping
+1. **CSV import** — browser-local CSV parsing with **encoding detection** (UTF-8, UTF-16 LE/BE, BOM), **column auto-detection**
+2. **Row validation** — employee address checks, **role assignment**, base salary mapping
 3. **Review before encryption** — operators see all rows in plaintext before sealing
-4. **Salary sealing** — each row's salary encrypted with `encryptUint128`, plaintext removed from visible state
-5. **Retryable submission** — one explicit wallet transaction per employee row; confirmed rows are skipped on retry; failed rows can be resubmitted
+4. **Salary sealing** — each row's salary **encrypted with `encryptUint128`**, plaintext removed from visible state
+5. **Retryable submission** — **one explicit wallet transaction per employee row**; confirmed rows are skipped on retry; failed rows can be resubmitted
 6. **Safe manifests** — backend stores org id, run id, employee address, role slug, payment id, and tx hash — **never salary amounts**
 
 ### Scope constraint
 
-Batch payroll v1 is available in non-governed batch workspaces only. Governed workspaces see an explicit warning and cannot seal or submit batch rows.
+Batch payroll v1 is available in **non-governed batch workspaces** only. Governed workspaces see an **explicit warning** and cannot seal or submit batch rows.
 
 ---
 
 ## Compliance & Tax
 
 The `/tax-authority` surface provides **Tier A aggregate compliance** without exposing employee data:
-
 ```mermaid
 flowchart LR
     ORG[Organization Data] --> PKG[Compliance Package]
@@ -506,17 +505,17 @@ flowchart LR
 
 ### What compliance packages contain
 
-- **Policy summary** — organization id, reserve basis points, generated timestamp
-- **Tax provision** — estimated aggregate reserve calculated from `reservedTreasuryFunds × reserveBps / 10000`
+- **Policy summary** — organization id, **reserve basis points**, generated timestamp
+- **Tax provision** — estimated **aggregate reserve** calculated from `reservedTreasuryFunds × reserveBps / 10000`
 - **Treasury posture** — route health, available/reserved inventory, pending claims
 - **Evidence summary** — audit receipt counts and published status
 - **Safety notes** — operational warnings and scope disclaimers
 
 ### What compliance packages do NOT contain
 
-- Individual employee salary rows — `employeeRowsIncluded` is always `false`
-- Wallet-specific payment details
-- Tax filing instructions or authority integrations
+- **Individual employee salary rows** — `employeeRowsIncluded` is always `false`
+- **Wallet-specific payment details**
+- **Tax filing instructions** or authority integrations
 
 ### Export formats
 
@@ -527,40 +526,40 @@ flowchart LR
 
 ## Privacy Boundary
 
-CipherRoll does **not** claim that all metadata disappears. It claims a narrower and more useful property: **the sensitive financial values stay encrypted**, while the product remains truthful about the public traces that still exist on the host chain.
+CipherRoll does **not** claim that all metadata disappears. It claims a narrower and more useful property: **the sensitive financial values stay encrypted**, while the product remains **truthful about the public traces** that still exist on the host chain.
 
 ### 🔒 Kept encrypted on-chain (`euint128`)
 
 | Value | How |
 | --- | --- |
-| Organization budget | Stored as `euint128` handle, permit-backed decrypt only |
-| Committed payroll | Stored as `euint128` handle, permit-backed decrypt only |
-| Available runway | Stored as `euint128` handle, permit-backed decrypt only |
-| Employee allocation amounts | Stored as `euint128` handle, employee-only decrypt |
-| Auditor aggregate handles | Stored as `euint128`, shared permit decrypt only |
-| Wrapper-backed confidential balances | Encrypted until unshield request is finalized |
+| Organization budget | Stored as `euint128` handle, **permit-backed decrypt only** |
+| Committed payroll | Stored as `euint128` handle, **permit-backed decrypt only** |
+| Available runway | Stored as `euint128` handle, **permit-backed decrypt only** |
+| Employee allocation amounts | Stored as `euint128` handle, **employee-only decrypt** |
+| Auditor aggregate handles | Stored as `euint128`, **shared permit decrypt only** |
+| Wrapper-backed confidential balances | **Encrypted until unshield request is finalized** |
 
 ### 🔓 Public by Arbitrum/EVM design
 
-- Transaction sender, recipient, nonce, tx hash, gas usage, block number, timestamp
-- Contract calldata for all write functions
-- Event logs and indexed topics
-- ERC20 transfer events and final payout token balances
-- Wrapper settlement amount after `decryptForTx` finalize proof submission
+- **Transaction sender, recipient, nonce, tx hash**, gas usage, block number, timestamp
+- **Contract calldata** for all write functions
+- **Event logs** and indexed topics
+- **ERC20 transfer events** and final payout token balances
+- **Wrapper settlement amount** after `decryptForTx` finalize proof submission
 
 ### 🔓 Public because CipherRoll emits it explicitly
 
-- `orgId`, admin address, treasury adapter address, treasury route id, timestamps
-- `paymentId`, employee address, memo hash, vesting flags and timestamps
-- `payrollRunId`, funding deadline, run status, allocation and claimed counts
-- Organization insights (total/active/claimed/vesting items, recipient counts)
-- Settlement request metadata (`requestId`, payout asset, existence flag)
+- `orgId`, **admin address**, **treasury adapter address**, treasury route id, timestamps
+- `paymentId`, **employee address**, memo hash, **vesting flags** and timestamps
+- `payrollRunId`, **funding deadline**, **run status**, allocation and claimed counts
+- **Organization insights** (total/active/claimed/vesting items, recipient counts)
+- **Settlement request metadata** (`requestId`, payout asset, existence flag)
 
 ### 🔍 Inferable from predictable inputs
 
-- Workspace ids when operators use mnemonic labels (mitigated by high-entropy alternatives)
-- Treasury route ids from readable labels
-- Payment ids (now generated with high-entropy helpers)
+- **Workspace ids** when operators use mnemonic labels (mitigated by **high-entropy alternatives**)
+- **Treasury route ids** from readable labels
+- **Payment ids** (now generated with **high-entropy helpers**)
 
 > **CipherRoll's value is not "hide everything." Its value is "keep the financially sensitive core encrypted while staying honest about the public edges."**
 
@@ -568,7 +567,7 @@ CipherRoll does **not** claim that all metadata disappears. It claims a narrower
 
 ## Wave Progression
 
-CipherRoll was built across five waves of increasing scope. Each wave proved a specific capability before later waves built on top of it:
+CipherRoll was built across **five waves of increasing scope**. Each wave proved a specific capability before later waves built on top of it:
 
 ```mermaid
 gantt
@@ -609,11 +608,11 @@ gantt
 
 | Wave | Scope | What it proved |
 | --- | --- | --- |
-| **Wave 1** | Core FHE protocol | Encrypted payroll state, homomorphic budgeting, client-side decrypt |
-| **Wave 2** | Settlement + auditor | Real treasury-backed payout paths, auditor selective disclosure, verifiable receipts |
-| **Wave 3** | Submission hardening | Proof verification, truthful privacy framing, identifier leakage reduction, CipherBot v1 |
-| **Wave 4** | Backend platform | Indexed read models, shared SDK, reporting/notifications/exports, retrieval-backed CipherBot |
-| **Wave 5** | Governance + compliance | M-of-N governance, batch payroll, treasury exposure, Tier A compliance packages |
+| **Wave 1** | **Core FHE protocol** | Encrypted payroll state, homomorphic budgeting, client-side decrypt |
+| **Wave 2** | **Settlement + auditor** | Real treasury-backed payout paths, auditor selective disclosure, verifiable receipts |
+| **Wave 3** | **Submission hardening** | Proof verification, truthful privacy framing, identifier leakage reduction, CipherBot v1 |
+| **Wave 4** | **Backend platform** | Indexed read models, shared SDK, reporting/notifications/exports, retrieval-backed CipherBot |
+| **Wave 5** | **Governance + compliance** | M-of-N governance, batch payroll, treasury exposure, Tier A compliance packages |
 
 ---
 
@@ -624,19 +623,19 @@ CipherRoll ships six user-facing routes:
 | Surface | Route | Purpose |
 | --- | --- | --- |
 | 🏠 Landing page | `/` | Product story, Wave 5 updates, and portal navigation |
-| 🛡️ Admin portal | `/admin` | Workspace creation, encrypted budget funding, payroll lifecycle, M-of-N governance, batch payroll, treasury exposure, reporting, auditor permit sharing, and exports |
-| 👤 Employee portal | `/employee` | Local decrypt, payroll review, claim, and wrapper-finalize flow |
-| 🔍 Auditor portal | `/auditor` | Shared permit import, aggregate-only review, and verify/publish receipt generation |
+| 🛡️ Admin portal | `/admin` | **Workspace creation**, **encrypted budget funding**, **payroll lifecycle**, **M-of-N governance**, **batch payroll**, **treasury exposure**, reporting, **auditor permit sharing**, and exports |
+| 👤 Employee portal | `/employee` | **Local decrypt**, payroll review, **claim**, and **wrapper-finalize** flow |
+| 🔍 Auditor portal | `/auditor` | **Shared permit import**, **aggregate-only review**, and **verify/publish receipt** generation |
 | 📄 Docs | `/docs` | Architecture, workflows, privacy, contracts, API reference, roadmap, and troubleshooting |
-| 🏛️ Compliance page | `/tax-authority` | Tier A aggregate compliance package, tax reserve policy, and receipt evidence export (JSON/CSV) |
+| 🏛️ Compliance page | `/tax-authority` | **Tier A aggregate compliance** package, **tax reserve policy**, and **receipt evidence export** (JSON/CSV) |
 
-All four product portals include CipherBot integration scoped to the relevant workflow context.
+All four product portals include **CipherBot integration** scoped to the relevant workflow context.
 
 ---
 
 ## Backend Layer
 
-The backend is an intentionally **read-model and operator-support layer**. It does not replace browser-local decrypt flows and does not centralize employee salary plaintext.
+The backend is an intentionally **read-model and operator-support layer**. It **does not replace browser-local decrypt flows** and **does not centralize employee salary plaintext**.
 
 ### API routes (18 GET + 3 POST)
 
@@ -657,11 +656,11 @@ The backend is an intentionally **read-model and operator-support layer**. It do
 
 ### Indexer
 
-The backend indexer polls on a configurable interval (default 30s) and processes events from all three contracts (payroll, auditor disclosure, governance). It uses chunk-based block scanning, refreshes on-chain state after each event, upserts to the database, and generates workflow notifications with category and severity.
+The backend indexer **polls on a configurable interval** (default 30s) and **processes events from all three contracts** (payroll, auditor disclosure, governance). It uses **chunk-based block scanning**, refreshes on-chain state after each event, upserts to the database, and generates **workflow notifications** with category and severity.
 
 ### Database tables
 
-Auto-migrated on startup using `CREATE TABLE IF NOT EXISTS`:
+**Auto-migrated on startup** using `CREATE TABLE IF NOT EXISTS`:
 
 `metadata` · `organizations` · `organization_insights` · `treasury_routes` · `payroll_runs` · `payments` · `audit_receipts` · `raw_events` · `notifications` · `batch_payroll_manifests`
 
@@ -669,17 +668,17 @@ Auto-migrated on startup using `CREATE TABLE IF NOT EXISTS`:
 
 ## Shared SDK
 
-`packages/cipherroll-sdk/` prevents frontend-backend drift with seven modules:
+`packages/cipherroll-sdk/` **prevents frontend-backend drift** with seven modules:
 
 | Module | What it provides |
 | --- | --- |
-| **`runtime`** | Chain config, environment-based runtime config, label generation helpers, address validation |
-| **`frontend-types`** | 18 types for contract views, permits, auditor summaries, payroll runs, and settlement requests |
-| **`backend-types`** | 18 types for indexer records, report summaries, treasury exposure, compliance packages, and notifications |
-| **`contract-views`** | Mappers from raw contract return values to typed frontend views |
-| **`backend-client`** | `CipherRollBackendClient` with 20 methods for all backend API routes |
-| **`cipherbot`** | Knowledge base with 24 entries, relevance scoring, scope-aware starter questions, and answer composition |
-| **`compliance`** | Tax reserve BPS normalization, aggregate reserve calculation, and policy label formatting |
+| **`runtime`** | **Chain config**, environment-based runtime config, **label generation helpers**, address validation |
+| **`frontend-types`** | **18 types** for contract views, permits, auditor summaries, payroll runs, and settlement requests |
+| **`backend-types`** | **18 types** for indexer records, report summaries, treasury exposure, compliance packages, and notifications |
+| **`contract-views`** | **Mappers** from raw contract return values to typed frontend views |
+| **`backend-client`** | `CipherRollBackendClient` with **20 methods** for all backend API routes |
+| **`cipherbot`** | **Knowledge base with 24 entries**, relevance scoring, scope-aware starter questions, and answer composition |
+| **`compliance`** | **Tax reserve BPS normalization**, aggregate reserve calculation, and policy label formatting |
 
 ---
 
@@ -712,7 +711,7 @@ Full deployment metadata: [outputs/arb-sepolia-deployment.json](./outputs/arb-se
 
 ### Settlement adapter architecture decision
 
-The deployed settlement adapters use CoFHE-aligned custom implementations (`MockSettlementTreasuryAdapter`, `MockFHERC20SettlementTreasuryAdapter`) that follow the same `ITreasuryAdapter` interface and confidentiality model. Judge confirmation established that a technically correct, CoFHE-aligned custom confidential token wrapper is acceptable. Strict migration to the official FHERC20 contract surface is not required for evaluation.
+The deployed settlement adapters use **CoFHE-aligned custom implementations** (`MockSettlementTreasuryAdapter`, `MockFHERC20SettlementTreasuryAdapter`) that follow the same **`ITreasuryAdapter` interface** and confidentiality model. **Judge confirmation** established that a technically correct, CoFHE-aligned custom confidential token wrapper is acceptable. **Strict migration to the official FHERC20 contract surface is not required for evaluation**.
 
 ---
 
@@ -794,28 +793,28 @@ npm run compile && npm run test && npm run build:web && npm run build:backend
 
 ### ✅ Shipped in this submission
 
-- Confidential payroll workflow from workspace creation to employee payout
-- Explicit payroll-run lifecycle (Draft → Funded → Active → Finalized)
-- Treasury-backed direct and wrapper-backed settlement paths
-- Local employee decrypt, claim, and finalize flow
-- Aggregate-only auditor permit review
-- Verify and publish on-chain audit receipts (single and batch)
-- M-of-N governance for sensitive admin actions with dual execution modes
-- Browser-local batch payroll with sealed salaries and retryable submission
-- Treasury exposure reporting with route health and payout backlog
-- Tier A aggregate compliance packages and JSON/CSV exports
-- Indexed backend with reporting, notification, and export APIs
-- Shared SDK with runtime config, backend client, and product types
-- Retrieval-backed CipherBot across docs and all product portals
-- Hosted full-stack deployment (Vercel + Render + Supabase)
+- **Confidential payroll workflow** from workspace creation to employee payout
+- **Explicit payroll-run lifecycle** (Draft → Funded → Active → Finalized)
+- **Treasury-backed direct and wrapper-backed settlement** paths
+- **Local employee decrypt**, claim, and finalize flow
+- **Aggregate-only auditor permit review**
+- **Verify and publish on-chain audit receipts** (single and batch)
+- **M-of-N governance** for sensitive admin actions with dual execution modes
+- **Browser-local batch payroll** with sealed salaries and retryable submission
+- **Treasury exposure reporting** with route health and payout backlog
+- **Tier A aggregate compliance packages** and JSON/CSV exports
+- **Indexed backend** with reporting, notification, and export APIs
+- **Shared SDK** with runtime config, backend client, and product types
+- **Retrieval-backed CipherBot** across docs and all product portals
+- **Hosted full-stack deployment** (Vercel + Render + Supabase)
 
 ### ⏳ Intentionally deferred
 
-- Full tax automation and real tax authority integrations
-- Multi-jurisdiction tax modeling
-- Multi-network rollout
-- Enterprise auth / role server model
-- Action-taking AI assistants
+- **Full tax automation** and real tax authority integrations
+- **Multi-jurisdiction tax modeling**
+- **Multi-network rollout**
+- **Enterprise auth / role server model**
+- **Action-taking AI assistants**
 
 ---
 
