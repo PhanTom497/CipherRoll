@@ -1,6 +1,6 @@
 # CipherRoll Testing & Verification Guide
 
-This guide is the practical verification flow for the current **Wave 4** CipherRoll submission.
+This guide is the practical verification flow for the final **Wave 5** CipherRoll submission.
 
 It covers:
 
@@ -9,6 +9,7 @@ It covers:
 - backend/indexer validation
 - payroll workflow verification
 - auditor and privacy-boundary checks
+- governance, batch payroll, treasury exposure, and compliance package checks
 - hosted stack checks
 
 ---
@@ -193,7 +194,7 @@ Confirm the product explains that wrapper-backed balances stay confidential befo
 
 ## 8. CipherBot Verification
 
-CipherBot is now part of the shipped Wave 4 surface and should be verified explicitly.
+CipherBot is now part of the shipped Wave 5 surface and should be verified explicitly.
 
 ### Test locations
 
@@ -225,7 +226,7 @@ This helps distinguish real model responses from missing-key or all-models-unava
 
 ## 9. Hosted Submission Verification
 
-For the deployed Wave 4 stack, verify all three layers:
+For the deployed Wave 5 stack, verify all three layers:
 
 ### Frontend
 
@@ -254,7 +255,7 @@ In the frontend browser DevTools `Network` tab:
 
 ## 10. Final Submission Checklist
 
-Before treating the Wave 4 submission as complete, confirm:
+Before treating the Wave 5 submission as complete, confirm:
 
 - [ ] contracts compile
 - [ ] tests pass

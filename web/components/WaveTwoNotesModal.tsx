@@ -16,51 +16,51 @@ const STORAGE_KEY = "cipherroll-submission-notes-dismissed";
 const notes = [
   {
     id: "01",
-    eyebrow: "Platform",
-    badge: "Wave 4",
-    title: "CipherRoll now ships a real application layer on top of the confidential payroll core",
+    eyebrow: "Final Build",
+    badge: "Wave 5",
+    title: "CipherRoll is now a complete confidential payroll product surface",
     body:
-      "Wave 4 moved CipherRoll beyond a contracts-first demo into a fuller product stack. The live build now combines the confidential payroll flow with a backend service, indexed read models, support APIs, and richer operator surfaces instead of relying only on direct contract inspection.",
+      "Wave 5 closes the final roadmap with governed sensitive actions, browser-local batch payroll, treasury exposure reporting, aggregate compliance packages, and a read-only product copilot layered on top of the encrypted payroll core.",
     icon: Wallet,
     accent: "from-emerald-300/18 via-emerald-300/8 to-transparent"
   },
   {
     id: "02",
-    eyebrow: "Backend",
-    badge: "Deployed",
-    title: "Reporting, exports, notifications, and operational status now come from a live indexed backend",
+    eyebrow: "Governance",
+    badge: "M-of-N",
+    title: "Sensitive execution is governed without freezing live payroll operations",
     body:
-      "Admins and auditors no longer need to piece together every state transition from raw chain activity. CipherRoll now serves health, status, organization summaries, run and payment views, recent workflow notifications, and export packages through backend APIs designed for the frontend portals.",
+      "Payroll issuance, vesting issuance, treasury route changes, governance membership, and quorum changes now route through M-of-N governance. Create run, fund run, reserve funds, and activate run stay single-admin operational actions so the product remains usable.",
     icon: ShieldCheck,
     accent: "from-cyan-300/18 via-cyan-300/8 to-transparent"
   },
   {
     id: "03",
-    eyebrow: "Infrastructure",
-    badge: "Supabase",
-    title: "The hosted stack now persists backend state through Supabase-backed Postgres instead of local-only storage",
+    eyebrow: "Operations",
+    badge: "Batch",
+    title: "Batch payroll is browser-local, sealed, retryable, and salary-safe",
     body:
-      "CipherRoll now has a deployment path that matches the product surface you demo in the browser. Indexed events, summaries, and notifications can survive restarts through the hosted database layer, while the frontend continues to run separately on Vercel and query the backend over stable APIs.",
+      "Operators can import CSV rows locally, validate employee addresses and roles, seal encrypted salaries in the browser, and submit one explicit wallet transaction per employee row. Backend manifests store safe role and transaction metadata, not salary amounts.",
     icon: Lock,
     accent: "from-white/14 via-white/5 to-transparent"
   },
   {
     id: "04",
-    eyebrow: "Shared SDK",
-    badge: "Unified",
-    title: "Frontend and backend now share one runtime and query layer instead of drifting across duplicated helpers",
+    eyebrow: "Treasury",
+    badge: "Hardened",
+    title: "Treasury exposure and payout policy are visible without salary disclosure",
     body:
-      "Wave 4 introduced a reusable CipherRoll SDK for runtime config, backend clients, and shared product types. That keeps deployment values, route construction, and cross-surface product assumptions much more consistent across docs, frontend, and backend services.",
+      "The backend and admin portal now expose route health, available and reserved inventory, payout backlog, funded or active run exposure, and adapter-pinned wrapper finalization safety. These are operational signals, not plaintext salary reports.",
     icon: Eye,
     accent: "from-violet-300/18 via-violet-300/8 to-transparent"
   },
   {
     id: "05",
-    eyebrow: "Support",
-    badge: "Expanded",
-    title: "CipherBot and the operator experience now sit inside a more complete product workflow",
+    eyebrow: "Compliance",
+    badge: "Tier A",
+    title: "Auditor evidence now feeds aggregate compliance packages",
     body:
-      "CipherBot, docs, release notes, and operator guidance now work alongside the backend-assisted product flows rather than beside them. The result is a more coherent review experience for workspace setup, funding order, settlement troubleshooting, receipt review, and deployment understanding.",
+      "The tax route now produces aggregate-first compliance packages with reserve policy, treasury posture, and receipt metadata. It is intentionally not a tax filing, not an authority integration, and not an employee salary export.",
     icon: FileCheck2,
     accent: "from-amber-300/18 via-amber-300/8 to-transparent"
   }
@@ -117,10 +117,10 @@ export default function WaveTwoNotesModal() {
             <div className="relative flex-1 overflow-y-auto px-5 pb-8 pt-6 md:px-8 md:pb-10 md:pt-7">
               <div className="mb-6 flex flex-wrap items-center gap-4 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/34 md:mb-8">
                 <span className="rounded-full border border-[#d6af79]/28 bg-[#d6af79]/10 px-4 py-1.5 text-[#d6af79]">
-                  Wave 4
+                  Wave 5
                 </span>
                 <span>{currentMonthLabel}</span>
-                <span>Platform Update</span>
+                <span>Final Build</span>
               </div>
 
               <div className="mb-7 md:mb-9">
@@ -128,7 +128,7 @@ export default function WaveTwoNotesModal() {
                   CipherRoll
                 </div>
                 <div className="mt-1 text-[20px] font-medium tracking-[-0.04em] text-white/46 md:text-[30px]">
-                  Wave 4 Platform Update
+                  Final Wave 5 Build
                 </div>
               </div>
 

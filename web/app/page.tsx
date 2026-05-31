@@ -16,34 +16,34 @@ import { TARGET_CHAIN_NAME } from "@/lib/cipherroll-config";
 const title = "CipherRoll";
 const tagline = "Private Payroll. Blind Execution.";
 const description =
-  `Run confidential payroll with encrypted balances, treasury-backed settlement, indexed reporting, selective-disclosure audit review, and operator support on ${TARGET_CHAIN_NAME} with the CoFHE coprocessor stack.`;
+  `The final Wave 5 build of CipherRoll brings confidential payroll, M-of-N governance for sensitive actions, browser-local batch payroll, treasury-backed settlement, aggregate audit evidence, and Tier A compliance exports together on ${TARGET_CHAIN_NAME}.`;
 
 const portals = [
   {
     title: "Admin",
     description:
-      "Create workspaces, fund encrypted budget, run payroll, review reports, and manage auditor sharing.",
+      "Create workspaces, fund encrypted budget, govern sensitive actions, run batch payroll, and monitor treasury exposure.",
     icon: Shield,
     url: "/admin"
   },
   {
     title: "Employee",
     description:
-      "Review allocations privately, decrypt locally, and complete claim or finalize flow from your own wallet.",
+      "Review allocations privately, decrypt locally, claim payroll, and finalize wrapper-backed payouts from your own wallet.",
     icon: Users,
     url: "/employee"
   },
   {
     title: "Auditor",
     description:
-      "Import permits, review aggregate disclosures, and verify or publish audit receipts when evidence is needed.",
+      "Import permits, review aggregate disclosures, and produce verify or publish receipts without salary-row access.",
     icon: Eye,
     url: "/auditor"
   },
   {
     title: "Tax",
     description:
-      "Build aggregate-first Tier A compliance packages with tax reserve policy and receipt metadata.",
+      "Build aggregate-first Tier A compliance packages with reserve policy, treasury posture, and receipt metadata.",
     icon: Landmark,
     url: "/tax-authority"
   }
@@ -97,7 +97,7 @@ export default function Home() {
               </span>
               <span className="hidden md:block text-white/25">•</span>
               <span className="hidden md:block text-[11px] md:text-xs uppercase tracking-[0.18em] text-white/45 font-medium">
-                Wave 4 Platform Update Live
+                Final Wave 5 Build Verified
               </span>
             </motion.div>
 
@@ -178,10 +178,10 @@ export default function Home() {
                 Portals
               </div>
               <h2 className="max-w-4xl text-[42px] md:text-[58px] lg:text-[76px] font-black tracking-[-0.04em] text-white leading-[0.98]">
-                CipherRoll Workspaces
+                Final Product Surfaces
               </h2>
               <p className="text-[18px] md:text-[20px] text-[#b4b4bc] mt-6 max-w-2xl font-normal leading-[1.65]">
-                {`CipherRoll combines encrypted payroll state on ${TARGET_CHAIN_NAME} with operator-grade portals, indexed backend reporting, export surfaces, and audit review flows that stay honest about what remains private and what still becomes public onchain.`}
+                {`CipherRoll's final Wave 5 surface combines encrypted payroll state on ${TARGET_CHAIN_NAME} with governed execution, retryable batch issuance, treasury exposure reporting, aggregate evidence, compliance exports, and a read-only product copilot.`}
               </p>
             </div>
           </div>
@@ -224,7 +224,7 @@ export default function Home() {
             <p className="text-[#A1A1AA] text-lg font-medium leading-relaxed mb-8">
               {tagline}
               <br />
-              Confidential payroll infrastructure for {TARGET_CHAIN_NAME}.
+              Final Wave 5 confidential payroll infrastructure for {TARGET_CHAIN_NAME}.
             </p>
             <Link href="/docs" className="inline-flex items-center gap-2.5 bg-white text-black px-5 py-2.5 rounded-full text-sm font-semibold hover:bg-white/90 transition-colors mb-20 md:mb-28">
               Explore docs <ArrowRight className="w-4 h-4" />

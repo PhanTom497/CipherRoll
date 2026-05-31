@@ -6,7 +6,7 @@
 
 **CipherRoll** is a confidential payroll system built on **Fhenix CoFHE** for **Arbitrum Sepolia**.
 
-It combines **encrypted on-chain payroll state**, **real treasury-backed settlement**, **aggregate-only audit review**, and a **Wave 4 backend application layer** for reporting, notifications, exports, and operator support.
+It combines **encrypted on-chain payroll state**, **real treasury-backed settlement**, **M-of-N governance for sensitive actions**, **browser-local batch payroll**, **aggregate-only audit review**, **Tier A compliance exports**, and a backend application layer for reporting, notifications, exports, and operator support.
 
 [Live App](https://cipher-roll.vercel.app/) · [Docs](https://cipher-roll.vercel.app/docs) · [Demo Video](https://youtu.be/uBAilNYfFIw)
 
@@ -19,7 +19,9 @@ It combines **encrypted on-chain payroll state**, **real treasury-backed settlem
 - 🔐 **Encrypted payroll core:** salary amounts, budget state, committed payroll, and runway-sensitive values stay encrypted on-chain as CoFHE handles.
 - 💸 **Real payout flow:** CipherRoll does not stop at bookkeeping. Payroll can move through treasury-backed settlement and reach a real employee payout path.
 - 🧾 **Aggregate-only auditing:** auditors review organization-level summaries without receiving employee salary rows.
-- 📡 **Wave 4 backend layer:** the frontend now runs with indexed backend summaries, status APIs, exports, notifications, and support-oriented APIs.
+- 🛡️ **Governed sensitive execution:** payroll issuance, vesting issuance, treasury route changes, governance membership, and quorum updates route through M-of-N governance.
+- 📦 **Batch payroll v1:** browser-local CSV import, row validation, salary sealing, retryable row transactions, and safe backend manifests.
+- 📡 **Backend reporting layer:** the frontend runs with indexed summaries, treasury exposure, compliance packages, status APIs, exports, notifications, and support-oriented APIs.
 - 🧠 **In-product support:** CipherBot is live across docs and product portals to answer workflow and product questions in context.
 - ☁️ **Hosted submission stack:** Vercel frontend, Render backend, and Supabase-backed Postgres persistence.
 
@@ -58,9 +60,9 @@ CipherRoll does **not** claim that all metadata disappears. It claims a narrower
 
 ---
 
-## Wave 4 Submission Snapshot
+## Final Wave 5 Product Snapshot
 
-Wave 4 is the first real **application-platform** release on top of the confidential payroll core.
+Wave 5 is the final verified product wave for this roadmap. It completes the confidential payroll core with governance, batch operations, treasury hardening, compliance packaging, and backend-assisted product support.
 
 ### Shipped in this submission
 
@@ -71,20 +73,27 @@ Wave 4 is the first real **application-platform** release on top of the confiden
 - ✅ local employee decrypt and claim / finalize flow
 - ✅ aggregate-only auditor permit review
 - ✅ verify / publish audit receipts
+- ✅ M-of-N governance for sensitive admin actions
+- ✅ browser-local batch payroll with sealed salaries and retryable row submissions
+- ✅ treasury exposure reporting with route health and payout backlog
+- ✅ Tier A aggregate compliance package and JSON/CSV exports
 - ✅ indexed backend reporting and export APIs
 - ✅ workflow notifications and operational summaries
 - ✅ shared SDK for runtime config, backend clients, and product types
 - ✅ retrieval-backed CipherBot in docs and product portals
 - ✅ hosted stack with durable backend persistence
 
-### Why Wave 4 matters
+### Why the final wave matters
 
-Earlier waves proved the confidential payroll protocol and settlement path.  
-Wave 4 proves that CipherRoll can behave like a **real product system**:
+Earlier waves proved the confidential payroll protocol, settlement path, auditor receipts, and backend layer.  
+Wave 5 proves that CipherRoll can behave like a **complete operator-facing product**:
 
 - the frontend no longer depends only on ad hoc contract inspection
 - operators now have reporting and export surfaces
 - admins and auditors now have indexed workflow context
+- sensitive execution has an M-of-N governance boundary
+- batch payroll is practical without uploading salaries to the backend
+- treasury and compliance surfaces stay aggregate-first
 - the hosted deployment behaves much closer to the local product
 
 ---
@@ -114,10 +123,10 @@ CipherRoll currently ships the following user-facing routes:
 4. Fund encrypted organization budget
 5. Configure treasury route
 6. Create payroll run
-7. Reserve treasury-backed run funding
-8. Activate claims
-9. Issue confidential allocations
-10. Review summaries, notifications, and exports
+7. Issue confidential allocations through governed one-row flow or non-governed batch workspace
+8. Reserve treasury-backed run funding
+9. Activate claims
+10. Review treasury exposure, notifications, compliance packages, and exports
 
 ### Employee flow
 
@@ -172,7 +181,7 @@ flowchart TD
 
 - **Contracts:** confidential payroll and auditor disclosure logic
 - **Frontend:** admin, employee, auditor, docs, and tax-facing surfaces
-- **Backend:** indexed read models, notifications, summaries, exports, and support APIs
+- **Backend:** indexed read models, notifications, summaries, treasury exposure, compliance packages, exports, and support APIs
 - **Shared SDK:** runtime config, backend client, shared product types, and cross-surface helpers
 - **Database:** Supabase-backed Postgres for hosted persistence
 
@@ -189,7 +198,7 @@ flowchart TD
 | Privacy execution | **Fhenix CoFHE** |
 | Browser decrypt path | **`@cofhe/sdk`** |
 
-This is important for the Wave 4 submission because CipherRoll is no longer a frontend-only delivery. The deployed product now depends on the frontend, backend, and database layers all being in place.
+This is important for the final Wave 5 build because CipherRoll is no longer a frontend-only delivery. The deployed product depends on the frontend, backend, and database layers all being in place.
 
 ---
 
@@ -262,7 +271,7 @@ npm run build:backend
 ## Documentation Map
 
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) — system design, backend layer, privacy boundaries, and hosted stack
-- [docs/ROADMAP.md](./docs/ROADMAP.md) — wave-by-wave product progression and next planned work
+- [docs/ROADMAP.md](./docs/ROADMAP.md) — wave-by-wave product progression through the completed final Wave 5 roadmap
 - [docs/TESTING.md](./docs/TESTING.md) — verification flow for contracts, frontend, backend, and hosted submission behavior
 - [docs/FRONTEND_MANUAL_QA.md](./docs/FRONTEND_MANUAL_QA.md) — frontend validation checklist
 - [docs/PRIVACY_MATRIX.md](./docs/PRIVACY_MATRIX.md) — private vs public values and disclosure boundaries
@@ -279,22 +288,27 @@ npm run build:backend
 - aggregate-only auditor review
 - audit receipts
 - backend reporting and exports
+- governed sensitive actions
+- batch payroll authoring and retryable submission
+- treasury exposure reporting
+- Tier A aggregate compliance packages
 - workflow notifications
 - portal-integrated CipherBot
 
-### Not yet a live product workflow
+### Intentionally deferred
 
 - full tax automation
-- regulator-grade tax authority portal
-- on-chain M-of-N governance
+- real tax authority integrations
+- multi-jurisdiction tax modeling
 - multi-network rollout
 - enterprise auth / role server model
+- action-taking AI assistants
 
 ---
 
 ## Why This Submission Is Strong
 
-CipherRoll’s Wave 4 submission is not only a protocol demo and not only a UI demo.
+CipherRoll’s final Wave 5 submission is not only a protocol demo and not only a UI demo.
 
 It now demonstrates:
 
@@ -303,6 +317,8 @@ It now demonstrates:
 - **truthful privacy framing**
 - **auditor-safe selective disclosure**
 - **backend-assisted operator visibility**
+- **governed execution boundaries**
+- **batch payroll and compliance workflows**
 - **hosted full-stack deployment**
 
 That combination is what makes the project feel like a serious confidential payroll product rather than a collection of isolated features.

@@ -10,9 +10,11 @@ Its architectural goal is simple:
 - still support a real payroll workflow
 - let employees receive real payouts
 - let auditors review only aggregate disclosures
+- govern sensitive execution without turning every operational step into a multisig bottleneck
+- support batch payroll and Tier A compliance packaging without centralizing salary plaintext
 - give operators a useful backend-assisted product layer without centralizing payroll plaintext
 
-Wave 4 is the point where CipherRoll became more than a contracts-and-frontend prototype. The current system now includes a backend service, indexed read models, notification and export APIs, a shared SDK, and hosted persistence.
+Wave 5 is the final verified product wave for this roadmap. CipherRoll now includes a backend service, indexed read models, notification and export APIs, treasury exposure reports, safe batch manifests, Tier A compliance packages, a shared SDK, and hosted persistence.
 
 ---
 
@@ -58,6 +60,7 @@ The contract layer handles:
 - encrypted budget state
 - payroll-run lifecycle
 - employee allocation issuance
+- M-of-N governed execution for sensitive actions
 - settlement route coordination
 - employee claims
 - auditor-safe aggregate disclosures
@@ -77,12 +80,15 @@ The frontend is a multi-surface product:
 
 ### 3.3 Backend
 
-Wave 4 introduced a backend service that supports the frontend with:
+The backend service supports the frontend with:
 
 - chain/event indexing
 - health and status APIs
 - organization, run, payment, and receipt read models
 - aggregate reporting summaries
+- treasury exposure reports
+- safe batch payroll manifests
+- Tier A compliance packages and exports
 - notification feeds
 - export packaging
 - support-oriented query surfaces
@@ -105,7 +111,7 @@ This is important in the deployed stack because the same chain, contract, and ba
 - Vercel frontend
 - Render backend
 - docs and product copy
-- future integrations
+- scripts and operational checks
 
 ### 3.5 Database
 
@@ -118,6 +124,7 @@ That database stores indexed workflow projections such as:
 - payments
 - audit receipts
 - notifications
+- batch payroll manifests
 - raw events
 - indexer progress
 
@@ -311,6 +318,9 @@ The backend currently handles these non-sensitive platform concerns:
 - indexer progress tracking
 - event-to-read-model projection
 - reporting summary generation
+- treasury exposure calculation
+- safe batch manifest storage
+- Tier A compliance package generation
 - JSON and CSV export packaging
 - notification materialization
 - backend status and health surfaces
@@ -366,13 +376,14 @@ Its value is “keep the financially sensitive core encrypted while staying hone
 
 ## 12. Current Scope Limits
 
-Not yet shipped as live product workflows:
+Intentionally deferred from the final Wave 5 product:
 
 - full tax automation
-- regulator-grade tax portal
-- on-chain M-of-N governance
+- real tax authority integrations
+- multi-jurisdiction tax modeling
 - multi-network rollout
 - enterprise auth and role server model
+- action-taking AI assistants
 
 Current active chain target:
 

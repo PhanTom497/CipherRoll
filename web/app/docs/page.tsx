@@ -29,6 +29,7 @@ import {
   BACKEND_BASE_URL,
   CONTRACT_ADDRESS,
   DEFAULT_ORG_ID,
+  GOVERNANCE_CONTRACT_ADDRESS,
   TARGET_CHAIN_ID,
   TARGET_CHAIN_NAME,
 } from '@/lib/cipherroll-config';
@@ -91,7 +92,7 @@ npm run dev`;
 const envExample = `ARBITRUM_SEPOLIA_RPC_URL=<rpc-url>
 NEXT_PUBLIC_CIPHERROLL_CONTRACT_ADDRESS=${CONTRACT_ADDRESS}
 NEXT_PUBLIC_CIPHERROLL_AUDITOR_DISCLOSURE_ADDRESS=${AUDITOR_DISCLOSURE_CONTRACT_ADDRESS}
-NEXT_PUBLIC_CIPHERROLL_GOVERNANCE_ADDRESS=<governance-address>
+NEXT_PUBLIC_CIPHERROLL_GOVERNANCE_ADDRESS=${GOVERNANCE_CONTRACT_ADDRESS}
 NEXT_PUBLIC_CIPHERROLL_BACKEND_BASE_URL=${BACKEND_BASE_URL || '<backend-url>'}
 CIPHERROLL_DATABASE_URL=<supabase-session-pooler-url>
 CIPHERROLL_BACKEND_ADMIN_TOKEN=<admin-token>`;
@@ -99,8 +100,8 @@ CIPHERROLL_BACKEND_ADMIN_TOKEN=<admin-token>`;
 const backendExample = `fetch(\`\${process.env.NEXT_PUBLIC_CIPHERROLL_BACKEND_BASE_URL}/api/reports/organizations/\${orgId}/summary\`)
   .then((response) => response.json())
   .then((summary) => {
-    console.log(summary.runCounts);
-    console.log(summary.pendingFinalizations);
+    console.log(summary.activePayrollRuns);
+    console.log(summary.pendingSettlementRequests);
   });`;
 
 const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
@@ -128,7 +129,7 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
             designed for real deployment rather than localhost-only review.
           </p>
 
-          <div className="grid gap-5 md:grid-cols-3">
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               icon={Lock}
               title="Confidential values"
@@ -143,6 +144,11 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
               icon={FileKey2}
               title="Selective disclosure"
               description="Auditor review is aggregate-only by design and separate from admin visibility."
+            />
+            <MetricCard
+              icon={ShieldCheck}
+              title="Wave 5 verified"
+              description="Governance, CipherBot quality, batch payroll, treasury exposure, and Tier A compliance flows are implemented and manually verified."
             />
           </div>
         </div>
@@ -185,8 +191,8 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
               ],
               [
                 'Accurate scope expectations',
-                'The tax page is not a live regulator workflow and backend indexing does not replace local privacy.',
-                'Keep this boundary explicit in demos and reviews.',
+                'The tax page is a Tier A aggregate compliance package route, not a filing or external authority integration.',
+                'Keep aggregate-first review and receipt evidence boundaries explicit in demos.',
               ],
             ]}
           />
@@ -229,8 +235,10 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
           {[
             'Open /docs and confirm the deployment constants match your environment.',
             'Open /admin and verify wallet connection, CoFHE initialization, and workspace loading.',
+            'In /admin, test governance boundaries, batch payroll, treasury exposure, and reporting refresh.',
             'Open /employee and test privacy-mode setup plus payroll loading for the correct wallet.',
             'Open /auditor and validate permit import, aggregate review, and receipt mode.',
+            'Open /tax-authority and verify Tier A package load plus JSON/CSV export.',
           ].map((step, index) => (
             <StepCard key={step} number={index + 1} text={step} />
           ))}
@@ -257,9 +265,10 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
               'Initialize CoFHE before attempting encrypted budget or payroll actions.',
               'Create the workspace that will hold payroll state and reporting context.',
               'Fund encrypted budget instead of treating payroll as a public balance.',
-              'Create a payroll run and issue confidential allocations one row at a time or through the non-governed batch workspace.',
+              'Create a payroll run and issue confidential allocations through governed one-row issuance or the non-governed batch workspace.',
               'Reserve treasury funds through the configured settlement route.',
               'Activate claimability only after funding succeeds.',
+              'Refresh treasury exposure and reporting panels after claims or wrapper finalizations.',
               'Export an auditor sharing payload when aggregate review is required.',
             ]}
           />
@@ -268,6 +277,93 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
             Use high-entropy workspace ids, route ids, run ids, and memo defaults whenever the UI
             allows it. Many identifiers remain public or inferable even when values stay encrypted.
           </Callout>
+        </div>
+      ),
+    },
+    {
+      id: 'wf-governance',
+      group: 'Admin Portal',
+      label: 'Governance boundaries',
+      eyebrow: 'Governance',
+      title: 'Which admin actions are governed and which stay operational',
+      summary:
+        'Wave 5 adds M-of-N governance for sensitive execution while preserving single-admin payroll operations that need to stay usable.',
+      searchText:
+        'governance boundaries priority 15 governed actions single admin payroll issuance treasury route quorum membership permits approvals',
+      content: (
+        <div className="space-y-8">
+          <DataTable
+            headers={['Action area', 'Execution model', 'Reason']}
+            rows={[
+              [
+                'Payroll allocation issuance',
+                'Governed when M-of-N governance is active.',
+                'Salary-bearing issuance is sensitive and should not bypass multi-admin approval.',
+              ],
+              [
+                'Vesting allocation issuance',
+                'Governed when M-of-N governance is active.',
+                'Vesting grants carry the same salary/privacy sensitivity as instant allocations.',
+              ],
+              [
+                'Treasury route changes',
+                'Governed.',
+                'Changing the payout route can affect settlement safety and employee payout behavior.',
+              ],
+              [
+                'Governance membership and quorum',
+                'Governed.',
+                'Admin set changes and quorum changes protect the control plane itself.',
+              ],
+              [
+                'Create run, fund run, reserve funds, activate run',
+                'Single-admin operational actions.',
+                'These actions keep live payroll operations usable after sensitive setup has been approved.',
+              ],
+            ]}
+          />
+
+          <Callout title="Permit boundary" tone="blue">
+            CoFHE permits are decryption-access tools. They are not governance signatures,
+            transaction approvals, or replacements for M-of-N execution.
+          </Callout>
+        </div>
+      ),
+    },
+    {
+      id: 'wf-batch-payroll',
+      group: 'Admin Portal',
+      label: 'Batch payroll',
+      eyebrow: 'Batch Payroll',
+      title: 'Author, seal, and submit batch payroll rows safely',
+      summary:
+        'Wave 5 batch payroll is a browser-local authoring and retry layer over existing single-row contract calls.',
+      searchText:
+        'batch payroll csv import browser local sealing salaries queue chunk retry row validation governed workspace planned headcount',
+      content: (
+        <div className="space-y-8">
+          <StepStack
+            title="Batch payroll flow"
+            steps={[
+              'Use a non-governed workspace; governed workspaces intentionally block batch sealing and submission.',
+              'Import CSV locally or add manual rows. Expected CSV headers are employee, role, salary, and optional memo.',
+              'Leave salary blank when the row should use the selected role salary. Provide salary only for explicit overrides.',
+              'Review validation messages for invalid employee addresses, unknown roles, missing salary, or malformed salary values.',
+              'Seal encrypted salaries in the browser. After sealing, salary values and aggregate totals are masked.',
+              'Submit the queue chunk. Each employee row still opens its own wallet transaction and can be retried independently.',
+              'Refresh backend manifest memory to confirm only safe metadata was stored: org, run, employee, role, payment id, and tx hash.',
+            ]}
+          />
+
+          <DataTable
+            headers={['Boundary', 'Current behavior']}
+            rows={[
+              ['Not a multi-row contract call', 'Batch v1 submits one existing payroll issuance transaction per row.'],
+              ['Not a backend salary upload', 'CSV parsing and salary sealing happen in the browser; backend manifests omit salary amounts.'],
+              ['Not governed batch execution', 'Governed workspaces must use the one-row governed issuance proposal flow.'],
+              ['Retryable by row', 'Confirmed rows are skipped on retry so the operator does not resubmit successful rows.'],
+            ]}
+          />
         </div>
       ),
     },
@@ -343,6 +439,41 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
       ),
     },
     {
+      id: 'wf-tax-compliance',
+      group: 'Compliance',
+      label: 'Tax compliance',
+      eyebrow: 'Compliance',
+      title: 'Build a Tier A aggregate compliance package',
+      summary:
+        'The tax/compliance route packages policy, treasury posture, and audit receipt metadata without becoming a tax filing or salary export.',
+      searchText:
+        'tax compliance tier a aggregate package reserve policy export csv json evidence receipts tax authority',
+      content: (
+        <div className="space-y-8">
+          <StepStack
+            title="Compliance package flow"
+            steps={[
+              'Open /tax-authority after the backend has indexed the workspace you want to review.',
+              'Enter the workspace label or id and choose the aggregate tax reserve policy in basis points.',
+              'Load the package and verify the page shows estimated reserve, reserve basis, payout backlog, receipt counts, and route health.',
+              'Review the safety notes: the package is aggregate-first, not a tax filing, and not an external authority integration.',
+              'Export JSON for structured review or CSV for spreadsheet-style policy evidence.',
+            ]}
+          />
+
+          <DataTable
+            headers={['Included', 'Excluded']}
+            rows={[
+              ['Organization summary and run/payment counts', 'Employee salary rows and employee-level plaintext amounts'],
+              ['Treasury available/reserved posture and payout backlog', 'Real tax authority filing, remittance, or API submission'],
+              ['Operator-selected aggregate reserve policy', 'Multi-jurisdiction tax logic or statutory calculations'],
+              ['Auditor verify/publish receipt metadata', 'New disclosure paths that bypass auditor evidence receipts'],
+            ]}
+          />
+        </div>
+      ),
+    },
+    {
       id: 'wf-settlement',
       group: 'Settlement',
       label: 'Settlement modes',
@@ -365,7 +496,7 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
               [
                 'Wrapper-backed route',
                 'Use it when you want payroll to stay confidential deeper into settlement before final proof publication.',
-                'Employees may need a request + finalize flow, and the docs should explain that tradeoff clearly.',
+                'Employees may need a request + finalize flow. Pending finalizes stay pinned to the treasury adapter that created the request.',
               ],
             ]}
           />
@@ -480,6 +611,44 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
       ),
     },
     {
+      id: 'pv-compliance',
+      group: 'Audit Model',
+      label: 'Compliance evidence',
+      eyebrow: 'Compliance Evidence',
+      title: 'Compliance reporting extends audit receipts instead of bypassing them',
+      summary:
+        'Wave 5 compliance uses backend packages and existing receipt metadata. It does not introduce a new plaintext disclosure shortcut.',
+      searchText:
+        'compliance evidence tax package audit receipts decryptfortx aggregate first regulator review verify publish',
+      content: (
+        <div className="space-y-8">
+          <ProcessDiagram
+            title="Evidence chain"
+            columns={[
+              {
+                title: 'View mode',
+                items: ['Admin shares aggregate permit', 'Auditor decrypts locally', 'Plaintext stays in the browser'],
+              },
+              {
+                title: 'Receipt mode',
+                items: ['Auditor selects aggregate metric', 'decryptForTx creates deliberate evidence', 'Verify or publish receipt is recorded'],
+              },
+              {
+                title: 'Compliance package',
+                items: ['Backend indexes receipt metadata', 'Tax route packages policy and evidence', 'Exports omit employee salary rows'],
+              },
+            ]}
+          />
+
+          <Callout title="Default disclosure posture" tone="orange">
+            Regulator-facing review should stay aggregate-first unless there is a documented
+            reason to disclose more. In the current product, the tax route does not add any
+            employee-level disclosure path.
+          </Callout>
+        </div>
+      ),
+    },
+    {
       id: 'pv-best-practices',
       group: 'Best Practices',
       label: 'Best practices',
@@ -498,6 +667,7 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
               'Prefer high-entropy identifiers over readable labels when the UI allows it.',
               'Document which treasury route a demo or test is using because claim behavior differs.',
               'Refresh read models after writes instead of assuming projections update instantly.',
+              'Use the compliance route for aggregate policy packages, not for tax filing claims.',
             ]}
           />
           <ChecklistCard
@@ -506,6 +676,7 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
               'Keep terminology consistent: workspace, payroll run, recipient permit, verify receipt, publish receipt.',
               'Review privacy wording whenever settlement or audit-receipt behavior changes.',
               'Write for the user who needs to complete a task, not for the page that needs to look full.',
+              'Call out whether an action is governed, single-admin, browser-local, or backend-indexed.',
               'Only add sections that match the actual CipherRoll surface.',
             ]}
           />
@@ -539,7 +710,7 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
               },
               {
                 title: 'Support layer',
-                items: ['@cofhe/sdk', 'Backend read models', 'Reports, exports, notifications, CipherBot'],
+                items: ['@cofhe/sdk', 'Backend read models', 'Reports, exports, notifications, compliance packages, CipherBot'],
               },
             ]}
           />
@@ -564,6 +735,8 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
               'Connect injected EVM wallets for admins, employees, and auditors.',
               'Initialize CoFHE and manage local permit-backed decrypt workflows.',
               'Drive workspace, payroll, claim, and evidence flows through the current contracts.',
+              'Cache pending governed payroll intent so proposer execution does not accidentally create duplicate proposals.',
+              'Keep batch CSV parsing, salary sealing, and queue retry state browser-local.',
               'Consume backend read models for reports, notifications, and exports where appropriate.',
               'Explain the product and privacy boundary through docs and contextual guidance.',
             ]}
@@ -590,6 +763,8 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
             rows={[
               ['Status and health', 'Expose operational state without forcing contract-level inspection for every review.'],
               ['Organization summaries', 'Help admins and auditors use aggregate-first reporting and export packages.'],
+              ['Treasury exposure summaries', 'Show route health, reserved inventory, payout backlog, and run exposure without salary rows.'],
+              ['Compliance packages', 'Provide Tier A tax reserve policy exports from aggregate state and receipt metadata.'],
               ['Notifications', 'Highlight pending claims, settlement issues, and receipt activity.'],
               ['Supabase-backed persistence', 'Keep indexed workflow state and read models durable across hosted restarts.'],
               ['CipherBot query endpoint', 'Answer support-oriented questions with indexed context instead of static copy alone.'],
@@ -653,29 +828,42 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
               'Extended support from static guidance into retrieval-backed product assistance and in-portal operator help.',
             ]}
           />
+          <RoadmapWave
+            wave="Wave 5"
+            status="Completed"
+            title="Governance, batch payroll, treasury hardening, and compliance"
+            points={[
+              'Added M-of-N governance for sensitive payroll issuance, vesting issuance, treasury route changes, governance membership, and quorum changes while preserving single-admin operational run actions.',
+              'Improved CipherBot with portal-aware Gemini model rotation, indexed backend context, and strict read-only behavior.',
+              'Shipped browser-local batch payroll with CSV import, row validation, salary sealing, retryable row transactions, and safe backend manifests.',
+              'Expanded treasury exposure reporting with route health, available/reserved inventory, payout backlog, and adapter-pinned wrapper finalization safety.',
+              'Converted /tax-authority into a Tier A aggregate compliance package route with reserve policy, receipt metadata, and JSON/CSV exports.',
+            ]}
+          />
         </div>
       ),
     },
     {
       id: 'rm-future',
       group: 'Progress',
-      label: 'Future wave',
+      label: 'Future scope',
       eyebrow: 'Future',
-      title: 'What Wave 5 is intended to focus on',
+      title: 'What remains intentionally deferred',
       summary:
-        'The next wave is planned for broader product maturity rather than the core flows already shipped in Waves 1 through 4.',
+        'After Wave 5, CipherRoll should avoid reopening risky scope unless it directly improves the verified product.',
       searchText:
-        'wave 5 future plans governance integrations compliance notifications future roadmap',
+        'future scope deferred integrations compliance networks tax filing action taking ai dark pool future roadmap',
       content: (
         <div className="space-y-8">
           <RoadmapWave
-            wave="Wave 5"
-            status="Planned"
-            title="Advanced operations, governance, and compliance expansion"
+            wave="Post Wave 5"
+            status="Deferred"
+            title="Ideas deliberately not included in the verified wave"
             points={[
-              'Stronger multi-admin governance and execution boundaries where the product needs them.',
-              'Broader operational integrations, notification depth, and workflow polish around existing payroll surfaces.',
-              'More developed tax or compliance-facing capabilities once those routes become real product features.',
+              'Fake tax authority networks, real tax filing integrations, and multi-jurisdiction statutory modeling.',
+              'Action-taking AI assistants that could create, fund, approve, execute, claim, finalize, disclose, or publish on a user’s behalf.',
+              'Large external webhook or chat integrations unless they directly support the verified payroll flow.',
+              'New encrypted treasury abstractions or solvency-proof demos that would reopen protocol risk late in the project.',
             ]}
           />
         </div>
@@ -703,6 +891,7 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
               ['Default workspace seed', DEFAULT_ORG_ID],
               ['Payroll contract', CONTRACT_ADDRESS],
               ['Auditor disclosure contract', AUDITOR_DISCLOSURE_CONTRACT_ADDRESS],
+              ['Governance contract', GOVERNANCE_CONTRACT_ADDRESS],
               ['Backend base URL', BACKEND_BASE_URL || 'Configured at runtime'],
               ['Hosted storage', 'Supabase Postgres'],
             ]}
@@ -739,6 +928,7 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
               ['GET /api/health', 'Basic health check for the backend service.'],
               ['GET /api/status', 'Indexer and runtime status.'],
               ['GET /api/organizations/:orgId/runs', 'Run-level read model.'],
+              ['GET /api/reports/organizations/:orgId/treasury', 'Treasury route health, payout backlog, and reserved inventory summary.'],
               ['GET /api/reports/organizations/:orgId/summary', 'Aggregate-first organization summary.'],
               ['GET /api/compliance/organizations/:orgId/package', 'Tier A compliance package with aggregate tax reserve and evidence summary.'],
               ['GET /api/compliance/organizations/:orgId/export', 'Compliance package export as JSON or CSV.'],
@@ -785,6 +975,18 @@ const sectionContentByTab: Record<DocsTabId, DocsSection[]> = {
               [
                 'Can the auditor see salary rows?',
                 'No. The current auditor surface is aggregate-only by design.',
+              ],
+              [
+                'Why does batch payroll still show multiple wallet popups?',
+                'Batch v1 intentionally submits one existing contract transaction per row, so each row still needs explicit wallet approval.',
+              ],
+              [
+                'Which actions are governed?',
+                'Payroll issuance, vesting issuance, treasury route changes, governance membership, and quorum changes are governed. Create/fund/reserve/activate run remain single-admin operational actions.',
+              ],
+              [
+                'What does treasury exposure mean?',
+                'It is an indexed operational summary of route health, available/reserved inventory, payout backlog, and run exposure. It is not a plaintext salary report.',
               ],
               [
                 'Is the tax page a live compliance workflow?',
