@@ -52,16 +52,16 @@ function formatAmount(value: string | null) {
 }
 
 function toLocalDateTime(timestamp: number) {
-  if (!timestamp) return 'Not scheduled'
+  if (!timestamp) return 'Not set'
   return new Date(timestamp * 1000).toLocaleString()
 }
 
 function describeAllocationState(allocation: EmployeePayrollView) {
   if (allocation.settlementRequestId) {
     return {
-      badge: 'Finalize payout',
+      badge: 'Complete payout',
       tone: 'info' as const,
-      detail: 'Your confidential payroll claim was requested. Finalize the wrapper payout to release the underlying settlement token to your wallet.'
+      detail: 'Your private payroll claim was requested. Complete the payout to release the token to your wallet.'
     }
   }
 
@@ -70,14 +70,14 @@ function describeAllocationState(allocation: EmployeePayrollView) {
       return {
         badge: 'Draft',
         tone: 'info' as const,
-        detail: 'This payroll item is still being prepared. The employer has not funded and activated the payroll run yet.'
+        detail: 'This payment is still being prepared. The employer has not yet funded and activated this payroll cycle.'
       }
     }
 
     return {
       badge: 'Awaiting activation',
       tone: 'info' as const,
-      detail: 'This payroll item is funded, but the employer has not opened the claim window yet.'
+      detail: 'This payment is funded, but the employer has not yet opened it for claiming.'
     }
   }
 
@@ -85,7 +85,7 @@ function describeAllocationState(allocation: EmployeePayrollView) {
     return {
       badge: 'Claimed',
       tone: 'success' as const,
-      detail: 'This payroll item was already claimed on-chain.'
+      detail: 'This payment has already been claimed.'
     }
   }
 
@@ -95,7 +95,7 @@ function describeAllocationState(allocation: EmployeePayrollView) {
       return {
         badge: 'Scheduled',
         tone: 'info' as const,
-        detail: `This vesting payroll unlocks on ${toLocalDateTime(allocation.vestingEnd)}.`
+        detail: `This scheduled payment unlocks on ${toLocalDateTime(allocation.vestingEnd)}.`
       }
     }
 
@@ -103,21 +103,21 @@ function describeAllocationState(allocation: EmployeePayrollView) {
       return {
         badge: 'Vesting',
         tone: 'info' as const,
-        detail: `This payroll stays locked until ${toLocalDateTime(allocation.vestingEnd)}.`
+        detail: `This payment stays locked until ${toLocalDateTime(allocation.vestingEnd)}.`
       }
     }
 
     return {
-      badge: 'Claim ready',
+      badge: 'Ready to claim',
       tone: 'success' as const,
-      detail: 'This vesting payroll can now be claimed.'
+      detail: 'This scheduled payment can now be claimed.'
     }
   }
 
   return {
-    badge: 'Available',
+    badge: 'Ready',
     tone: 'success' as const,
-    detail: 'This payroll item is available for immediate claim.'
+    detail: 'This payment is available to claim now.'
   }
 }
 
@@ -130,8 +130,8 @@ export default function EmployeePage() {
   const [claimingPaymentId, setClaimingPaymentId] = useState<string | null>(null)
   const [status, setStatus] = useState<EmployeeStatus>({
     tone: 'neutral',
-    title: 'Waiting for employee access',
-    detail: `Connect your wallet, switch to ${TARGET_CHAIN_NAME}, then enable privacy mode to load your payroll items.`
+    title: 'Getting started',
+    detail: `Connect your wallet, switch to ${TARGET_CHAIN_NAME}, then turn on secure view to load your payroll items.`
   })
 
   const orgId = useMemo(() => toBytes32Label(orgIdInput), [orgIdInput])
@@ -173,7 +173,7 @@ export default function EmployeePage() {
 
   const initializeCofhe = async () => {
     if (!signer) {
-      toast.error('Connect the employee wallet first.')
+      toast.error('Connect your wallet first.')
       return
     }
 
@@ -184,8 +184,8 @@ export default function EmployeePage() {
 
     setStatus({
       tone: 'info',
-      title: 'Enabling privacy mode',
-      detail: 'Approve the wallet prompts so CipherRoll can decrypt your payroll details privately in the browser.'
+      title: 'Setting up secure view',
+      detail: 'Approve the wallet prompts so you can securely view your payroll details in the browser.'
     })
 
     try {
@@ -194,15 +194,15 @@ export default function EmployeePage() {
       setCofheReady(true)
       setStatus({
         tone: 'success',
-        title: 'Privacy mode ready',
-        detail: 'Your wallet can now fetch and decrypt payroll items for this workspace.'
+        title: 'Secure view ready',
+        detail: 'Your wallet can now load and display your payroll items.'
       })
-      toast.success('Privacy mode is ready for this wallet.')
+      toast.success('Secure view is ready for this wallet.')
     } catch (error: any) {
-      const message = error?.message || 'Unable to enable privacy mode.'
+      const message = error?.message || 'Unable to set up secure view.'
       setStatus({
         tone: 'error',
-        title: 'Privacy mode failed',
+        title: 'Secure view setup failed',
         detail: message
       })
       toast.error(message)
@@ -211,7 +211,7 @@ export default function EmployeePage() {
 
   const loadAllocations = useCallback(async () => {
     if (!provider || !address) {
-      toast.error('Connect the employee wallet first.')
+      toast.error('Connect your wallet first.')
       return
     }
 
@@ -221,15 +221,15 @@ export default function EmployeePage() {
     }
 
     if (!cofheReady) {
-      toast.error('Enable privacy mode before refreshing payroll.')
+      toast.error('Turn on secure view before refreshing payroll.')
       return
     }
 
     setIsLoading(true)
     setStatus({
       tone: 'info',
-      title: 'Refreshing payroll',
-      detail: 'Loading your encrypted payroll items and checking whether each one is ready to claim.'
+      title: 'Refreshing your payroll',
+      detail: 'Loading your payroll items and checking which ones are ready to claim.'
     })
 
     try {
@@ -277,23 +277,23 @@ export default function EmployeePage() {
       if (nextAllocations.length === 0) {
         setStatus({
           tone: 'info',
-          title: 'No payroll items found',
-          detail: 'Nothing is assigned to this wallet for the current workspace yet.'
+          title: 'No payments found',
+          detail: 'No payments have been issued to this wallet yet.'
         })
       } else {
         const readyCount = nextAllocations.filter((item) => !item.isClaimed).length
         setStatus({
           tone: 'success',
-          title: 'Payroll loaded successfully',
-          detail: `${nextAllocations.length} payroll item(s) were loaded. ${readyCount} still require employee action or review.`
+          title: 'Payroll loaded',
+          detail: `${nextAllocations.length} payment(s) loaded. ${readyCount} still need your attention.`
         })
       }
     } catch (error: any) {
       console.error(error)
-      const message = error?.reason || error?.message || 'Unable to load employee allocations.'
+      const message = error?.reason || error?.message || 'Unable to load your payroll.'
       setStatus({
         tone: 'error',
-        title: 'Payroll refresh failed',
+        title: 'Payroll load failed',
         detail: message
       })
       toast.error(message)
@@ -310,7 +310,7 @@ export default function EmployeePage() {
 
   const claimPayroll = async (allocation: EmployeePayrollView) => {
     if (!signer || !address) {
-      toast.error('Connect the employee wallet first.')
+      toast.error('Connect your wallet first.')
       return
     }
 
@@ -333,7 +333,7 @@ export default function EmployeePage() {
                   allocation.settlementRequestId as `0x${string}`
                 )
                 if (!decryptResult) {
-                  throw new Error('CipherRoll could not prepare the wrapper claim proof for this payroll item.')
+                  throw new Error('CipherRoll could not prepare the payout completion proof for this payroll item.')
                 }
 
                 return contract.finalizePayrollSettlement(
@@ -346,7 +346,7 @@ export default function EmployeePage() {
             : await (async () => {
                 const decryptResult = await decryptUint128ForTx(allocation.handle)
                 if (!decryptResult) {
-                  throw new Error('CipherRoll could not prepare the settlement proof for this payroll item.')
+                  throw new Error('CipherRoll could not prepare the payout proof for this payroll item.')
                 }
 
                 return contract.requestPayrollSettlement(
@@ -359,7 +359,7 @@ export default function EmployeePage() {
           : await (async () => {
             const decryptResult = await decryptUint128ForTx(allocation.handle)
             if (!decryptResult) {
-              throw new Error('CipherRoll could not prepare the settlement proof for this payroll item.')
+              throw new Error('CipherRoll could not prepare the payout proof for this payroll item.')
             }
 
             return contract.claimPayrollWithSettlement(
@@ -373,24 +373,24 @@ export default function EmployeePage() {
 
       setStatus({
         tone: 'info',
-        title: 'Claim submitted',
+        title: 'Claim sent',
         detail: hasSettlementAsset
           ? treasury.supportsConfidentialSettlement
               ? allocation.settlementRequestId
-                ? 'The wallet sent your wrapper claim finalization to the network. Waiting for confirmation...'
-              : 'The wallet requested a confidential wrapper payout. Once confirmed, finalize the wrapper claim. That on-chain proof step can reveal the amount before the underlying settlement token is released.'
-            : 'The wallet sent your claim and token-settlement proof to the network. Waiting for confirmation...'
-          : 'The wallet sent your claim to the network. Waiting for confirmation...'
+                ? 'Your payout completion was sent to the network. Waiting for confirmation...'
+              : 'Your payout was requested. Once confirmed, complete the final step. The amount may become visible on the network before the token is released.'
+            : 'Your claim was sent to the network. Waiting for confirmation...'
+          : 'Your claim was sent to the network. Waiting for confirmation...'
       })
       await tx.wait()
       toast.success(
         hasSettlementAsset
           ? treasury.supportsConfidentialSettlement
             ? allocation.settlementRequestId
-              ? 'Wrapper payout finalized and the underlying settlement token was released on-chain.'
-              : 'Confidential wrapper payout requested. One final wallet step is still needed to release the underlying settlement token.'
-            : 'Payroll claim confirmed and settlement tokens released on-chain.'
-          : 'Payroll claim confirmed on-chain.'
+              ? 'Payout completed and the token has been released to your wallet.'
+              : 'Payout requested. One final step is needed to receive the token in your wallet.'
+            : 'Payment claimed successfully. Tokens have been released to your wallet.'
+          : 'Payment claimed successfully.'
       )
       await loadAllocations()
     } catch (error: any) {
@@ -479,7 +479,7 @@ export default function EmployeePage() {
                   <Eye className="w-10 h-10 mx-auto text-white/20 mb-4" />
                   <h3 className="text-xl font-bold text-white mb-2">No payroll items yet</h3>
                   <p className="text-sm text-[#a1a1aa] max-w-md mx-auto">
-                    Ask the admin to issue payroll for this wallet, then refresh again after privacy mode is enabled.
+                    Ask your employer to issue a payment to this wallet, then refresh after turning on secure view.
                   </p>
                 </div>
               ) : (
@@ -497,7 +497,7 @@ export default function EmployeePage() {
                         Math.floor(Date.now() / 1000) >= allocation.vestingEnd
                       )
                     const payrollRunStatusLabel = allocation.payrollRunStatus === null
-                      ? 'Legacy direct allocation'
+                      ? 'Direct payment'
                       : ['Draft', 'Funded', 'Active', 'Finalized'][allocation.payrollRunStatus] ?? 'Unknown'
 
                     return (
@@ -529,58 +529,58 @@ export default function EmployeePage() {
 
                         <div className="mt-6 grid gap-3 md:grid-cols-2 text-sm">
                           <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                            <p className="text-white/50 uppercase tracking-[0.16em] text-[11px] font-bold mb-2">Run</p>
+                            <p className="text-white/50 uppercase tracking-[0.16em] text-[11px] font-bold mb-2">Payroll Group</p>
                             <p className="text-white">{payrollRunStatusLabel}</p>
                             <p className="mt-2 text-xs text-white/45 font-mono">
-                              {allocation.payrollRunId ? allocation.payrollRunId.slice(0, 12) : 'Direct workspace issuance'}
+                              {allocation.payrollRunId ? allocation.payrollRunId.slice(0, 12) : 'Direct payment'}
                               {allocation.payrollRunId ? '...' : ''}
                             </p>
                           </div>
                           <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                            <p className="text-white/50 uppercase tracking-[0.16em] text-[11px] font-bold mb-2">Unlock</p>
+                            <p className="text-white/50 uppercase tracking-[0.16em] text-[11px] font-bold mb-2">Schedule</p>
                             <p className="text-white">
                               {allocation.isVesting
                                 ? `${toLocalDateTime(allocation.vestingStart)} to ${toLocalDateTime(allocation.vestingEnd)}`
-                                : 'Immediate payout'}
+                                : 'Available now'}
                             </p>
                           </div>
                         </div>
 
                         <div className="mt-3 grid gap-3 md:grid-cols-2 text-sm">
                           <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                            <p className="text-white/50 uppercase tracking-[0.16em] text-[11px] font-bold mb-2">Claim state</p>
+                            <p className="text-white/50 uppercase tracking-[0.16em] text-[11px] font-bold mb-2">Payment Status</p>
                             <p className="text-white">
                               {allocation.isClaimed
-                                ? 'Claim already submitted'
+                                ? 'Already claimed'
                                 : needsFinalizeSettlement
-                                  ? 'Wrapper payout requested'
+                                  ? 'Payout in progress'
                                 : !runClaimOpen
-                                  ? 'Waiting for employer activation'
+                                  ? 'Waiting for employer'
                                   : canClaim
-                                    ? 'Ready to claim now'
-                                    : 'Waiting for unlock'}
+                                    ? 'Ready to claim'
+                                    : 'Not yet available'}
                             </p>
                           </div>
                           <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
                             <p className="text-white/50 uppercase tracking-[0.16em] text-[11px] font-bold mb-2">Next</p>
                             <p className="text-white">
                               {!runClaimOpen
-                                ? 'The employer still needs to fund and activate this payroll run.'
+                                ? 'The employer still needs to fund and activate this payroll cycle.'
                                 : allocation.isClaimed
-                                  ? 'This item is complete for your wallet.'
+                                  ? 'This payment is complete.'
                                   : needsFinalizeSettlement
-                                    ? 'Finalize the wrapper claim now. That on-chain proof step can reveal the amount before the underlying settlement token reaches your wallet.'
+                                    ? 'Complete the payout now. The amount may become visible on the network before the token reaches your wallet.'
                                   : canClaim
-                                    ? 'You can submit the claim transaction now.'
-                                    : 'This item will become claimable after its vesting window ends.'}
+                                    ? 'You can claim this payment now.'
+                                    : 'This payment will be available after the vesting period ends.'}
                             </p>
                           </div>
                         </div>
 
                         <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                           <div className="grid gap-2 text-xs text-white/40 font-mono">
-                            <div><span className="text-white/30 mr-2">MEMO:</span>{allocation.memoHash.slice(0, 10)}...</div>
-                            <div><span className="text-white/30 mr-2">HANDLE:</span>{allocation.handle ? formatHandle(allocation.handle) : 'Not Created'}</div>
+                            <div><span className="text-white/30 mr-2">Ref:</span>{allocation.memoHash.slice(0, 10)}...</div>
+                            <div><span className="text-white/30 mr-2">ID:</span>{allocation.handle ? formatHandle(allocation.handle) : 'N/A'}</div>
                           </div>
                           <button
                             onClick={() => void claimPayroll(allocation)}
@@ -590,9 +590,9 @@ export default function EmployeePage() {
                             {claimingPaymentId === allocation.paymentId
                               ? 'Submitting...'
                               : allocation.isClaimed
-                                ? 'Already Claimed'
+                                ? 'Claimed'
                                 : needsFinalizeSettlement
-                                  ? 'Finalize Payout'
+                                  ? 'Complete Payout'
                                   : 'Claim Payroll'}
                           </button>
                         </div>
@@ -607,15 +607,15 @@ export default function EmployeePage() {
       </div>
       <CipherBotWidget
         scope="employee"
-        headline="Your contextual guide for CipherRoll employee claims."
-        intro="Ask about privacy mode, claim readiness, wrapper finalize, vesting, or settlement visibility. I will keep the guidance simple and focused on the current employee flow."
+        headline="Your guide for claiming payroll payments."
+        intro="Ask about secure view, payment status, claiming payouts, vesting schedules, or payout steps. I'll keep it simple and focused on your payments."
         organizationId={orgId}
         liveContext={{
           portalSummary: [
-            `${allocations.length} payroll item(s) currently loaded for this wallet.`,
-            `${claimableCount} item(s) look claim-ready right now.`,
-            `${finalizeCount} item(s) still need wrapper finalization.`,
-            `${vestingCount} item(s) are still locked by vesting.`
+            `${allocations.length} payment(s) currently loaded for this wallet.`,
+            `${claimableCount} payment(s) are ready to claim right now.`,
+            `${finalizeCount} payment(s) need a final payout step.`,
+            `${vestingCount} payment(s) are still locked by a vesting schedule.`
           ]
         }}
       />

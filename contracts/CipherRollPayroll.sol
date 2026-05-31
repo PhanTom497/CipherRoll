@@ -94,6 +94,7 @@ contract CipherRollPayroll {
     mapping(bytes32 => euint128) private _encryptedBudget;
     mapping(bytes32 => euint128) private _encryptedCommitted;
     mapping(bytes32 => euint128) private _encryptedAvailable;
+    mapping(bytes32 => uint128) private _treasuryFundingAvailableLimit;
     mapping(bytes32 => PayrollAllocationMeta) private _allocations;
     mapping(bytes32 => euint128) private _allocationAmounts;
     mapping(bytes32 => bool) private _allocationClaimed;
@@ -440,30 +441,25 @@ contract CipherRollPayroll {
         require(payrollRun.status != PayrollRunStatus.Finalized, "CipherRoll: payroll run finalized");
         require(payrollRun.allocationCount > 0, "CipherRoll: payroll run has no allocations");
         require(block.timestamp <= payrollRun.fundingDeadline, "CipherRoll: funding window closed");
-        require(cleartextAmount > 0, "CipherRoll: treasury amount required");
+        require(cleartextAmount > 0, "CR: amount");
 
         address adapter = _organizations[orgId].treasuryAdapter;
-        require(adapter != address(0), "CipherRoll: treasury route missing");
+        require(adapter != address(0), "CR: route missing");
+
+        require(_treasuryFundingAvailableLimit[orgId] >= cleartextAmount);
 
         ITreasuryAdapter(adapter).reservePayrollFunding(orgId, payrollRunId, cleartextAmount);
+        _treasuryFundingAvailableLimit[orgId] -= cleartextAmount;
 
         euint128 amount = FHE.asEuint128(cleartextAmount);
         FHE.allowThis(amount);
+        FHE.allow(amount, msg.sender);
 
-        euint128 availableBudget = _encryptedAvailable[orgId];
-        ebool hasCapacity = FHE.gte(availableBudget, amount);
-        euint128 zeroAmount = FHE.asEuint128(0);
-        FHE.allowThis(zeroAmount);
-
-        euint128 fundedAmount = FHE.select(hasCapacity, amount, zeroAmount);
-        FHE.allowThis(fundedAmount);
-        FHE.allow(fundedAmount, msg.sender);
-
-        euint128 newCommitted = FHE.add(_encryptedCommitted[orgId], fundedAmount);
+        euint128 newCommitted = FHE.add(_encryptedCommitted[orgId], amount);
         FHE.allowThis(newCommitted);
         FHE.allow(newCommitted, msg.sender);
 
-        euint128 newAvailable = FHE.sub(availableBudget, fundedAmount);
+        euint128 newAvailable = FHE.sub(_encryptedAvailable[orgId], amount);
         FHE.allowThis(newAvailable);
         FHE.allow(newAvailable, msg.sender);
 
@@ -502,8 +498,10 @@ contract CipherRollPayroll {
 
     function depositBudget(
         bytes32 orgId,
-        InEuint128 calldata encryptedAmount
+        InEuint128 calldata encryptedAmount,
+        uint128 cleartextFundingLimit
     ) external onlyOrgAdmin(orgId) {
+        _treasuryFundingAvailableLimit[orgId] += cleartextFundingLimit;
         euint128 amount = FHE.asEuint128(encryptedAmount);
         FHE.allowThis(amount);
 

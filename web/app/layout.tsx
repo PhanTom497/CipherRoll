@@ -9,6 +9,11 @@ import CursorAura from '@/components/CursorAura'
 export const metadata: Metadata = {
     title: 'CipherRoll',
     description: 'Confidential payroll operations on Arbitrum Sepolia',
+    icons: {
+        icon: '/cipherroll-logo.png',
+        shortcut: '/cipherroll-logo.png',
+        apple: '/cipherroll-logo.png',
+    },
 }
 
 const EvmWalletProvider = dynamic(

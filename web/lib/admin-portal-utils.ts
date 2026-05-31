@@ -237,12 +237,16 @@ export function extractCipherRollErrorMessage(error: unknown): string {
     return "Choose a valid treasury route before configuring treasury.";
   }
 
-  if (/treasury amount required/i.test(message)) {
+  if (/treasury amount required|CR: amount/i.test(message)) {
     return "Enter a positive amount before reserving treasury funds for the payroll run.";
   }
 
   if (/treasury funds unavailable/i.test(message)) {
     return "The treasury does not have enough available token inventory for that funding request.";
+  }
+
+  if (/budget capacity insufficient|budget cap|BudgetCap/i.test(message)) {
+    return "The available private budget is lower than this payroll funding request. Add budget or lower the payroll amount before reserving treasury funds.";
   }
 
   if (/treasury reserve insufficient|payroll run reserve insufficient/i.test(message)) {

@@ -121,10 +121,10 @@ async function main() {
 
   const unknownOrgDepositFailure = await expectFailure("unknown org deposit", async () => {
     const fakeOrgBudget = await client.encryptInputs([Encryptable.uint128(ethers.parseUnits("0.1", 18))]).execute();
-    await payroll.depositBudget.staticCall(ethers.id(`missing:${seed}`), fakeOrgBudget[0]);
+    await payroll.depositBudget.staticCall(ethers.id(`missing:${seed}`), fakeOrgBudget[0], ethers.parseUnits("0.1", 18));
   });
 
-  const depositTx = await payroll.depositBudget(orgId, encryptedBudget, {
+  const depositTx = await payroll.depositBudget(orgId, encryptedBudget, budgetAmount, {
     ...gasOverrides,
     gasLimit: 1_200_000n
   });

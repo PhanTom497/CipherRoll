@@ -22,28 +22,28 @@ const portals = [
   {
     title: "Admin",
     description:
-      "Create workspaces, fund encrypted budget, govern sensitive actions, run batch payroll, and monitor treasury exposure.",
+      "Create workspaces, fund private budget, manage approvals, run batch payroll, and monitor treasury.",
     icon: Shield,
     url: "/admin"
   },
   {
     title: "Employee",
     description:
-      "Review allocations privately, decrypt locally, claim payroll, and finalize wrapper-backed payouts from your own wallet.",
+      "Review your payments privately, claim payroll, and complete payouts from your own wallet.",
     icon: Users,
     url: "/employee"
   },
   {
     title: "Auditor",
     description:
-      "Import permits, review aggregate disclosures, and produce verify or publish receipts without salary-row access.",
+      "Import access codes, review summary data, and create audit records without seeing individual salaries.",
     icon: Eye,
     url: "/auditor"
   },
   {
-    title: "Tax",
+    title: "Compliance",
     description:
-      "Build aggregate-first Tier A compliance packages with reserve policy, treasury posture, and receipt metadata.",
+      "Build summary-level compliance reports with reserve policy, treasury status, and audit records.",
     icon: Landmark,
     url: "/tax-authority"
   }

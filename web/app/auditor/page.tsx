@@ -96,17 +96,17 @@ const evidenceMetricDetails: Record<
   budget: {
     label: 'Budget',
     summaryKey: 'budget',
-    detail: 'Total encrypted organization budget shared for audit review.'
+    detail: 'Total organization budget shared for review.'
   },
   committed: {
     label: 'Committed Payroll',
     summaryKey: 'committed',
-    detail: 'Aggregate payroll commitments without employee-level rows.'
+    detail: 'Total payroll commitments (no individual salary details).',
   },
   available: {
     label: 'Available Runway',
     summaryKey: 'available',
-    detail: 'Aggregate budget remaining after commitments.'
+    detail: 'Budget remaining after commitments.'
   }
 }
 
@@ -169,11 +169,12 @@ export default function AuditorPage() {
   const [backendPublishedReceipts, setBackendPublishedReceipts] = useState<AuditReceiptRecord[]>([])
   const [backendAuditError, setBackendAuditError] = useState<string | null>(null)
   const [isBackendAuditLoading, setIsBackendAuditLoading] = useState(false)
+  const [showAdvancedEvidencePackage, setShowAdvancedEvidencePackage] = useState(false)
   const [activeTab, setActiveTab] = useState<AuditorPortalTab>('access')
   const [status, setStatus] = useState<AuditorStatus>({
     tone: 'neutral',
-    title: 'Waiting for auditor access',
-    detail: `Connect the auditor wallet, switch to ${TARGET_CHAIN_NAME}, then import a shared permit payload from the admin before reviewing aggregate payroll summaries.`
+    title: 'Getting started',
+    detail: `Connect the auditor wallet, switch to ${TARGET_CHAIN_NAME}, then import an access code from the admin to review the payroll summaries.`
   })
 
   const orgId = useMemo(() => toBytes32Label(orgIdInput), [orgIdInput])
@@ -266,7 +267,7 @@ export default function AuditorPage() {
 
   const initializeCofhe = async () => {
     if (!signer) {
-      toast.error('Connect the auditor wallet first.')
+      toast.error('Connect your wallet first.')
       return
     }
 
@@ -277,8 +278,8 @@ export default function AuditorPage() {
 
     setStatus({
       tone: 'info',
-      title: 'Preparing auditor session',
-      detail: 'Approve the wallet prompts so CipherRoll can import recipient permits and decrypt shared aggregate summaries in the browser.'
+      title: 'Setting up auditor access',
+      detail: 'Approve the wallet prompts to import your access code and view the shared summary.'
     })
 
     try {
@@ -287,15 +288,15 @@ export default function AuditorPage() {
       loadRecipientPermits()
       setStatus({
         tone: 'success',
-        title: 'Auditor privacy mode ready',
-        detail: 'This wallet can now import shared permits and decrypt aggregate summaries that an admin explicitly shared.'
+        title: 'Auditor access ready',
+        detail: 'You can now import access codes and view the summaries that the admin shared with you.'
       })
-      toast.success('Auditor access is ready for this wallet.')
+      toast.success('Auditor access is ready.')
     } catch (error) {
       const message = extractCipherRollErrorMessage(error)
       setStatus({
         tone: 'error',
-        title: 'Auditor setup failed',
+        title: 'Auditor access setup failed',
         detail: message
       })
       toast.error(message)
@@ -304,7 +305,7 @@ export default function AuditorPage() {
 
   const importSharedPermitPayload = async () => {
     if (!signer) {
-      toast.error('Connect the auditor wallet first.')
+      toast.error('Connect your wallet first.')
       return
     }
 
@@ -314,12 +315,12 @@ export default function AuditorPage() {
     }
 
     if (!cofheReady) {
-      toast.error('Enable auditor access first so the current SDK can import the shared permit for this wallet.')
+      toast.error('Turn on auditor access first so the access code can be imported.')
       return
     }
 
     if (!sharedPayload.trim()) {
-      toast.error('Paste the sharing payload from the admin portal first.')
+      toast.error('Paste the access code shared by the admin.')
       return
     }
 
@@ -327,8 +328,8 @@ export default function AuditorPage() {
     try {
       setStatus({
         tone: 'info',
-        title: 'Importing shared permit',
-        detail: 'Approve the wallet signature so the imported sharing payload becomes an active recipient permit for this auditor wallet.'
+        title: 'Importing access code',
+        detail: 'Approve the wallet signature to activate this access code.'
       })
 
       const permit = await importAuditorSharingPermit(sharedPayload, chainId ?? undefined, connectedAddress)
@@ -338,10 +339,10 @@ export default function AuditorPage() {
       setSharedPayload('')
       setStatus({
         tone: 'success',
-        title: 'Shared permit imported',
-        detail: 'The auditor wallet now has a recipient permit for aggregate payroll review. Refresh the workspace to decrypt the shared summary handles.'
+        title: 'Access code imported',
+        detail: 'Auditor access is now active. Refresh the workspace to view the shared summary.'
       })
-      toast.success(`Imported recipient permit ${shortHash(permit.hash) ?? permit.hash}.`)
+      toast.success(`Imported access code ${shortHash(permit.hash) ?? permit.hash}.`)
     } catch (error) {
       const message = extractCipherRollErrorMessage(error)
       setStatus({
@@ -357,7 +358,7 @@ export default function AuditorPage() {
 
   const loadAuditorSummary = async () => {
     if (!provider || !address) {
-      toast.error('Connect the auditor wallet first.')
+      toast.error('Connect your wallet first.')
       return
     }
 
@@ -367,13 +368,13 @@ export default function AuditorPage() {
     }
 
     if (!cofheReady) {
-      toast.error('Enable auditor access first.')
+      toast.error('Turn on auditor access first.')
       return
     }
 
     const activePermit = getActiveAuditorRecipientPermit(chainId ?? undefined, address)
     if (!activePermit) {
-      toast.error('Import and activate an auditor recipient permit first.')
+      toast.error('Import and activate an access code first.')
       return
     }
 
@@ -381,8 +382,8 @@ export default function AuditorPage() {
     try {
       setStatus({
         tone: 'info',
-        title: 'Refreshing auditor summary',
-        detail: 'Loading compliance-safe organization data and decrypting only the shared aggregate budget handles.'
+        title: 'Refreshing summary',
+        detail: 'Loading the organization summary and viewing only the shared budget details.'
       })
 
       const contract = getCipherRollAuditorContract(signer ?? provider)
@@ -405,8 +406,8 @@ export default function AuditorPage() {
       })
       setStatus({
         tone: 'success',
-        title: 'Auditor summary loaded',
-        detail: 'CipherRoll decrypted only the aggregate budget, committed payroll, and available runway values shared through the active recipient permit.'
+        title: 'Summary loaded',
+        detail: 'You can now see the budget, committed payroll, and available runway values that the admin shared with you.'
       })
     } catch (error) {
       const message = extractCipherRollErrorMessage(error)
@@ -420,7 +421,7 @@ export default function AuditorPage() {
       setLastBatchEvidenceReceipt(null)
       setStatus({
         tone: 'error',
-        title: 'Auditor refresh failed',
+        title: 'Summary refresh failed',
         detail: message
       })
       toast.error(message)
@@ -431,7 +432,7 @@ export default function AuditorPage() {
 
   const createAuditEvidence = async (mode: AuditorEvidenceMode) => {
     if (!provider || !address) {
-      toast.error('Connect the auditor wallet first.')
+      toast.error('Connect your wallet first.')
       return
     }
 
@@ -441,20 +442,20 @@ export default function AuditorPage() {
     }
 
     if (!cofheReady) {
-      toast.error('Enable auditor access first.')
+      toast.error('Turn on auditor access first.')
       return
     }
 
     const activePermit = getActiveAuditorRecipientPermit(chainId ?? undefined, address)
     if (!activePermit) {
-      toast.error('Import and activate an auditor recipient permit first.')
+      toast.error('Import and activate an access code first.')
       return
     }
 
     const selectedMetricMeta = evidenceMetricDetails[selectedEvidenceMetric]
     const selectedValue = summaryValues[selectedMetricMeta.summaryKey]
     if (!selectedValue) {
-      toast.error('Refresh the auditor summary first so CipherRoll can prove the selected shared metric.')
+      toast.error('Refresh the summary first so CipherRoll can verify the selected shared metric.')
       return
     }
 
@@ -462,11 +463,11 @@ export default function AuditorPage() {
     try {
       setStatus({
         tone: 'info',
-        title: mode === 'verify' ? 'Generating audit receipt' : 'Publishing decrypt result',
+        title: mode === 'verify' ? 'Creating audit record' : 'Publishing audit result',
         detail:
           mode === 'verify'
-            ? 'CipherRoll is preparing a threshold-signed decrypt result for the selected shared metric, then verifying it on-chain to produce defensible audit evidence.'
-            : 'CipherRoll is preparing a threshold-signed decrypt result for the selected shared metric, then publishing that result on-chain for downstream contract consumers.'
+            ? 'Preparing a verified result for the selected metric, then recording it on the network as audit evidence.'
+            : 'Preparing a verified result for the selected metric, then publishing it on the network for downstream use.'
       })
 
       const contract = getCipherRollAuditorContract(signer ?? provider)
@@ -474,7 +475,7 @@ export default function AuditorPage() {
       const decryptResult = await decryptUint128ForTx(handle, activePermit)
 
       if (!decryptResult) {
-        throw new Error('CipherRoll could not prepare an auditor decrypt proof for this metric.')
+        throw new Error('CipherRoll could not prepare a verification for this metric.')
       }
 
       const tx =
@@ -505,22 +506,22 @@ export default function AuditorPage() {
       setLastBatchEvidenceReceipt(null)
       setStatus({
         tone: 'success',
-        title: mode === 'verify' ? 'Audit receipt created' : 'Decrypt result published',
+        title: mode === 'verify' ? 'Audit record created' : 'Audit result published',
         detail:
           mode === 'verify'
-            ? 'CipherRoll verified the threshold-network signature on-chain and emitted a narrow receipt for the selected aggregate metric.'
-            : 'CipherRoll published the decrypt result on-chain and emitted a narrow receipt for the selected aggregate metric.'
+            ? 'The verified result was recorded on the network as an audit record for the selected metric.'
+            : 'The result was published on the network as an audit record for the selected metric.'
       })
       toast.success(
         mode === 'verify'
-          ? 'Audit evidence verified on-chain.'
-          : 'Decrypt result published on-chain.'
+          ? 'Audit record verified.'
+          : 'Audit result published.'
       )
     } catch (error) {
       const message = extractCipherRollErrorMessage(error)
       setStatus({
         tone: 'error',
-        title: 'Audit evidence failed',
+        title: 'Audit record failed',
         detail: message
       })
       toast.error(message)
@@ -531,7 +532,7 @@ export default function AuditorPage() {
 
   const createBatchAuditEvidence = async (mode: AuditorEvidenceMode) => {
     if (!provider || !address) {
-      toast.error('Connect the auditor wallet first.')
+      toast.error('Connect your wallet first.')
       return
     }
 
@@ -541,24 +542,24 @@ export default function AuditorPage() {
     }
 
     if (!cofheReady) {
-      toast.error('Enable auditor access first.')
+      toast.error('Turn on auditor access first.')
       return
     }
 
     const activePermit = getActiveAuditorRecipientPermit(chainId ?? undefined, address)
     if (!activePermit) {
-      toast.error('Import and activate an auditor recipient permit first.')
+      toast.error('Import and activate an access code first.')
       return
     }
 
     if (selectedBatchMetrics.length === 0) {
-      toast.error('Choose at least one aggregate metric for the batch receipt.')
+      toast.error('Choose at least one metric for the batch record.')
       return
     }
 
     const missingMetric = selectedBatchMetrics.find((metric) => !summaryValues[evidenceMetricDetails[metric].summaryKey])
     if (missingMetric) {
-      toast.error(`Refresh the auditor summary first so CipherRoll can prove ${evidenceMetricDetails[missingMetric].label}.`)
+      toast.error(`Refresh the summary first so CipherRoll can verify ${evidenceMetricDetails[missingMetric].label}.`)
       return
     }
 
@@ -566,11 +567,11 @@ export default function AuditorPage() {
     try {
       setStatus({
         tone: 'info',
-        title: mode === 'verify' ? 'Generating batched audit receipt' : 'Publishing batched decrypt results',
+        title: mode === 'verify' ? 'Creating batch audit record' : 'Publishing batch audit results',
         detail:
           mode === 'verify'
-            ? 'CipherRoll is preparing threshold-signed decrypt results for the selected shared aggregate metrics, then verifying the whole set on-chain as one receipt.'
-            : 'CipherRoll is preparing threshold-signed decrypt results for the selected shared aggregate metrics, then publishing the whole set on-chain for downstream contract consumers.'
+            ? 'Preparing verified results for the selected metrics, then recording them on the network as one audit record.'
+            : 'Preparing verified results for the selected metrics, then publishing them on the network for downstream use.'
       })
 
       const contract = getCipherRollAuditorContract(signer ?? provider)
@@ -582,7 +583,7 @@ export default function AuditorPage() {
       )
 
       if (decryptResults.some((result: DecryptForTxResult | null) => !result)) {
-        throw new Error('CipherRoll could not prepare one or more batch decrypt proofs for the selected metrics.')
+        throw new Error('CipherRoll could not prepare one or more verifications for the selected metrics.')
       }
 
       const resolvedResults = decryptResults as NonNullable<typeof decryptResults[number]>[]
@@ -621,22 +622,22 @@ export default function AuditorPage() {
       setLastEvidenceReceipt(null)
       setStatus({
         tone: 'success',
-        title: mode === 'verify' ? 'Batched audit receipt created' : 'Batched decrypt results published',
+        title: mode === 'verify' ? 'Batch audit record created' : 'Batch audit results published',
         detail:
           mode === 'verify'
-            ? 'CipherRoll verified the threshold-network signatures for the selected aggregate metrics on-chain and emitted one batch receipt.'
-            : 'CipherRoll published the threshold-network decrypt results for the selected aggregate metrics on-chain and emitted one batch receipt.'
+            ? 'The verified results were recorded on the network as one batch audit record.'
+            : 'The results were published on the network as one batch audit record.'
       })
       toast.success(
         mode === 'verify'
-          ? 'Batched audit evidence verified on-chain.'
-          : 'Batched decrypt results published on-chain.'
+          ? 'Batch audit record verified.'
+          : 'Batch audit results published.'
       )
     } catch (error) {
       const message = extractCipherRollErrorMessage(error)
       setStatus({
         tone: 'error',
-        title: 'Batched audit evidence failed',
+        title: 'Batch audit record failed',
         detail: message
       })
       toast.error(message)
@@ -660,10 +661,10 @@ export default function AuditorPage() {
     setLastBatchEvidenceReceipt(null)
     setStatus({
       tone: 'info',
-      title: 'Recipient permit removed',
-      detail: 'CipherRoll cleared the imported recipient permit from this auditor browser. This stops local decrypts here, but does not invalidate any other wallet session that may already have imported the same payload.'
+      title: 'Access code removed',
+      detail: 'The access code was removed from this browser. This stops local viewing here, but does not affect any other session that may already have the same code.'
     })
-    toast.success('Recipient permit removed from this auditor browser.')
+    toast.success('Access code removed from this browser.')
   }
 
   const activePermit = recipientPermits.find((permit) => permit.hash === activeRecipientPermitHash) ?? null
@@ -683,17 +684,17 @@ export default function AuditorPage() {
     { label: 'Available', value: summaryValues.available ?? '***' },
     { label: 'Runs', value: String(summary.totalPayrollRuns) },
     { label: 'Employees', value: String(summary.employeeRecipients) },
-    { label: 'Treasury', value: summary.treasuryRouteConfigured ? treasuryAvailable : 'No route' }
+    { label: 'Treasury', value: summary.treasuryRouteConfigured ? treasuryAvailable : 'Not set up' }
   ]
   const auditSummaryCards = [
     ...analyticsCards,
     { label: 'Status', value: solvencyLabel, detail: summaryValues.available ? `${runwayPercent.toFixed(0)}% runway left` : 'Refresh to load values' },
-    { label: 'Settlement', value: summary.supportsConfidentialSettlement ? 'Wrapper' : summary.treasuryRouteConfigured ? 'Direct' : 'No route', detail: summary.treasuryRouteConfigured ? 'Route configured' : 'No treasury route' }
+    { label: 'Settlement', value: summary.supportsConfidentialSettlement ? 'Two-step' : summary.treasuryRouteConfigured ? 'Direct' : 'Not set up', detail: summary.treasuryRouteConfigured ? 'Set up' : 'No treasury set up' }
   ]
   const auditorTabs: Array<{ id: AuditorPortalTab; label: string }> = [
     { id: 'access', label: 'Access' },
     { id: 'review', label: 'Review' },
-    { id: 'receipts', label: 'Receipts' }
+    { id: 'receipts', label: 'Records' }
   ]
 
   return (
@@ -707,7 +708,7 @@ export default function AuditorPage() {
       <div className="w-full max-w-6xl mx-auto px-6 pb-24 relative z-10">
         <section className="mb-8 text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 text-cyan-300 text-xs font-bold tracking-widest uppercase mb-5">
-            Shared-Permit Review
+            Auditor Review
           </div>
           <h1 className="text-5xl md:text-6xl font-black tracking-tight text-white mb-4">Auditor Portal</h1>
         </section>
@@ -730,7 +731,7 @@ export default function AuditorPage() {
                   disabled={!signer || isBusy}
                   className="rounded-2xl bg-white text-black px-5 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
                 >
-                  Enable Auditor Access
+                  Turn On Auditor Access
                 </button>
                 <button
                   onClick={() => void loadAuditorSummary()}
@@ -749,7 +750,7 @@ export default function AuditorPage() {
                   Active workspace: <span className="font-mono">{formatBytes32Preview(orgId)}</span>
                 </span>
                 <span>
-                  Active permit: {activePermit ? shortHash(activePermit.hash) : 'None selected'}
+                  Active code: {activePermit ? shortHash(activePermit.hash) : 'None'}
                 </span>
               </div>
             </div>
@@ -797,14 +798,14 @@ export default function AuditorPage() {
                     disabled={!signer || !cofheReady || isBusy || !sharedPayload.trim()}
                     className="w-full rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
                   >
-                    Import Shared Permit
+                    Import Access Code
                   </button>
                 </div>
                 <textarea
                   value={sharedPayload}
                   onChange={(event) => setSharedPayload(event.target.value)}
                   className="min-h-[236px] w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-mono text-white/85 placeholder:text-white/35"
-                  placeholder="Paste the shared payload"
+                  placeholder="Paste the access code"
                 />
               </div>
 
@@ -815,13 +816,13 @@ export default function AuditorPage() {
             <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl min-h-[318px]">
               <div className="flex items-center gap-3 mb-6">
                 <KeyRound className="w-5 h-5 text-emerald-300" />
-                <h2 className="text-2xl font-bold text-white">Recipient permits</h2>
+                <h2 className="text-2xl font-bold text-white">Access codes</h2>
               </div>
 
               <div className="space-y-3">
                 {recipientPermits.length === 0 ? (
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-[#a1a1aa]">
-                    No recipient permits are stored for this wallet yet.
+                    No access codes are stored for this wallet yet.
                   </div>
                 ) : (
                   recipientPermits.map((permit) => {
@@ -864,11 +865,11 @@ export default function AuditorPage() {
                                 if (!chainId || !address) return
                                 selectAuditorRecipientPermit(permit.hash, chainId, address)
                                 loadRecipientPermits()
-                                toast.success('Recipient permit activated for this auditor session.')
+                                toast.success('Access code activated for this session.')
                               }}
                               className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10"
                             >
-                              {isActive ? 'Active Permit' : 'Use Permit'}
+                              {isActive ? 'Active' : 'Activate'}
                             </button>
                             <button
                               type="button"
@@ -899,7 +900,7 @@ export default function AuditorPage() {
                   <p className="font-mono text-white">{formatBytes32Preview(orgId)}</p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">Treasury path</p>
+                  <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">Payout route</p>
                   <p className="text-white">{summary.treasuryRouteConfigured ? 'Configured' : 'Not configured'}</p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -1043,7 +1044,7 @@ export default function AuditorPage() {
             </div>
 
             <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-50">
-              Verify keeps disclosure narrower than publish.
+              Creating a record keeps the disclosure narrower than publishing.
             </div>
 
             {lastEvidenceReceipt ? (
@@ -1056,7 +1057,7 @@ export default function AuditorPage() {
                   <p>Tx: <span className="font-mono text-white/90">{shortHash(lastEvidenceReceipt.txHash) ?? lastEvidenceReceipt.txHash}</span></p>
                 </div>
                 <p className="mt-3 text-white/80">
-                  Ciphertext handle: <span className="font-mono">{shortHash(lastEvidenceReceipt.ctHash) ?? lastEvidenceReceipt.ctHash}</span>
+                  Encrypted reference: <span className="font-mono">{shortHash(lastEvidenceReceipt.ctHash) ?? lastEvidenceReceipt.ctHash}</span>
                 </p>
               </div>
             ) : null}
@@ -1085,16 +1086,23 @@ export default function AuditorPage() {
             <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-[#c9c9d0]">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <p className="font-semibold text-white">Backend evidence package</p>
+                  <p className="font-semibold text-white">Advanced details</p>
                   <p className="mt-2">
-                    Aggregate-only audit export from the indexed backend, including recent receipts and workflow notifications.
+                    Backend evidence package, receipt streams, and workflow activity.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
                   <button
                     type="button"
+                    onClick={() => setShowAdvancedEvidencePackage((current) => !current)}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10"
+                  >
+                    {showAdvancedEvidencePackage ? 'Hide Advanced Details' : 'Show Advanced Details'}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => void loadBackendAuditPackage()}
-                    disabled={isBackendAuditLoading}
+                    disabled={!showAdvancedEvidencePackage || isBackendAuditLoading}
                     className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
                   >
                     {isBackendAuditLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -1103,7 +1111,8 @@ export default function AuditorPage() {
                   <button
                     type="button"
                     onClick={() => void downloadBackendAuditPackage()}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-gray-200"
+                    disabled={!showAdvancedEvidencePackage}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-gray-200 disabled:opacity-50"
                   >
                     <Download className="h-4 w-4" />
                     Export JSON
@@ -1111,6 +1120,8 @@ export default function AuditorPage() {
                 </div>
               </div>
 
+              {showAdvancedEvidencePackage ? (
+                <>
               {backendAuditError ? (
                 <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-amber-50">
                   Backend audit package unavailable right now: {backendAuditError}
@@ -1142,12 +1153,12 @@ export default function AuditorPage() {
                   <div className="mt-3 space-y-3">
                     {backendVerifiedReceipts.length === 0 ? (
                       <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#a1a1aa]">
-                        No verified receipts are currently indexed for this workspace.
+                        No verified records found for this workspace.
                       </div>
                     ) : (
                       backendVerifiedReceipts.map((receipt) => (
                         <div key={receipt.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                          <p className="font-semibold text-white">{receipt.receiptKind === 'batch' ? 'Batch receipt' : 'Single-metric receipt'}</p>
+                          <p className="font-semibold text-white">{receipt.receiptKind === 'batch' ? 'Batch record' : 'Single record'}</p>
                           <p className="mt-2 text-sm text-[#c9c9d0]">Block {receipt.blockNumber}</p>
                           <p className="mt-2 text-xs font-mono text-white/45">{shortHash(receipt.txHash) ?? receipt.txHash}</p>
                         </div>
@@ -1161,12 +1172,12 @@ export default function AuditorPage() {
                   <div className="mt-3 space-y-3">
                     {backendPublishedReceipts.length === 0 ? (
                       <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#a1a1aa]">
-                        No published receipts are currently indexed for this workspace.
+                        No published records found for this workspace.
                       </div>
                     ) : (
                       backendPublishedReceipts.map((receipt) => (
                         <div key={receipt.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                          <p className="font-semibold text-white">{receipt.receiptKind === 'batch' ? 'Published batch' : 'Published metric'}</p>
+                          <p className="font-semibold text-white">{receipt.receiptKind === 'batch' ? 'Published batch' : 'Published record'}</p>
                           <p className="mt-2 text-sm text-[#c9c9d0]">Block {receipt.blockNumber}</p>
                           <p className="mt-2 text-xs font-mono text-white/45">{shortHash(receipt.txHash) ?? receipt.txHash}</p>
                         </div>
@@ -1180,7 +1191,7 @@ export default function AuditorPage() {
                   <div className="mt-3 space-y-3">
                     {backendAuditNotifications.length === 0 ? (
                       <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#a1a1aa]">
-                        No recent backend notifications are packaged for this workspace yet.
+                        No recent activity found for this workspace.
                       </div>
                     ) : (
                       backendAuditNotifications.slice(0, 4).map((notification) => (
@@ -1198,6 +1209,8 @@ export default function AuditorPage() {
                   </div>
                 </div>
               </div>
+                </>
+              ) : null}
             </div>
           </div>
         </GlassCard>
@@ -1206,8 +1219,8 @@ export default function AuditorPage() {
       </div>
       <CipherBotWidget
         scope="auditor"
-        headline="Your contextual guide for CipherRoll auditor review."
-        intro="Ask about permit import, aggregate-only review, verify versus publish receipts, or disclosure boundaries. I will keep the answer focused on the current auditor workflow."
+        headline="Your guide for reviewing payroll as an auditor."
+        intro="Ask about importing access codes, reviewing summaries, audit records, or what you can and can't see. I'll keep the answer focused on your auditor workflow."
         organizationId={orgId}
         liveContext={{
           reportSummary: backendAuditPackage
@@ -1229,12 +1242,12 @@ export default function AuditorPage() {
             : undefined,
           portalSummary: [
             activeRecipientPermitHash
-              ? 'An auditor recipient permit is active in this browser session.'
-              : 'No auditor recipient permit is active in this browser session.',
+              ? 'An auditor access code is active in this session.'
+              : 'No auditor access code is active in this session.',
             summaryValues.available
-              ? 'Aggregate auditor summary values have been refreshed and decrypted locally.'
-              : 'Aggregate auditor summary values have not been refreshed yet.',
-            `${backendVerifiedReceipts.length} verified receipt(s) and ${backendPublishedReceipts.length} published receipt(s) are loaded from the backend package.`
+              ? 'Summary values have been refreshed and are visible locally.'
+              : 'Summary values have not been refreshed yet.',
+            `${backendVerifiedReceipts.length} verified record(s) and ${backendPublishedReceipts.length} published record(s) are loaded from the supporting documents.`
           ]
         }}
       />

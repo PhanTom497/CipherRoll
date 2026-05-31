@@ -113,7 +113,7 @@ async function main() {
   );
   await configureTreasuryTx.wait();
 
-  const depositBudgetTx = await payroll.depositBudget(orgId, encryptedBudget, {
+  const depositBudgetTx = await payroll.depositBudget(orgId, encryptedBudget, budgetAmount, {
     ...gasOverrides,
     gasLimit: 1_200_000n
   });

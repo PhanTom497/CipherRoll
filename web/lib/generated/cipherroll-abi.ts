@@ -595,6 +595,11 @@ export const CIPHERROLL_ABI = [
         "internalType": "struct InEuint128",
         "name": "encryptedAmount",
         "type": "tuple"
+      },
+      {
+        "internalType": "uint128",
+        "name": "cleartextFundingLimit",
+        "type": "uint128"
       }
     ],
     "name": "depositBudget",

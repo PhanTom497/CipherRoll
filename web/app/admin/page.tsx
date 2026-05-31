@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { AbiCoder } from 'ethers'
 import {
@@ -150,6 +150,7 @@ type BatchPayrollRow = {
   id: string
   employeeAddress: string
   roleSlug: string
+  roleLabel: string
   amount: string
   memo: string
   status: BatchPayrollRowStatus
@@ -268,6 +269,14 @@ function slugifyRole(value: string) {
     .slice(0, 48)
 }
 
+function formatRoleLabel(value: string) {
+  const clean = value.trim() || 'Imported role'
+  return clean
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
 function parseCsvLine(line: string) {
   const cells: string[] = []
   let current = ''
@@ -323,6 +332,7 @@ function parseBatchPayrollCsv(text: string): BatchPayrollRow[] {
       id: makeBatchRowId(),
       employeeAddress: cells[employeeIndex] ?? '',
       roleSlug: slugifyRole(roleValue),
+      roleLabel: roleValue.trim(),
       amount: cells[amountIndex] ?? '',
       memo: cells[memoIndex] ?? '',
       status: 'draft',
@@ -364,18 +374,18 @@ function decodeBatchPayrollCsvBuffer(buffer: ArrayBuffer) {
 }
 
 const governanceActionDefinitions: Record<GovernanceActionKey, GovernanceActionDefinition> = {
-  configure_treasury: { type: 0, label: 'Configure treasury route', requiresWalletExecutor: false },
-  create_payroll_run: { type: 1, label: 'Create payroll run', requiresWalletExecutor: false },
-  fund_payroll_run: { type: 2, label: 'Fund payroll run from encrypted budget', requiresWalletExecutor: true },
-  fund_payroll_run_from_treasury: { type: 3, label: 'Fund payroll run from treasury', requiresWalletExecutor: false },
-  activate_payroll_run: { type: 4, label: 'Activate payroll run', requiresWalletExecutor: false },
-  issue_confidential_payroll: { type: 5, label: 'Issue confidential payroll', requiresWalletExecutor: true },
-  issue_confidential_payroll_to_run: { type: 6, label: 'Issue confidential payroll to run', requiresWalletExecutor: true },
-  issue_vesting_allocation: { type: 7, label: 'Issue vesting allocation', requiresWalletExecutor: true },
-  issue_vesting_allocation_to_run: { type: 8, label: 'Issue vesting allocation to run', requiresWalletExecutor: true },
+  configure_treasury: { type: 0, label: 'Set up treasury route', requiresWalletExecutor: false },
+  create_payroll_run: { type: 1, label: 'Create payroll cycle', requiresWalletExecutor: false },
+  fund_payroll_run: { type: 2, label: 'Fund payroll from private budget', requiresWalletExecutor: true },
+  fund_payroll_run_from_treasury: { type: 3, label: 'Fund payroll from treasury', requiresWalletExecutor: false },
+  activate_payroll_run: { type: 4, label: 'Activate payroll cycle', requiresWalletExecutor: false },
+  issue_confidential_payroll: { type: 5, label: 'Issue private payroll', requiresWalletExecutor: true },
+  issue_confidential_payroll_to_run: { type: 6, label: 'Issue private payroll to run', requiresWalletExecutor: true },
+  issue_vesting_allocation: { type: 7, label: 'Issue vesting payment', requiresWalletExecutor: true },
+  issue_vesting_allocation_to_run: { type: 8, label: 'Issue vesting payment to run', requiresWalletExecutor: true },
   add_admin: { type: 9, label: 'Add admin', requiresWalletExecutor: false },
   remove_admin: { type: 10, label: 'Remove admin', requiresWalletExecutor: false },
-  update_quorum: { type: 11, label: 'Update quorum', requiresWalletExecutor: false }
+  update_quorum: { type: 11, label: 'Update approval threshold', requiresWalletExecutor: false }
 }
 
 const governanceActionLabelsByType = Object.fromEntries(
@@ -403,6 +413,7 @@ export default function AdminPage() {
   const [vestingStartInput, setVestingStartInput] = useState('')
   const [vestingEndInput, setVestingEndInput] = useState('')
   const [isBusy, setIsBusy] = useState(false)
+  const [pendingAdminAction, setPendingAdminAction] = useState<'depositBudget' | 'issuePayroll' | null>(null)
   const [cofheReady, setCofheReady] = useState(false)
   const [organization, setOrganization] = useState<OrganizationView>(defaultOrganization)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -410,10 +421,18 @@ export default function AdminPage() {
   const [refreshError, setRefreshError] = useState<string | null>(null)
   const [surfaceStatus, setSurfaceStatus] = useState<SurfaceStatus>({
     tone: 'neutral',
-    title: 'Awaiting operator input',
-    detail: 'Connect the admin wallet, confirm the target network, and refresh the workspace state.'
+    title: 'Ready to get started',
+    detail: 'Connect your wallet, select the right network, and refresh to load your workspace.'
   })
   const [showGuide, setShowGuide] = useState(false)
+  const [showAdvancedWorkspaceSettings, setShowAdvancedWorkspaceSettings] = useState(false)
+  const [showAdvancedTreasurySettings, setShowAdvancedTreasurySettings] = useState(false)
+  const [showAdvancedRunSettings, setShowAdvancedRunSettings] = useState(false)
+  const [showPaymentMemoInput, setShowPaymentMemoInput] = useState(false)
+  const [showBatchRoleEditor, setShowBatchRoleEditor] = useState(false)
+  const [showBatchAuditDetails, setShowBatchAuditDetails] = useState(false)
+  const [showBackendDebugDetails, setShowBackendDebugDetails] = useState(false)
+  const lastSuggestedPayrollAmountRef = useRef<string | null>(null)
   const [backendReport, setBackendReport] = useState<OrganizationReportSummary | null>(null)
   const [backendTreasuryExposure, setBackendTreasuryExposure] = useState<TreasuryExposureSummary | null>(null)
   const [backendNotifications, setBackendNotifications] = useState<NotificationRecord[]>([])
@@ -447,6 +466,7 @@ export default function AdminPage() {
       id: makeBatchRowId(),
       employeeAddress: '',
       roleSlug: 'engineer',
+      roleLabel: 'Engineer',
       amount: '',
       memo: '',
       status: 'draft',
@@ -875,6 +895,25 @@ export default function AdminPage() {
     treasuryAdapterDetails.adapter &&
     treasuryAdapterDetails.adapter !== '0x0000000000000000000000000000000000000000'
   )
+  useEffect(() => {
+    if (organization.exists || showAdvancedWorkspaceSettings || orgIdInput !== DEFAULT_ORG_ID) return
+
+    const storageKey = 'cipherroll-admin-generated-org-label'
+    const stored = localStorage.getItem(storageKey)
+    const nextLabel = stored || makeHighEntropyLabel('org', workspaceName.trim() || 'cipherroll-workspace')
+    localStorage.setItem(storageKey, nextLabel)
+    setOrgIdInput(nextLabel)
+  }, [orgIdInput, organization.exists, showAdvancedWorkspaceSettings, workspaceName])
+
+  useEffect(() => {
+    if (hasTreasuryRoute || showAdvancedTreasurySettings || treasuryRouteLabel !== 'cipherroll-wrapper-route') return
+
+    const storageKey = `cipherroll-admin-generated-route-label-${treasuryRouteMode}`
+    const stored = localStorage.getItem(storageKey)
+    const nextLabel = stored || makeHighEntropyLabel('route', treasuryRouteMode)
+    localStorage.setItem(storageKey, nextLabel)
+    setTreasuryRouteLabel(nextLabel)
+  }, [hasTreasuryRoute, showAdvancedTreasurySettings, treasuryRouteLabel, treasuryRouteMode])
   const canConfigureTreasuryRoute = Boolean(
     selectedTreasuryAdapterAddress &&
     selectedTreasuryAdapterAddress !== '0x0000000000000000000000000000000000000000'
@@ -927,14 +966,31 @@ export default function AdminPage() {
     }, 0n)
     return formatTreasuryTokenAmount(total.toString())
   }, [batchPayrollStage, batchPayrollValidation])
+  const suggestedPayrollAmountDisplay = useMemo(() => {
+    const batchTotal = batchPayrollValidation.reduce((sum, item) => {
+      return item.amountInWei == null ? sum : sum + item.amountInWei
+    }, 0n)
+    const estimate = batchTotal > 0n ? batchTotal : paymentAmountInWei
+    return estimate && estimate > 0n ? formatTreasuryTokenAmount(estimate.toString()) : null
+  }, [batchPayrollValidation, paymentAmountInWei])
+
+  useEffect(() => {
+    if (!suggestedPayrollAmountDisplay) return
+
+    const previousSuggestion = lastSuggestedPayrollAmountRef.current
+    setPayrollFundingAmount((current) => (current.trim() === '' || current === '8' || current === previousSuggestion ? suggestedPayrollAmountDisplay : current))
+    setTreasuryDepositAmount((current) => (current.trim() === '' || current === '8' || current === previousSuggestion ? suggestedPayrollAmountDisplay : current))
+    setBudgetAmount((current) => (current.trim() === '' || current === '25.5' || current === previousSuggestion ? suggestedPayrollAmountDisplay : current))
+    lastSuggestedPayrollAmountRef.current = suggestedPayrollAmountDisplay
+  }, [suggestedPayrollAmountDisplay])
 
   const portalTabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'setup', label: 'Workspace' },
     { id: 'budget', label: 'Add Budget' },
     { id: 'payroll', label: 'Payroll' },
-    { id: 'governance', label: 'Governance' },
-    { id: 'auditor', label: 'Auditor Sharing' }
+    { id: 'governance', label: 'Multi-Admin' },
+    { id: 'auditor', label: 'Auditor Access' }
   ] as const satisfies ReadonlyArray<{
     id: AdminPortal
     label: string
@@ -1098,20 +1154,20 @@ export default function AdminPage() {
           setSurfaceStatus({
             tone: 'success',
             title: 'Organization state refreshed',
-            detail: 'Workspace metadata, payroll counters, and encrypted admin summaries were loaded successfully.'
+            detail: 'Workspace details, payroll counts, and private budget info loaded successfully.'
           })
         } else {
           setSurfaceStatus({
             tone: 'info',
-            title: 'Workspace loaded with aggregate activity',
-            detail: 'Payroll counts are available now. Initialize CoFHE to unlock the encrypted budget summaries as well.'
+            title: 'Workspace loaded',
+            detail: 'Payroll counts are available now. Turn on secure view to see private budget details.'
           })
         }
       } else if (address && nextOrg.exists && nextOrg.admin.toLowerCase() !== address.toLowerCase()) {
         setSurfaceStatus({
           tone: 'info',
           title: 'Connected wallet is not the primary admin',
-          detail: 'Workspace metadata loaded successfully. Budget handles still require the primary admin wallet, or a linked governance signer once M-of-N setup is complete.'
+          detail: 'Workspace info loaded. Budget details still require the main admin wallet, or a linked multi-admin signer once setup is complete.'
         })
       }
 
@@ -1182,14 +1238,14 @@ export default function AdminPage() {
     }
 
     if (!isTargetChain) {
-      toast.error(`Switch the wallet to ${TARGET_CHAIN_NAME} before initializing CoFHE.`)
+      toast.error(`Switch the wallet to ${TARGET_CHAIN_NAME} before enabling privacy mode.`)
       return
     }
 
     setSurfaceStatus({
       tone: 'info',
-      title: 'Initializing CoFHE',
-      detail: 'Approve the wallet prompts so CipherRoll can prepare local encryption and permit-backed reads.'
+      title: 'Setting up secure view',
+      detail: 'Approve the wallet prompts to set up secure viewing.'
     })
 
     try {
@@ -1198,16 +1254,16 @@ export default function AdminPage() {
       setCofheReady(true)
       setSurfaceStatus({
         tone: 'success',
-        title: 'CoFHE ready',
-        detail: 'Admin encryption and decryptForView reads are now available for this wallet.'
+        title: 'Secure view ready',
+        detail: 'You can now view encrypted budget and payroll details securely in your browser.'
       })
-      toast.success('CoFHE encryption initialized for this admin wallet.')
+      toast.success('Secure view enabled for this admin wallet.')
       await refreshWorkspaceState('post-action')
     } catch (error: any) {
       const message = extractCipherRollErrorMessage(error)
       setSurfaceStatus({
         tone: 'error',
-        title: 'CoFHE initialization failed',
+        title: 'Secure view setup failed',
         detail: message
       })
       toast.error(message)
@@ -1322,12 +1378,12 @@ export default function AdminPage() {
       }
 
       if (!governanceInitialized) {
-        toast.error('Bootstrap governance first before routing sensitive actions through M-of-N approval.')
+        toast.error('Set up multi-admin first before routing sensitive actions through multi-admin approval.')
         return
       }
 
       if (!connectedWalletIsGovernanceAdmin) {
-        toast.error('Only a registered governance admin can create, approve, or execute this action.')
+        toast.error('Only a registered admin can create, approve, or execute this action.')
         return
       }
 
@@ -1341,7 +1397,7 @@ export default function AdminPage() {
         governanceOverview.adminCount >= governanceOverview.quorum &&
         !governanceActive
       ) {
-        toast.error('Link the payroll workspace to the configured governance contract before relying on quorum execution.')
+        toast.error('Link the payroll workspace to the configured multi-admin contract before relying on approval rules.')
         return
       }
 
@@ -1349,8 +1405,8 @@ export default function AdminPage() {
         const expiresAt = Math.floor(Date.now() / 1000) + 3600
         await withTransaction(
           `${actionTitle} proposal`,
-          'Approve the wallet transaction to open a governance proposal for this sensitive admin action.',
-          `${proposalSummary} A matching governance proposal is now waiting for the remaining admin approvals.`,
+          'Approve the wallet transaction to propose this action for multi-admin approval.',
+          `${proposalSummary} A matching proposal is now waiting for the remaining admin approvals.`,
           async () => governanceContract.proposeGovernanceAction(orgId, definition.type, payload, expiresAt)
         )
         return
@@ -1359,8 +1415,8 @@ export default function AdminPage() {
       if (!existingProposal.approvedByCurrentAdmin) {
         await withTransaction(
           `${actionTitle} approval`,
-          'Approve the wallet transaction to add your governance signature to the matching proposal.',
-          `${proposalSummary} Your approval has been recorded on-chain.`,
+          'Approve the wallet transaction to add your approval to this proposal.',
+          `${proposalSummary} Your approval has been recorded.`,
           async () => governanceContract.approveGovernanceProposal(existingProposal.proposalId)
         )
         return
@@ -1369,10 +1425,10 @@ export default function AdminPage() {
       if (existingProposal.approvalCount < governanceQuorum) {
         setSurfaceStatus({
           tone: 'info',
-          title: `${actionTitle} waiting for quorum`,
+          title: `${actionTitle} waiting for approvals`,
           detail: `This proposal currently has ${existingProposal.approvalCount}/${governanceQuorum} approvals. Ask another registered admin to confirm the same action.`
         })
-        toast.info(`Waiting for quorum: ${existingProposal.approvalCount}/${governanceQuorum} approvals collected.`)
+        toast.info(`Waiting for approvals: ${existingProposal.approvalCount}/${governanceQuorum} approvals collected.`)
         return
       }
 
@@ -1388,14 +1444,14 @@ export default function AdminPage() {
             title: `${actionTitle} ready for proposer execution`,
             detail: `Quorum is met, but the admin who opened this proposal (${shortHash(existingProposal.proposer)}) must submit the final encrypted payroll transaction from their wallet.`
           })
-          toast.info('Quorum is met. The proposing admin must execute the final encrypted wallet transaction.')
+          toast.info('Enough admins have approved. The proposing admin must submit the final wallet transaction.')
           return
         }
 
         await withTransaction(
           actionTitle,
-          'Approve the final wallet transaction so CipherRoll can consume the approved governance proposal and submit the encrypted payroll action.',
-          `${proposalSummary} The approved governance intent has now been executed on-chain.`,
+          'Approve the final wallet transaction to carry out the approved payroll action.',
+          `${proposalSummary} The approved action has been carried out successfully.`,
           directExecute
         )
         onExecuted?.()
@@ -1404,8 +1460,8 @@ export default function AdminPage() {
 
       await withTransaction(
         `${actionTitle} execution`,
-        'Approve the wallet transaction to execute the quorum-approved governance proposal.',
-        `${proposalSummary} The approved governance proposal executed successfully.`,
+        'Approve the wallet transaction to carry out this approved action.',
+        `${proposalSummary} The approved action was carried out successfully.`,
         async () => governanceContract.executeGovernanceProposal(existingProposal.proposalId)
       )
       onExecuted?.()
@@ -1433,28 +1489,28 @@ export default function AdminPage() {
     }
 
     if (!organization.exists) {
-      toast.error('Create the workspace first before bootstrapping governance.')
+      toast.error('Create the workspace first before setting up multi-admin.')
       return
     }
 
     await withTransaction(
-      'Governance bootstrap',
-      'Approve the wallet transaction to initialize M-of-N governance for this workspace.',
-      'Governance initialized. Add the remaining signer(s) and link the payroll executor next.',
+      'Set up multi-admin',
+      'Approve the wallet transaction to set up multi-admin approval for this workspace.',
+      'Multi-admin set up. Add the remaining admin(s) and link to payroll next.',
       async () => getCipherRollGovernanceContract(signer).bootstrapOrganization(orgId)
     )
   }
 
   const bootstrapGovernanceAdmin = async () => {
     if (!bootstrapAdminSafeAddress) {
-      toast.error('Enter a valid wallet address for the bootstrap admin signer.')
+      toast.error('Enter a valid wallet address for the admin.')
       return
     }
 
     await withTransaction(
-      'Bootstrap governance signer',
-      'Approve the wallet transaction to add the next governance admin before quorum becomes active.',
-      'Bootstrap governance signer added. Once the admin count reaches quorum, link the payroll executor to enforce M-of-N approvals.',
+      'Add admin',
+      'Approve the wallet transaction to add the next admin before the approval rules become active.',
+      'Admin added. Once enough admins are registered, link payroll to enforce multi-admin approvals.',
       async () => getCipherRollGovernanceContract(signer!).bootstrapOrganizationAdmin(orgId, bootstrapAdminSafeAddress)
     )
   }
@@ -1471,16 +1527,16 @@ export default function AdminPage() {
     }
 
     await withTransaction(
-      'Governance link',
-      'Approve the wallet transaction to route sensitive payroll actions through the governance executor.',
-      'Payroll workspace linked to the governance executor for treasury-route changes and payroll issuance approvals.',
+      'Link to multi-admin',
+      'Approve the wallet transaction to route sensitive payroll actions through multi-admin approval.',
+      'Payroll linked to multi-admin approval for treasury changes and payroll issuance.',
       async () => getCipherRollContract(signer).configureOrganizationGovernanceExecutor(orgId, GOVERNANCE_CONTRACT_ADDRESS)
     )
   }
 
   const proposeGovernanceAdminAddition = async () => {
     if (!newGovernanceAdminSafeAddress) {
-      toast.error('Enter a valid wallet address before proposing a new governance admin.')
+      toast.error('Enter a valid wallet address before proposing a new admin.')
       return
     }
 
@@ -1488,8 +1544,8 @@ export default function AdminPage() {
     await handleGovernedAction({
       actionKey: 'add_admin',
       payload,
-      actionTitle: 'Add governance admin',
-      proposalSummary: 'The admin-membership change was routed through governance.'
+      actionTitle: 'Add admin (requires approval)',
+      proposalSummary: 'The admin change was routed through multi-admin approval.'
     })
   }
 
@@ -1503,14 +1559,14 @@ export default function AdminPage() {
     await handleGovernedAction({
       actionKey: 'remove_admin',
       payload,
-      actionTitle: 'Remove governance admin',
-      proposalSummary: 'The admin-membership change was routed through governance.'
+      actionTitle: 'Remove admin (requires approval)',
+      proposalSummary: 'The admin change was routed through multi-admin approval.'
     })
   }
 
   const proposeGovernanceQuorumUpdate = async () => {
     if (nextGovernanceQuorumValue === null) {
-      toast.error('Enter a valid positive quorum before proposing the update.')
+      toast.error('Enter a valid approval threshold before proposing the update.')
       return
     }
 
@@ -1518,34 +1574,34 @@ export default function AdminPage() {
     await handleGovernedAction({
       actionKey: 'update_quorum',
       payload,
-      actionTitle: 'Update governance quorum',
-      proposalSummary: 'The quorum update was routed through governance.'
+      actionTitle: 'Update approval threshold',
+      proposalSummary: 'The approval threshold change was routed through multi-admin approval.'
     })
   }
 
   const approveGovernanceProposal = async (proposalId: string) => {
     await withTransaction(
-      'Governance approval',
-      'Approve the wallet transaction to add your signature to this governance proposal.',
-      'Governance proposal approval recorded.',
+      'Multi-admin approval',
+      'Approve the wallet transaction to add your approval to this proposal.',
+      'Approval recorded.',
       async () => getCipherRollGovernanceContract(signer!).approveGovernanceProposal(proposalId)
     )
   }
 
   const revokeGovernanceProposalApproval = async (proposalId: string) => {
     await withTransaction(
-      'Governance approval revocation',
+      'Withdraw approval',
       'Approve the wallet transaction to revoke your approval from this governance proposal.',
-      'Governance proposal approval revoked.',
+      'Approval revoked.',
       async () => getCipherRollGovernanceContract(signer!).revokeGovernanceApproval(proposalId)
     )
   }
 
   const executeGovernanceProposal = async (proposalId: string) => {
     await withTransaction(
-      'Governance execution',
-      'Approve the wallet transaction to execute this quorum-approved governance proposal.',
-      'Governance proposal executed successfully.',
+      'Execute approved action',
+      'Approve the wallet transaction to carry out this approved action.',
+      'Action carried out successfully.',
       async () => getCipherRollGovernanceContract(signer!).executeGovernanceProposal(proposalId)
     )
   }
@@ -1557,7 +1613,7 @@ export default function AdminPage() {
     }
 
     if (!cofheReady) {
-      toast.error('Initialize CoFHE first so the current @cofhe/sdk sharing-permit flow can sign and store the disclosure locally.')
+      toast.error('Turn on secure view first so the auditor access code can be created.')
       return
     }
 
@@ -1567,17 +1623,17 @@ export default function AdminPage() {
     }
 
     if (!isAdmin) {
-      toast.error('Only the workspace admin can create auditor sharing permits for this organization.')
+      toast.error('Only the workspace admin can create auditor access codes.')
       return
     }
 
     if (!auditorRecipientSafeAddress) {
-      toast.error('Enter a valid auditor wallet address before creating the sharing permit.')
+      toast.error('Enter a valid auditor wallet address before creating the access code.')
       return
     }
 
     if (!auditorPermitExpirationTimestamp || auditorPermitExpirationTimestamp <= Math.floor(Date.now() / 1000)) {
-      toast.error('Choose an expiration time in the future before sharing auditor access.')
+      toast.error('Choose a future expiration date for the auditor access.')
       return
     }
 
@@ -1585,8 +1641,8 @@ export default function AdminPage() {
     try {
       setSurfaceStatus({
         tone: 'info',
-        title: 'Creating auditor sharing permit',
-        detail: 'Approve the wallet signature so CipherRoll can create a scoped sharing permit for aggregate auditor access.'
+        title: 'Creating auditor access code',
+        detail: 'Approve the wallet signature to create an access code for the auditor.'
       })
 
       const { exportPayload, permitView } = await createAuditorSharingPermit({
@@ -1604,15 +1660,15 @@ export default function AdminPage() {
       )
       setSurfaceStatus({
         tone: 'success',
-        title: 'Auditor sharing permit created',
-        detail: 'The non-sensitive payload is ready to copy or hand off to the named auditor recipient.'
+        title: 'Auditor access code created',
+        detail: 'The access code is ready to copy and share with the auditor.'
       })
       toast.success('Auditor sharing payload created. Copy it from the panel before handing it to the auditor.')
     } catch (error) {
       const message = extractCipherRollErrorMessage(error)
       setSurfaceStatus({
         tone: 'error',
-        title: 'Auditor sharing setup failed',
+        title: 'Auditor access setup failed',
         detail: message
       })
       toast.error(message)
@@ -1623,15 +1679,15 @@ export default function AdminPage() {
 
   const copyAuditorPayload = async (payload: string) => {
     if (!payload) {
-      toast.error('Create or select an auditor sharing permit first.')
+      toast.error('Create or select an auditor access code first.')
       return
     }
 
     try {
       await navigator.clipboard.writeText(payload)
-      toast.success('Auditor sharing payload copied.')
+      toast.success('Auditor access code copied.')
     } catch {
-      toast.error('Clipboard copy failed in this browser. You can still copy the payload manually.')
+      toast.error('Clipboard copy failed in this browser. You can still copy the code manually.')
     }
   }
 
@@ -1648,7 +1704,7 @@ export default function AdminPage() {
     if (auditorExportPayload && !nextPermits.some((permit) => permit.exportPayload === auditorExportPayload)) {
       setAuditorExportPayload('')
     }
-    toast.success('Auditor sharing permit removed from this admin browser.')
+    toast.success('Auditor access code removed from this browser.')
   }
 
   const createOrganization = async () => {
@@ -1658,7 +1714,7 @@ export default function AdminPage() {
     }
 
     if (organization.exists) {
-      toast.error('This workspace already exists on-chain for the current organization id.')
+      toast.error('This workspace already exists for the current workspace ID.')
       return
     }
 
@@ -1668,9 +1724,9 @@ export default function AdminPage() {
     }
 
     await withTransaction(
-      'Workspace creation',
-      'Approve the wallet transaction to create the on-chain organization workspace.',
-      'CipherRoll workspace created on-chain.',
+      'Create workspace',
+      'Approve the wallet transaction to create your workspace.',
+      'Workspace created successfully.',
       async () => {
       const contract = getCipherRollContract(signer!)
       return contract.createOrganization(
@@ -1690,22 +1746,22 @@ export default function AdminPage() {
     }
 
     if (!organization.exists) {
-      toast.error('Create the workspace first before attaching a treasury route.')
+      toast.error('Create the workspace first, then set up the payout route.')
       return
     }
 
     if (!isAdmin && !governanceActive) {
-      toast.error('Only the workspace admin can configure treasury settlement.')
+      toast.error('Only the workspace admin can set up the payout route.')
       return
     }
 
     if (!treasuryRouteLabel.trim()) {
-      toast.error('Enter a treasury route label before configuring settlement.')
+      toast.error('Enter a route label before setting up the payout route.')
       return
     }
 
     if (!canConfigureTreasuryRoute) {
-      toast.error('This frontend does not have a settlement adapter address configured for the selected route.')
+      toast.error('The payout route address is not configured for the selected route.')
       return
     }
 
@@ -1714,21 +1770,21 @@ export default function AdminPage() {
       await handleGovernedAction({
         actionKey: 'configure_treasury',
         payload,
-        actionTitle: 'Treasury route setup',
+        actionTitle: 'Set up payout route',
         proposalSummary:
           treasuryRouteMode === 'wrapper'
-            ? 'The wrapper treasury route change was routed through governance.'
-            : 'The direct treasury route change was routed through governance.'
+            ? 'The treasury route change was routed through multi-admin approval.'
+            : 'The direct route change was routed through multi-admin approval.'
       })
       return
     }
 
     await withTransaction(
-      'Treasury route setup',
-      'Approve the wallet transaction to attach the selected settlement route to this workspace.',
+      'Set up payout route',
+      'Approve the wallet transaction to set up the selected payout route for this workspace.',
       treasuryRouteMode === 'wrapper'
-        ? 'Wrapper treasury route configured for this workspace.'
-        : 'Direct treasury route configured for this workspace.',
+        ? 'Two-step payout route configured.'
+        : 'Direct payout route configured.',
       async () => {
         const contract = getCipherRollContract(signer!)
         return contract.configureTreasury(orgId, selectedTreasuryAdapterAddress, treasuryRouteId)
@@ -1738,7 +1794,7 @@ export default function AdminPage() {
 
   const depositBudget = async () => {
     if (!canEncryptInputs) {
-      toast.error(`Connect the admin wallet, switch to ${TARGET_CHAIN_NAME}, and initialize CoFHE before adding budget.`)
+      toast.error(`Connect the admin wallet, switch to ${TARGET_CHAIN_NAME}, and enable privacy mode before adding budget.`)
       return
     }
 
@@ -1748,7 +1804,7 @@ export default function AdminPage() {
     }
 
     if (!isAdmin) {
-      toast.error('Only the workspace admin can add encrypted budget.')
+      toast.error('Only the workspace admin can add private budget.')
       return
     }
 
@@ -1757,17 +1813,22 @@ export default function AdminPage() {
       return
     }
 
-    await withTransaction(
-      'Budget funding',
-      'Approve the wallet transaction to encrypt and deposit the budget amount.',
-      'Encrypted payroll budget increased.',
-      async () => {
-      const contract = getCipherRollContract(signer!)
-      const encryptedAmount = await encryptUint128(budgetAmountInWei)
+    setPendingAdminAction('depositBudget')
+    try {
+      await withTransaction(
+        'Add budget',
+        'Preparing browser encryption. MetaMask will open when the encrypted payload is ready.',
+        'Private payroll budget increased.',
+        async () => {
+          const contract = getCipherRollContract(signer!)
+          const encryptedAmount = await encryptUint128(budgetAmountInWei)
 
-      return contract.depositBudget(orgId, encryptedAmount)
-      }
-    )
+          return contract.depositBudget(orgId, encryptedAmount, budgetAmountInWei)
+        }
+      )
+    } finally {
+      setPendingAdminAction(null)
+    }
   }
 
   const createPayrollRun = async () => {
@@ -1797,7 +1858,7 @@ export default function AdminPage() {
         title: 'Payroll run already exists',
         detail: 'This run label is already active for the current workspace. Continue with funding or choose a new label.'
       })
-      toast.info('This payroll run already exists. Continue with funding or choose a new label.')
+      toast.info('This payroll cycle already exists. Continue with funding or choose a new label.')
       await loadPayrollRun()
       return
     }
@@ -1833,9 +1894,9 @@ export default function AdminPage() {
     }
 
     await withTransaction(
-      'Payroll run creation',
-      'Approve the wallet transaction to create the payroll run shell before uploading allocations.',
-      'Payroll run created.',
+      'Create payroll cycle',
+      'Approve the wallet transaction to create the payroll cycle.',
+      'Payroll cycle created.',
       async () => {
         const contract = getCipherRollContract(signer!)
         return contract.createPayrollRun(
@@ -1853,17 +1914,23 @@ export default function AdminPage() {
 
   const fundPayrollRun = async () => {
     if (!payrollRunExists) {
-      toast.error('Create or load a payroll run before funding it.')
+      toast.error('Create or load a payroll cycle before funding it.')
       return
     }
 
     if (payrollRun.allocationCount === 0) {
-      toast.error('Add the employee allocation to this payroll run before reserving treasury funds.')
+      toast.error('Add the employee payment to this payroll cycle before reserving treasury funds.')
       return
     }
 
     if (payrollFundingAmountInWei === null) {
       toast.error('Enter a positive funding amount with up to 18 decimal places.')
+      return
+    }
+
+    const decryptedAvailableBudgetInWei = summaryValues.available ? parseDecimalAmountToWei(summaryValues.available) : null
+    if (decryptedAvailableBudgetInWei !== null && payrollFundingAmountInWei > decryptedAvailableBudgetInWei) {
+      toast.error('This payroll total is higher than the available private budget. Add budget or lower the payroll amount before reserving treasury funds.')
       return
     }
 
@@ -1874,9 +1941,9 @@ export default function AdminPage() {
       }
 
       await withTransaction(
-        'Payroll run funding',
-        'Approve the wallet transaction to reserve actual treasury inventory for this payroll run.',
-        'Payroll run funded from treasury inventory and ready for activation.',
+        'Fund payroll cycle',
+        'Approve the wallet transaction to reserve treasury funds for this payroll cycle.',
+        'Payroll cycle funded from treasury and ready for activation.',
         async () => {
           const contract = getCipherRollContract(signer!)
           return contract.fundPayrollRunFromTreasury(orgId, selectedPayrollRunId, payrollFundingAmountInWei)
@@ -1888,14 +1955,14 @@ export default function AdminPage() {
     }
 
     if (!canEncryptInputs) {
-      toast.error(`Connect the admin wallet, switch to ${TARGET_CHAIN_NAME}, and initialize CoFHE before funding a payroll run.`)
+      toast.error(`Connect the admin wallet, switch to ${TARGET_CHAIN_NAME}, and enable privacy mode before funding a payroll run.`)
       return
     }
 
     await withTransaction(
-      'Payroll run funding',
-      'Approve the wallet transaction to lock payroll funding from the encrypted organization budget.',
-      'Payroll run funded and ready for activation.',
+      'Fund payroll cycle',
+      'Approve the wallet transaction to lock payroll funding from the private budget.',
+      'Payroll cycle funded and ready for activation.',
       async () => {
         const contract = getCipherRollContract(signer!)
         const encryptedAmount = await encryptUint128(payrollFundingAmountInWei)
@@ -1918,7 +1985,7 @@ export default function AdminPage() {
     }
 
     if (!hasTreasuryRoute || !treasuryAdapterDetails.settlementAsset) {
-      toast.error('This workspace does not have a treasury settlement route configured yet.')
+      toast.error('This workspace does not have a payout route set up yet.')
       return
     }
 
@@ -1928,9 +1995,9 @@ export default function AdminPage() {
     }
 
     await withTransaction(
-      'Treasury funding',
-      'Approve the token approval and treasury deposit transactions to move real inventory into the payroll treasury.',
-      'Payroll treasury funded from token inventory.',
+      'Fund treasury',
+      'Approve the transactions to deposit funds into the payroll treasury.',
+      'Payroll treasury funded successfully.',
       async () => {
         const contract = getCipherRollContract(signer!)
         await (await contract.approveSettlementToken(
@@ -1955,14 +2022,14 @@ export default function AdminPage() {
     }
 
     if (!payrollRunExists) {
-      toast.error('Create or load a payroll run before activating it.')
+      toast.error('Create or load a payroll cycle before activating it.')
       return
     }
 
     await withTransaction(
-      'Payroll activation',
-      'Approve the wallet transaction to open employee claimability for this payroll run.',
-      'Payroll run activated and claim window opened.',
+      'Activate payroll',
+      'Approve the wallet transaction to open the claim window for employees.',
+      'Payroll cycle activated. Employees can now claim.',
       async () => {
         const contract = getCipherRollContract(signer!)
         return contract.activatePayrollRun(orgId, selectedPayrollRunId)
@@ -1974,7 +2041,7 @@ export default function AdminPage() {
 
   const issuePayroll = async () => {
     if (!canEncryptInputs) {
-      toast.error(`Connect the admin wallet, switch to ${TARGET_CHAIN_NAME}, and initialize CoFHE before issuing payroll.`)
+      toast.error(`Connect the admin wallet, switch to ${TARGET_CHAIN_NAME}, and enable privacy mode before issuing payroll.`)
       return
     }
 
@@ -2006,17 +2073,17 @@ export default function AdminPage() {
     }
 
     if (!payrollRunExists) {
-      toast.error('Create or load a payroll run before uploading allocations.')
+      toast.error('Create or load a payroll cycle before issuing payments.')
       return
     }
 
     if (!payrollRunOpenForAllocations) {
-      toast.error('This payroll run is no longer open for allocation uploads.')
+      toast.error('This payroll cycle is no longer accepting payments.')
       return
     }
 
     if (payrollWouldZeroOut) {
-      toast.error('Requested payroll exceeds the decrypted available budget. CipherRoll would zero the allocation, so this action is blocked until the budget is increased.')
+      toast.error('The requested amount exceeds the available budget. This payment would be set to zero, so it is blocked until the budget is increased.')
       return
     }
 
@@ -2025,135 +2092,141 @@ export default function AdminPage() {
       ? makeDeterministicLabel('memo', paymentMemo.trim())
       : makeHighEntropyBytes32Label('memo', 'cipherroll-payroll')
 
-    if (governanceActive) {
-      const contract = getCipherRollContract(signer!)
-      const intentKey = [
-        orgId,
-        selectedPayrollRunId,
-        employee.toLowerCase(),
-        paymentAmountInWei.toString(),
-        payrollMode,
-        paymentMemo.trim(),
-        vestingStartTimestamp ?? 0,
-        vestingEndTimestamp ?? 0
-      ].join('|')
+    setPendingAdminAction('issuePayroll')
 
-      let intent = pendingGovernedPayrollIntent?.key === intentKey
-        ? pendingGovernedPayrollIntent
-        : null
+    try {
+      if (governanceActive) {
+        const contract = getCipherRollContract(signer!)
+        const intentKey = [
+          orgId,
+          selectedPayrollRunId,
+          employee.toLowerCase(),
+          paymentAmountInWei.toString(),
+          payrollMode,
+          paymentMemo.trim(),
+          vestingStartTimestamp ?? 0,
+          vestingEndTimestamp ?? 0
+        ].join('|')
 
-      if (!intent) {
-        const encryptedAmount = await encryptUint128(paymentAmountInWei)
-        const intentPaymentId = paymentId
-        const intentMemoHash = memoHash
-        const encryptedTuple = [
-          encryptedAmount.ctHash,
-          encryptedAmount.securityZone,
-          encryptedAmount.utype,
-          encryptedAmount.signature
-        ]
-        const actionKey = payrollMode === 'vesting'
-          ? 'issue_vesting_allocation_to_run'
-          : 'issue_confidential_payroll_to_run'
-        const payload = payrollMode === 'vesting'
-          ? abiCoder.encode(
-            ['bytes32', 'address', '(uint256,uint8,uint8,bytes)', 'bytes32', 'bytes32', 'uint64', 'uint64'],
-            [selectedPayrollRunId, employee, encryptedTuple, intentPaymentId, intentMemoHash, vestingStartTimestamp!, vestingEndTimestamp!]
-          )
-          : abiCoder.encode(
-            ['bytes32', 'address', '(uint256,uint8,uint8,bytes)', 'bytes32', 'bytes32'],
-            [selectedPayrollRunId, employee, encryptedTuple, intentPaymentId, intentMemoHash]
-          )
+        let intent = pendingGovernedPayrollIntent?.key === intentKey
+          ? pendingGovernedPayrollIntent
+          : null
 
-        intent = {
-          key: intentKey,
-          actionKey,
-          payload,
-          encryptedAmount,
-          paymentId: intentPaymentId,
-          memoHash: intentMemoHash
-        }
-        setPendingGovernedPayrollIntent(intent)
-      }
-
-      const clearExecutedIntent = () => {
-        setPendingGovernedPayrollIntent((current) => current?.key === intentKey ? null : current)
-      }
-
-      if (payrollMode === 'vesting') {
-        await handleGovernedAction({
-          actionKey: intent.actionKey,
-          payload: intent.payload,
-          actionTitle: 'Payroll issuance',
-          proposalSummary: 'The confidential vesting payroll allocation was routed through governance.',
-          directExecute: async () =>
-            contract.issueVestingAllocationToRun(
-              orgId,
-              selectedPayrollRunId,
-              employee,
-              intent.encryptedAmount,
-              intent.paymentId,
-              intent.memoHash,
-              vestingStartTimestamp!,
-              vestingEndTimestamp!
-            ),
-          onExecuted: clearExecutedIntent
-        })
-      } else {
-        await handleGovernedAction({
-          actionKey: intent.actionKey,
-          payload: intent.payload,
-          actionTitle: 'Payroll issuance',
-          proposalSummary: 'The confidential payroll allocation was routed through governance.',
-          directExecute: async () =>
-            contract.issueConfidentialPayrollToRun(
-              orgId,
-              selectedPayrollRunId,
-              employee,
-              intent.encryptedAmount,
-              intent.paymentId,
-              intent.memoHash
-            ),
-          onExecuted: clearExecutedIntent
-        })
-      }
-    } else {
-      await withTransaction(
-        'Payroll issuance',
-        'Approve the wallet transaction to encrypt and issue this employee allocation.',
-        payrollMode === 'vesting'
-          ? 'Confidential vesting payroll allocation issued.'
-          : 'Confidential payroll allocation issued.',
-        async () => {
-          const contract = getCipherRollContract(signer!)
+        if (!intent) {
           const encryptedAmount = await encryptUint128(paymentAmountInWei)
+          const intentPaymentId = paymentId
+          const intentMemoHash = memoHash
+          const encryptedTuple = [
+            encryptedAmount.ctHash,
+            encryptedAmount.securityZone,
+            encryptedAmount.utype,
+            encryptedAmount.signature
+          ]
+          const actionKey = payrollMode === 'vesting'
+            ? 'issue_vesting_allocation_to_run'
+            : 'issue_confidential_payroll_to_run'
+          const payload = payrollMode === 'vesting'
+            ? abiCoder.encode(
+              ['bytes32', 'address', '(uint256,uint8,uint8,bytes)', 'bytes32', 'bytes32', 'uint64', 'uint64'],
+              [selectedPayrollRunId, employee, encryptedTuple, intentPaymentId, intentMemoHash, vestingStartTimestamp!, vestingEndTimestamp!]
+            )
+            : abiCoder.encode(
+              ['bytes32', 'address', '(uint256,uint8,uint8,bytes)', 'bytes32', 'bytes32'],
+              [selectedPayrollRunId, employee, encryptedTuple, intentPaymentId, intentMemoHash]
+            )
 
-          if (payrollMode === 'vesting') {
-            return contract.issueVestingAllocationToRun(
+          intent = {
+            key: intentKey,
+            actionKey,
+            payload,
+            encryptedAmount,
+            paymentId: intentPaymentId,
+            memoHash: intentMemoHash
+          }
+          setPendingGovernedPayrollIntent(intent)
+        }
+
+        const clearExecutedIntent = () => {
+          setPendingGovernedPayrollIntent((current) => current?.key === intentKey ? null : current)
+        }
+
+        if (payrollMode === 'vesting') {
+          await handleGovernedAction({
+            actionKey: intent.actionKey,
+            payload: intent.payload,
+            actionTitle: 'Issue payroll',
+            proposalSummary: 'The private vesting payment was routed through multi-admin approval.',
+            directExecute: async () =>
+              contract.issueVestingAllocationToRun(
+                orgId,
+                selectedPayrollRunId,
+                employee,
+                intent.encryptedAmount,
+                intent.paymentId,
+                intent.memoHash,
+                vestingStartTimestamp!,
+                vestingEndTimestamp!
+              ),
+            onExecuted: clearExecutedIntent
+          })
+        } else {
+          await handleGovernedAction({
+            actionKey: intent.actionKey,
+            payload: intent.payload,
+            actionTitle: 'Issue payroll',
+            proposalSummary: 'The private payroll payment was routed through multi-admin approval.',
+            directExecute: async () =>
+              contract.issueConfidentialPayrollToRun(
+                orgId,
+                selectedPayrollRunId,
+                employee,
+                intent.encryptedAmount,
+                intent.paymentId,
+                intent.memoHash
+              ),
+            onExecuted: clearExecutedIntent
+          })
+        }
+      } else {
+        await withTransaction(
+          'Issue payroll',
+          'Preparing browser encryption. MetaMask will open when the encrypted payload is ready.',
+          payrollMode === 'vesting'
+            ? 'Private vesting payment issued.'
+            : 'Private payroll payment issued.',
+          async () => {
+            const contract = getCipherRollContract(signer!)
+            const encryptedAmount = await encryptUint128(paymentAmountInWei)
+
+            if (payrollMode === 'vesting') {
+              return contract.issueVestingAllocationToRun(
+                orgId,
+                selectedPayrollRunId,
+                employee,
+                encryptedAmount,
+                paymentId,
+                memoHash,
+                vestingStartTimestamp!,
+                vestingEndTimestamp!
+              )
+            }
+
+            return contract.issueConfidentialPayrollToRun(
               orgId,
               selectedPayrollRunId,
               employee,
               encryptedAmount,
               paymentId,
               memoHash,
-              vestingStartTimestamp!,
-              vestingEndTimestamp!
             )
           }
+        )
+      }
 
-          return contract.issueConfidentialPayrollToRun(
-            orgId,
-            selectedPayrollRunId,
-            employee,
-            encryptedAmount,
-            paymentId,
-            memoHash
-          )
-        }
-      )
+      await loadPayrollRun()
+    } finally {
+      setPendingAdminAction(null)
     }
-
-    await loadPayrollRun()
   }
 
   const updateBatchPayrollRow = (rowId: string, updates: Partial<BatchPayrollRow>) => {
@@ -2169,6 +2242,7 @@ export default function AdminPage() {
         id: makeBatchRowId(),
         employeeAddress: '',
         roleSlug: batchPayrollRoles[0]?.slug ?? '',
+        roleLabel: batchPayrollRoles[0]?.label ?? '',
         amount: '',
         memo: '',
         status: 'draft',
@@ -2261,7 +2335,7 @@ export default function AdminPage() {
       }))
     )
     setBatchPayrollStage('review')
-    toast.success('Batch review is ready. Confirm the rows before sealing encrypted salaries.')
+    toast.success('Batch review is ready. Confirm the rows before sealing salary amounts.')
   }
 
   const sealBatchPayroll = async () => {
@@ -2271,7 +2345,7 @@ export default function AdminPage() {
     }
 
     if (!canEncryptInputs) {
-      toast.error(`Connect the admin wallet, switch to ${TARGET_CHAIN_NAME}, and initialize CoFHE before sealing a batch.`)
+      toast.error(`Connect the admin wallet, switch to ${TARGET_CHAIN_NAME}, and enable privacy mode before sealing a batch.`)
       return
     }
 
@@ -2286,7 +2360,7 @@ export default function AdminPage() {
     }
 
     setIsBatchPayrollSealing(true)
-    setBatchPayrollProgress('Warming up CoFHE WASM and wallet-local encryption...')
+    setBatchPayrollProgress('Preparing browser encryption...')
 
     try {
       await initCofhe((window as any).ethereum)
@@ -2322,7 +2396,7 @@ export default function AdminPage() {
       setBatchPayrollRoles((current) => current.map((role) => ({ ...role, baseSalary: '' })))
       setBatchPayrollStage('sealed')
       setBatchPayrollProgress('Batch sealed. Plaintext salaries were removed from visible state.')
-      toast.success('Batch salaries sealed. Plaintext salary values are masked before submission.')
+      toast.success('Batch salaries sealed. Salary amounts are hidden before submission.')
     } catch (error) {
       const message = extractCipherRollErrorMessage(error)
       setBatchPayrollProgress(message)
@@ -2454,6 +2528,23 @@ export default function AdminPage() {
         return
       }
 
+      const existingRoleSlugs = new Set(batchPayrollRoles.map((role) => role.slug))
+      const importedRoles = new Map<string, BatchPayrollRole>()
+      for (const row of rows) {
+        if (!row.roleSlug || existingRoleSlugs.has(row.roleSlug) || importedRoles.has(row.roleSlug)) continue
+        importedRoles.set(row.roleSlug, {
+          id: makeBatchRowId(),
+          slug: row.roleSlug,
+          label: formatRoleLabel(row.roleLabel || row.roleSlug),
+          baseSalary: row.amount.trim()
+        })
+      }
+
+      if (importedRoles.size > 0) {
+        setBatchPayrollRoles((current) => [...current, ...Array.from(importedRoles.values())])
+        setShowBatchRoleEditor(Array.from(importedRoles.values()).some((role) => !role.baseSalary.trim()))
+      }
+
       setBatchPayrollRows(rows)
       setBatchPayrollCsvName(file.name)
       setBatchPayrollStage('draft')
@@ -2543,24 +2634,24 @@ export default function AdminPage() {
     organization.exists && isAdmin && !cofheReady
       ? {
           tone: 'info' as const,
-          title: 'CoFHE still needs initialization',
-          detail: 'Reads can load organization metadata already, but encrypted budget funding and decrypted summary checks require CoFHE initialization.'
+          title: 'Turn on secure view',
+          detail: 'Workspace info can load now. Private budget details and secure views need secure view turned on.'
         }
       : null,
     governanceInitialized && !governanceActive
       ? {
           tone: 'info' as const,
-          title: 'Governance is initialized but not enforcing yet',
+          title: 'Multi-admin is set up but not yet enforcing approvals',
           detail: governanceLinkedAddress
-            ? 'Add enough governance admins to meet quorum before expecting M-of-N enforcement on treasury-route changes or payroll issuance.'
-            : 'Link the payroll workspace to the configured governance executor after quorum is bootstrapped so treasury-route changes and payroll issuance stop flowing through the single-admin path.'
+            ? 'Add enough admins to meet the threshold before expecting multi-admin enforcement on treasury or payroll actions.'
+            : 'Link payroll to multi-admin after enough admins are added, so treasury and payroll actions stop going through a single admin.'
         }
       : null,
     payrollWouldZeroOut
       ? {
           tone: 'error' as const,
           title: 'Payroll amount exceeds decrypted available budget',
-          detail: 'The contract would silently zero this allocation. Increase the budget or lower the amount before submitting.'
+          detail: 'The contract would set this payment to zero. Increase the budget or lower the amount before submitting.'
         }
       : null,
     refreshError
@@ -2594,7 +2685,7 @@ export default function AdminPage() {
       <div className="w-full max-w-6xl mx-auto px-6 pb-24 relative z-10">
         <section className="mb-8 text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 text-cyan-300 text-xs font-bold tracking-widest uppercase mb-5">
-            Authorized Operators Only
+            Admin Access
           </div>
           <h1 className="text-5xl md:text-6xl font-black tracking-tight text-white mb-4">Admin Portal</h1>
         </section>
@@ -2634,7 +2725,7 @@ export default function AdminPage() {
                 <div>
                   <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white/60">
                     <Sparkles className="h-3.5 w-3.5" />
-                    Operator Status
+                    Workspace Status
                   </div>
                   <h2 className="mt-4 text-2xl font-bold text-white">{surfaceStatus.title}</h2>
                   <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[#c9c9d0]">{surfaceStatus.detail}</p>
@@ -2648,7 +2739,7 @@ export default function AdminPage() {
                             setSurfaceStatus({
                               tone: 'success',
                               title: `Wallet switched to ${TARGET_CHAIN_NAME}`,
-                              detail: 'Refresh the organization state or continue with the next admin action.'
+                              detail: 'Refresh the workspace or continue with the next action.'
                             })
                           })
                           .catch((error) => {
@@ -2732,7 +2823,7 @@ export default function AdminPage() {
               <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
                 <div className="flex items-center gap-3 mb-6">
                   <Wallet className="w-5 h-5 text-cyan-300" />
-                  <h2 className="text-2xl font-bold text-white tracking-tight">Operator access</h2>
+                  <h2 className="text-2xl font-bold text-white tracking-tight">Admin access</h2>
                 </div>
 
                 <div className="grid sm:grid-cols-4 gap-4">
@@ -2748,13 +2839,13 @@ export default function AdminPage() {
                       {isAdmin
                         ? 'Primary admin'
                         : connectedWalletIsGovernanceAdmin
-                          ? 'Governance admin'
+                          ? 'Multi-admin signer'
                           : 'Waiting'}
                     </p>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">CoFHE</p>
-                    <p className="text-white">{cofheReady ? 'Ready' : 'Not initialized'}</p>
+                    <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">Privacy mode</p>
+                    <p className="text-white">{cofheReady ? 'Ready' : 'Not enabled'}</p>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <p className="text-white/55 uppercase tracking-[0.18em] text-xs font-bold mb-2">Governance</p>
@@ -2774,7 +2865,7 @@ export default function AdminPage() {
                     disabled={!canSubmitTransactions || isBusy}
                     className="rounded-2xl bg-white text-black px-5 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
                   >
-                    Initialize CoFHE
+                    Turn On Secure View
                   </button>
                   <button
                     onClick={() => void refreshWorkspaceState('manual')}
@@ -2818,9 +2909,6 @@ export default function AdminPage() {
                         <p className="text-3xl font-black text-white">{item.value ?? '***'}</p>
                         {item.value && <span className="text-sm text-white/50 font-semibold">ETH</span>}
                       </div>
-                      <p className="mt-4 truncate text-[10px] text-[#8e8e95] font-mono" title={String(item.handle)}>
-                        {item.handle ? 'Encrypted handle' : 'No handle yet'}
-                      </p>
                     </div>
                   ))}
                 </div>
@@ -2831,7 +2919,7 @@ export default function AdminPage() {
           <GlassCard className="mt-8 p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
             <div className="flex items-center gap-3 mb-6">
               <Sparkles className="w-5 h-5 text-cyan-300" />
-              <h2 className="text-2xl font-bold text-white">Operator insights</h2>
+              <h2 className="text-2xl font-bold text-white">Workspace insights</h2>
             </div>
 
             <div className="grid gap-4 xl:grid-cols-4">
@@ -2899,7 +2987,7 @@ export default function AdminPage() {
                 { label: 'Pending claims', value: backendReport ? String(backendReport.pendingClaims) : '—', detail: 'Allocations still waiting for employee action.' },
                 { label: 'Pending wrapper finalizes', value: backendReport ? String(backendReport.pendingSettlementRequests) : '—', detail: 'Settlement requests that still need a finalize leg.' },
                 { label: 'Settled payouts', value: backendReport ? String(backendReport.settledPayments) : '—', detail: 'Payroll items that reached a final payout state.' },
-                { label: 'Backend feed', value: backendReport ? String(backendNotifications.length) : '—', detail: 'Recent workflow notifications in the indexed backend feed.' }
+                { label: 'Backend feed', value: backendReport ? String(backendNotifications.length) : '—', detail: 'Recent workflow events.' }
               ].map((item) => (
                 <div key={item.label} className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-5">
                   <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold mb-3">{item.label}</p>
@@ -2974,19 +3062,30 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 xl:grid-cols-4">
-              {[
-                { label: 'Indexed block', value: backendStatus ? String(backendStatus.latestIndexedBlock) : '—', detail: 'Latest block stored in the backend index.' },
-                { label: 'Known chain head', value: backendStatus ? String(backendStatus.latestKnownBlock) : '—', detail: 'Latest chain height seen during backend sync.' },
-                { label: 'Organizations', value: backendStatus ? String(backendStatus.organizations) : '—', detail: 'Workspace records currently indexed.' },
-                { label: 'Notifications', value: backendStatus ? String(backendStatus.notifications) : '—', detail: 'Workflow notifications materialized from chain events.' }
-              ].map((item) => (
-                <div key={item.label} className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-5">
-                  <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold mb-3">{item.label}</p>
-                  <p className="text-3xl font-black text-white break-words">{item.value}</p>
-                  <p className="mt-2 text-sm text-[#a1a1aa]">{item.detail}</p>
+            <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
+              <button
+                type="button"
+                onClick={() => setShowBackendDebugDetails((current) => !current)}
+                className="text-sm font-semibold text-white hover:text-cyan-100"
+              >
+                {showBackendDebugDetails ? 'Hide backend debug details' : 'Show backend debug details'}
+              </button>
+              {showBackendDebugDetails ? (
+                <div className="mt-4 grid gap-4 xl:grid-cols-4">
+                  {[
+                    { label: 'Indexed block', value: backendStatus ? String(backendStatus.latestIndexedBlock) : '—', detail: 'Latest block stored in the backend index.' },
+                    { label: 'Known chain head', value: backendStatus ? String(backendStatus.latestKnownBlock) : '—', detail: 'Latest chain height seen during backend sync.' },
+                    { label: 'Organizations', value: backendStatus ? String(backendStatus.organizations) : '—', detail: 'Workspace records currently indexed.' },
+                    { label: 'Notifications', value: backendStatus ? String(backendStatus.notifications) : '—', detail: 'Workflow notifications materialized from chain events.' }
+                  ].map((item) => (
+                    <div key={item.label} className="min-w-0 rounded-2xl border border-white/10 bg-black/20 p-5">
+                      <p className="text-xs uppercase tracking-[0.18em] text-white/55 font-bold mb-3">{item.label}</p>
+                      <p className="text-3xl font-black text-white break-words">{item.value}</p>
+                      <p className="mt-2 text-sm text-[#a1a1aa]">{item.detail}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              ) : null}
             </div>
 
             <div className="mt-6 grid gap-6 lg:grid-cols-[0.95fr,1.05fr]">
@@ -3015,9 +3114,9 @@ export default function AdminPage() {
                   ['all', 'All'],
                   ['payroll_run', 'Runs'],
                   ['claim', 'Claims'],
-                  ['settlement', 'Settlements'],
+                  ['settlement', 'Payouts'],
                   ['audit_receipt', 'Receipts'],
-                  ['governance', 'Governance']
+                  ['governance', 'Approvals']
                 ].map(([value, label]) => (
                       <button
                         key={value}
@@ -3132,30 +3231,51 @@ export default function AdminPage() {
               </div>
 
               <div className="space-y-4">
-                <input
-                  value={workspaceName}
-                  onChange={(event) => setWorkspaceName(event.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                  placeholder="Workspace name"
-                />
-                <input
-                  value={orgIdInput}
-                  onChange={(event) => setOrgIdInput(event.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                  placeholder="Organization id"
-                />
-                <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-[#a1a1aa]">
-                  <p>
-                    Simple workspace names are easy to use, but easier for outsiders to guess. For a safer setup, switch to a harder-to-guess workspace ID.
-                  </p>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-[#c9c9d0]">
+                  CipherRoll will use a safe default workspace ID. Edit it only if you need to recover or reuse a specific workspace.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAdvancedWorkspaceSettings((current) => !current)}
+                  className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
+                >
+                  {showAdvancedWorkspaceSettings ? 'Hide advanced settings' : 'Advanced settings'}
+                </button>
+                {showAdvancedWorkspaceSettings ? (
+                  <div className="space-y-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <input
+                      value={workspaceName}
+                      onChange={(event) => setWorkspaceName(event.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                      placeholder="Workspace name"
+                    />
+                    <input
+                      value={orgIdInput}
+                      onChange={(event) => setOrgIdInput(event.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                      placeholder="Organization id"
+                    />
+                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-[#a1a1aa]">
+                      <p>Advanced privacy note: memorable labels are easier to guess. Use a safer ID for production demos.</p>
+                      <button
+                        type="button"
+                        onClick={assignHighEntropyOrgLabel}
+                        className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-white transition-colors hover:bg-white/10"
+                      >
+                        Use safer ID
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+                {!showAdvancedWorkspaceSettings ? (
                   <button
                     type="button"
                     onClick={assignHighEntropyOrgLabel}
-                    className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-white transition-colors hover:bg-white/10"
+                    className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/10"
                   >
-                    Use safer ID
+                    Generate safer ID
                   </button>
-                </div>
+                ) : null}
                 <button
                   onClick={createOrganization}
                   disabled={!canSubmitTransactions || isBusy || organization.exists || !workspaceName.trim()}
@@ -3187,7 +3307,7 @@ export default function AdminPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-white/5 p-2">
                   {[
-                    { id: 'wrapper', label: 'FHERC20 wrapper' },
+                    { id: 'wrapper', label: 'Two-step payout' },
                     { id: 'direct', label: 'Direct treasury' }
                   ].map((option) => (
                     <button
@@ -3205,41 +3325,54 @@ export default function AdminPage() {
                   ))}
                 </div>
 
-                <input
-                  value={treasuryRouteLabel}
-                  onChange={(event) => setTreasuryRouteLabel(event.target.value)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                  placeholder="Treasury route label"
-                />
-                <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-[#a1a1aa]">
-                  <p>
-                    A simple route name is easier to guess. If you do not need a memorable label, switch to a safer route name.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={assignHighEntropyRouteLabel}
-                    className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-white transition-colors hover:bg-white/10"
-                  >
-                    Use safer name
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAdvancedTreasurySettings((current) => !current)}
+                  className="w-fit rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
+                >
+                  {showAdvancedTreasurySettings ? 'Hide advanced settings' : 'Advanced settings'}
+                </button>
+                {showAdvancedTreasurySettings ? (
+                  <div className="space-y-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <input
+                      value={treasuryRouteLabel}
+                      onChange={(event) => setTreasuryRouteLabel(event.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                      placeholder="Treasury route label"
+                    />
+                    <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-[#a1a1aa]">
+                      <p>Advanced privacy note: memorable route labels are easier to guess.</p>
+                      <button
+                        type="button"
+                        onClick={assignHighEntropyRouteLabel}
+                        className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-white transition-colors hover:bg-white/10"
+                      >
+                        Use safer name
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-[#c9c9d0] space-y-2">
                   <p className="text-white font-semibold">
-                    {treasuryRouteMode === 'wrapper' ? 'FHERC20 wrapper route' : 'Direct treasury route'}
+                    {treasuryRouteMode === 'wrapper' ? 'Recommended two-step payout' : 'Direct payout route'}
                   </p>
                   <p>
                     {treasuryRouteMode === 'wrapper'
-                      ? 'Employees will request payout first, then finalize the wrapper claim with an on-chain proof flow that can reveal the amount before the underlying token is released.'
+                      ? 'Employees will request payout first, then complete a final step. The amount may become visible on the network before the token is released.'
                       : 'Employees will claim once and receive the treasury payout token immediately.'}
                   </p>
-                  <p className="font-mono break-all text-xs text-white/55">
-                    Adapter: {selectedTreasuryAdapterAddress || 'Not configured in frontend env'}
-                  </p>
-                  {organization.treasuryAdapter && organization.treasuryAdapter !== '0x0000000000000000000000000000000000000000' ? (
-                    <p className="font-mono break-all text-xs text-emerald-300">
-                      Current workspace adapter: {organization.treasuryAdapter}
-                    </p>
+                  {showAdvancedTreasurySettings ? (
+                    <>
+                      <p className="font-mono break-all text-xs text-white/55">
+                        Adapter: {selectedTreasuryAdapterAddress || 'Not configured in frontend env'}
+                      </p>
+                      {organization.treasuryAdapter && organization.treasuryAdapter !== '0x0000000000000000000000000000000000000000' ? (
+                        <p className="font-mono break-all text-xs text-emerald-300">
+                          Current workspace adapter: {organization.treasuryAdapter}
+                        </p>
+                      ) : null}
+                    </>
                   ) : null}
                 </div>
 
@@ -3274,9 +3407,9 @@ export default function AdminPage() {
                 <div>
                   <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white/60">
                     <ShieldCheck className="h-3.5 w-3.5" />
-                    Sensitive Admin Controls
+                    Multi-Admin Approval
                   </div>
-                  <h2 className="mt-4 text-2xl font-bold text-white">Governance workspace</h2>
+                  <h2 className="mt-4 text-2xl font-bold text-white">Multi-Admin Controls</h2>
                   <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#c9c9d0]">
                     Use this surface to bootstrap M-of-N governance, link the payroll executor, and review sensitive treasury-route or payroll-issuance actions before they execute.
                   </p>
@@ -3288,7 +3421,7 @@ export default function AdminPage() {
                   className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
                 >
                   {isGovernanceLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                  {isGovernanceLoading ? 'Refreshing…' : 'Refresh Governance'}
+                  {isGovernanceLoading ? 'Refreshing…' : 'Refresh Multi-Admin'}
                 </button>
               </div>
 
@@ -3310,16 +3443,16 @@ export default function AdminPage() {
                     label: 'Status',
                     value: governanceActive ? 'Active' : governanceInitialized ? 'Bootstrapping' : 'Not initialized',
                     detail: governanceActive
-                      ? 'Sensitive actions now follow quorum rules.'
-                      : 'Still on the single-admin path until governance is ready.'
+                      ? 'Sensitive actions now follow approval rules.'
+                      : 'Still using single-admin control until multi-admin is ready.'
                   },
                   {
-                    label: 'Quorum',
+                    label: 'Approval threshold',
                     value: governanceInitialized ? `${governanceAdminCount}/${governanceQuorum}` : '—',
                     detail: governanceInitialized ? 'Current admin count versus required quorum.' : 'Bootstrap governance first.'
                   },
                   {
-                    label: 'Linked executor',
+                    label: 'Linked to multi-admin',
                     value: governanceLinkedAddress
                       ? governanceLinkedAddress.toLowerCase() === (GOVERNANCE_CONTRACT_ADDRESS || '').toLowerCase()
                         ? 'Linked'
@@ -3334,7 +3467,7 @@ export default function AdminPage() {
                     value: String(governanceReadyProposals.length),
                     detail: governanceReadyProposals.length
                       ? 'Waiting for execution from a governance admin or the proposing wallet.'
-                      : 'No quorum-ready actions at the moment.'
+                      : 'No approval-ready actions at the moment.'
                   }
                 ].map((item) => (
                   <div key={item.label} className="rounded-2xl border border-white/10 bg-white/5 p-5">
@@ -3367,7 +3500,7 @@ export default function AdminPage() {
                     disabled={!canSubmitTransactions || !organization.exists || isBusy || governanceInitialized || !isAdmin}
                     className="w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-gray-200 disabled:opacity-50"
                   >
-                    Bootstrap Governance
+                    Set Up Multi-Admin
                   </button>
                 </div>
 
@@ -3397,7 +3530,7 @@ export default function AdminPage() {
                     value={bootstrapAdminAddress}
                     onChange={(event) => setBootstrapAdminAddress(event.target.value)}
                     className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                    placeholder="0x... bootstrap admin wallet"
+                    placeholder="0x... admin wallet"
                   />
                   <button
                     type="button"
@@ -3493,7 +3626,7 @@ export default function AdminPage() {
               <div className="flex items-center gap-3 mb-6">
                 <FolderCog className="w-5 h-5 text-cyan-300" />
                 <div>
-                  <h2 className="text-2xl font-bold text-white">Proposal queue</h2>
+                  <h2 className="text-2xl font-bold text-white">Pending approvals</h2>
                   <p className="mt-1 text-sm text-[#a1a1aa]">Cleartext actions execute directly from this queue once quorum is met. Encrypted actions show when the proposing admin must come back and submit the final wallet transaction.</p>
                 </div>
               </div>
@@ -3525,7 +3658,7 @@ export default function AdminPage() {
                                 <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-300">Expired</span>
                               ) : quorumMet ? (
                                 <span className="rounded-full bg-cyan-500/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-300">
-                                  {proposal.requiresWalletExecutor ? 'Ready for proposer wallet' : 'Ready to execute'}
+                                  {proposal.requiresWalletExecutor ? 'Ready for proposing admin' : 'Ready to execute'}
                                 </span>
                               ) : (
                                 <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/55">Collecting approvals</span>
@@ -3617,7 +3750,7 @@ export default function AdminPage() {
                   value={auditorPermitName}
                   onChange={(event) => setAuditorPermitName(event.target.value)}
                   className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                  placeholder="Permit name"
+                  placeholder="Access code name"
                 />
                 <div>
                   <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-white/55">Permit expiration</label>
@@ -3664,7 +3797,7 @@ export default function AdminPage() {
                 disabled={!canSubmitTransactions || !cofheReady || !organization.exists || !isAdmin || isBusy || !auditorRecipientSafeAddress || !auditorPermitExpirationTimestamp}
                 className="mt-6 w-full rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
               >
-                Create Auditor Sharing Permit
+                Create Auditor Access Code
               </button>
             </GlassCard>
 
@@ -3737,7 +3870,7 @@ export default function AdminPage() {
                   readOnly
                   value={auditorExportPayload}
                   className="min-h-[280px] w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/85 font-mono"
-                  placeholder="Create or select an auditor sharing permit to reveal the export payload here."
+                  placeholder="Create or select an auditor access code to reveal the export code here."
                 />
 
                 <div className="mt-4 flex flex-col gap-3 sm:flex-row">
@@ -3766,7 +3899,7 @@ export default function AdminPage() {
               <div className="flex items-center gap-3 mb-6">
                 <FolderCog className="w-5 h-5 text-cyan-300" />
                 <div>
-                  <h2 className="text-2xl font-bold text-white">Add budget</h2>
+                  <h2 className="text-2xl font-bold text-white">Prepare payroll budget</h2>
                   
                 </div>
               </div>
@@ -3776,26 +3909,27 @@ export default function AdminPage() {
                   value={budgetAmount}
                   onChange={(event) => setBudgetAmount(event.target.value)}
                   className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                  placeholder="25.5"
+                  placeholder={suggestedPayrollAmountDisplay ?? '25.5'}
                 />
                 <button
                   onClick={depositBudget}
                   disabled={!canEncryptInputs || !organization.exists || !isAdmin || isBusy || budgetAmountInWei === null}
-                  className="rounded-2xl bg-white text-black px-5 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white text-black px-5 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
                 >
-                  Deposit Budget
+                  {pendingAdminAction === 'depositBudget' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {pendingAdminAction === 'depositBudget' ? 'Preparing MetaMask…' : 'Deposit Budget'}
                 </button>
               </div>
 
               {!organization.exists && (
                 <div className="mt-6 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-50">
-                  Create the workspace first from the Workspace portal before funding it.
+                  Create or load a workspace first; CipherRoll will guide the next funding step here.
                 </div>
               )}
 
               {organization.exists && !cofheReady && (
                 <div className="mt-6 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm text-cyan-50">
-                  Initialize CoFHE before budget funding so the amount can be encrypted client-side.
+                  Enable privacy mode before budget funding so the amount can be encrypted in this browser.
                 </div>
               )}
 
@@ -3810,7 +3944,7 @@ export default function AdminPage() {
                 <div className="flex items-center gap-3 mb-6">
                   <ShieldCheck className="w-5 h-5 text-emerald-300" />
                   <div>
-                    <h2 className="text-2xl font-bold text-white">Summary handles</h2>
+                    <h2 className="text-2xl font-bold text-white">Private budget summary</h2>
                   </div>
                 </div>
 
@@ -3829,9 +3963,6 @@ export default function AdminPage() {
                         <p className="text-3xl font-black text-white">{item.value ?? '***'}</p>
                         {item.value && <span className="text-sm text-white/50 font-semibold">ETH</span>}
                       </div>
-                      <p className="mt-4 truncate text-[10px] text-[#8e8e95] font-mono" title={String(item.handle)}>
-                        {item.handle ? 'Encrypted handle' : 'No handle yet'}
-                      </p>
                     </div>
                   ))}
               </div>
@@ -3878,39 +4009,57 @@ export default function AdminPage() {
               <div className="grid gap-4 xl:grid-cols-2">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-3">
                   <p className="text-sm font-semibold text-white">Step 1: Create the payroll run</p>
-                  <label className="space-y-2 text-sm block">
-                    <span className="text-white/70">Payroll run label</span>
-                    <input
-                      value={selectedPayrollRunInput}
-                      onChange={(event) => setSelectedPayrollRunInput(event.target.value)}
-                      className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                      placeholder="may-2026-payroll"
-                    />
-                  </label>
-                  <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-xs text-[#a1a1aa]">
-                    <p>
-                      A simple run name like a month is easy to follow, but also easier to guess. For a safer setup, switch to a harder-to-guess run ID.
-                    </p>
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-xs leading-5 text-[#a1a1aa]">
+                    Run size is auto-set to {plannedHeadcountForCreate} employee{plannedHeadcountForCreate === 1 ? '' : 's'}. Import a CSV first when paying a batch.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvancedRunSettings((current) => !current)}
+                    className="w-fit rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
+                  >
+                    {showAdvancedRunSettings ? 'Hide advanced run settings' : 'Advanced run settings'}
+                  </button>
+                  {showAdvancedRunSettings ? (
+                    <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
+                      <label className="space-y-2 text-sm block">
+                        <span className="text-white/70">Payroll run label</span>
+                        <input
+                          value={selectedPayrollRunInput}
+                          onChange={(event) => setSelectedPayrollRunInput(event.target.value)}
+                          className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                          placeholder="may-2026-payroll"
+                        />
+                      </label>
+                      <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-xs text-[#a1a1aa]">
+                        <p>Advanced privacy note: readable run labels are easier to guess. Use a safer run ID when that matters.</p>
+                        <button
+                          type="button"
+                          onClick={assignHighEntropyPayrollRunLabel}
+                          className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-white transition-colors hover:bg-white/10"
+                        >
+                          Use safer run ID
+                        </button>
+                      </div>
+                      <label className="space-y-2 text-sm block">
+                        <span className="text-white/70">Funding deadline</span>
+                        <input
+                          type="datetime-local"
+                          value={payrollFundingDeadlineInput}
+                          onChange={(event) => setPayrollFundingDeadlineInput(event.target.value)}
+                          className="cipherroll-date-input w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white"
+                        />
+                      </label>
+                    </div>
+                  ) : null}
+                  {!showAdvancedRunSettings ? (
                     <button
                       type="button"
                       onClick={assignHighEntropyPayrollRunLabel}
-                      className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-white transition-colors hover:bg-white/10"
+                      className="w-fit rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/10"
                     >
-                      Use safer run ID
+                      Generate safer run ID
                     </button>
-                  </div>
-                  <label className="space-y-2 text-sm block">
-                    <span className="text-white/70">Funding deadline</span>
-                    <input
-                      type="datetime-local"
-                      value={payrollFundingDeadlineInput}
-                      onChange={(event) => setPayrollFundingDeadlineInput(event.target.value)}
-                      className="cipherroll-date-input w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white"
-                    />
-                  </label>
-                  <p className="text-xs leading-5 text-[#a1a1aa]">
-                    Planned employee slots are set automatically from the current batch row count. Import the CSV first, then create the run so this run opens with {plannedHeadcountForCreate} slot(s).
-                  </p>
+                  ) : null}
                   <button
                     onClick={createPayrollRun}
                     disabled={!canSubmitTransactions || isBusy || !organization.exists || plannedHeadcountForCreate > 500}
@@ -3954,15 +4103,22 @@ export default function AdminPage() {
                       className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
                       placeholder={`3.5 (${TARGET_CHAIN_NAME})`}
                     />
-                    <input
-                      value={paymentMemo}
-                      onChange={(event) => setPaymentMemo(event.target.value)}
-                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                      placeholder="Optional memo"
-                    />
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-xs text-[#a1a1aa]">
-                    Payment IDs are now made harder to guess automatically. If you type a very readable memo, though, someone may still be able to guess it later, so leave it blank or use a less obvious note when that matters.
+                    {showPaymentMemoInput ? (
+                      <input
+                        value={paymentMemo}
+                        onChange={(event) => setPaymentMemo(event.target.value)}
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                        placeholder="Optional memo"
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowPaymentMemoInput(true)}
+                        className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10"
+                      >
+                        Add memo
+                      </button>
+                    )}
                   </div>
                   {payrollMode === 'vesting' && (
                     <div className="grid gap-4 md:grid-cols-2">
@@ -3999,9 +4155,14 @@ export default function AdminPage() {
                       payrollWouldZeroOut ||
                       vestingWindowInvalid
                     }
-                    className="w-full rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
                   >
-                    {payrollMode === 'vesting' ? 'Issue Vesting Payroll' : 'Issue Confidential Payroll'}
+                    {pendingAdminAction === 'issuePayroll' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    {pendingAdminAction === 'issuePayroll'
+                      ? 'Preparing MetaMask…'
+                      : payrollMode === 'vesting'
+                        ? 'Issue Vesting Payroll'
+                        : 'Issue Private Payroll'}
                   </button>
                 </div>
 
@@ -4013,7 +4174,7 @@ export default function AdminPage() {
                         value={treasuryDepositAmount}
                         onChange={(event) => setTreasuryDepositAmount(event.target.value)}
                         className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                        placeholder="Treasury deposit amount"
+                      placeholder={suggestedPayrollAmountDisplay ?? 'Treasury deposit amount'}
                       />
                       <button
                         onClick={depositTreasuryFunds}
@@ -4039,7 +4200,7 @@ export default function AdminPage() {
                       value={payrollFundingAmount}
                       onChange={(event) => setPayrollFundingAmount(event.target.value)}
                       className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
-                      placeholder="Funding amount"
+                      placeholder={suggestedPayrollAmountDisplay ?? 'Funding amount'}
                     />
                     <button
                       onClick={fundPayrollRun}
@@ -4090,7 +4251,7 @@ export default function AdminPage() {
 
               {organization.exists && !cofheReady && (
                 <div className="mt-6 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm text-cyan-50">
-                  Initialize CoFHE before issuing payroll so the amount can be encrypted client-side.
+                  Enable privacy mode before issuing payroll so the amount can be encrypted in this browser.
                 </div>
               )}
             </GlassCard>
@@ -4113,43 +4274,65 @@ export default function AdminPage() {
 
               {governanceActive ? (
                 <div className="mt-6 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-50">
-                  Batch payroll v1 is intentionally disabled for governed workspaces. Priority 15 turns each encrypted issuance into its own governed payload, so use the one-row governed flow until a future governed-batch model is added.
+                  Batch payroll is paused for governed workspaces because each encrypted issuance requires quorum approval. Use the one-employee governed flow for now.
                 </div>
               ) : null}
 
               <div className="mt-6 grid gap-4 lg:grid-cols-[0.9fr,1.1fr]">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-white">Local role table</p>
+                    <div>
+                      <p className="text-sm font-semibold text-white">Role salaries</p>
+                      {!showBatchRoleEditor ? (
+                        <p className="mt-1 text-xs text-[#a1a1aa]">Hidden unless a CSV needs base salary cleanup.</p>
+                      ) : null}
+                    </div>
                     <button
                       type="button"
-                      onClick={addBatchPayrollRole}
-                      disabled={batchPayrollStage === 'sealed'}
-                      className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                      onClick={() => setShowBatchRoleEditor((current) => !current)}
+                      className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
                     >
-                      Add role
+                      {showBatchRoleEditor ? 'Hide editor' : 'Edit roles'}
                     </button>
                   </div>
-                  <div className="mt-4 space-y-3">
-                    {batchPayrollRoles.map((role) => (
-                      <div key={role.id} className="grid gap-3 md:grid-cols-[1fr,0.75fr]">
-                        <input
-                          value={role.label}
-                          onChange={(event) => updateBatchPayrollRole(role.id, { label: event.target.value })}
-                          disabled={batchPayrollStage === 'sealed'}
-                          className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-white/35 disabled:opacity-60"
-                          placeholder="Role label"
-                        />
-                        <input
-                          value={batchPayrollStage === 'sealed' ? '★★★★★' : role.baseSalary}
-                          onChange={(event) => updateBatchPayrollRole(role.id, { baseSalary: event.target.value })}
-                          disabled={batchPayrollStage === 'sealed'}
-                          className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-white/35 disabled:opacity-60"
-                          placeholder="Base salary"
-                        />
-                      </div>
-                    ))}
-                  </div>
+                  {!showBatchRoleEditor ? (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {batchPayrollRoles.map((role) => (
+                        <span key={role.id} className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs text-white/70">
+                          {role.label}{role.baseSalary ? ` · ${role.baseSalary}` : ''}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-4 space-y-3">
+                      <button
+                        type="button"
+                        onClick={addBatchPayrollRole}
+                        disabled={batchPayrollStage === 'sealed'}
+                        className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                      >
+                        Add role
+                      </button>
+                      {batchPayrollRoles.map((role) => (
+                        <div key={role.id} className="grid gap-3 md:grid-cols-[1fr,0.75fr]">
+                          <input
+                            value={role.label}
+                            onChange={(event) => updateBatchPayrollRole(role.id, { label: event.target.value })}
+                            disabled={batchPayrollStage === 'sealed'}
+                            className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-white/35 disabled:opacity-60"
+                            placeholder="Role label"
+                          />
+                          <input
+                            value={batchPayrollStage === 'sealed' ? '★★★★★' : role.baseSalary}
+                            onChange={(event) => updateBatchPayrollRole(role.id, { baseSalary: event.target.value })}
+                            disabled={batchPayrollStage === 'sealed'}
+                            className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-white/35 disabled:opacity-60"
+                            placeholder="Base salary"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
@@ -4289,7 +4472,10 @@ export default function AdminPage() {
                           <td className="px-4 py-3">
                             <select
                               value={row.roleSlug}
-                              onChange={(event) => updateBatchPayrollRow(row.id, { roleSlug: event.target.value, status: 'draft' })}
+                              onChange={(event) => {
+                                const nextRole = batchPayrollRoles.find((role) => role.slug === event.target.value)
+                                updateBatchPayrollRow(row.id, { roleSlug: event.target.value, roleLabel: nextRole?.label ?? event.target.value, status: 'draft' })
+                              }}
                               disabled={batchPayrollStage === 'sealed'}
                               className="w-full rounded-xl border border-white/10 bg-[#101018] px-3 py-2 text-white disabled:opacity-60"
                             >
@@ -4391,33 +4577,46 @@ export default function AdminPage() {
               <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-white">Backend manifest memory</p>
-                    <p className="mt-1 text-xs text-[#a1a1aa]">Safe role labels and tx refs for this run. No salary amounts are stored here.</p>
+                    <p className="text-sm font-semibold text-white">Audit/debug details</p>
+                    <p className="mt-1 text-xs text-[#a1a1aa]">Safe role labels and tx refs. No salary amounts are stored here.</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void loadBatchPayrollManifests()}
-                    className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
-                  >
-                    Refresh
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowBatchAuditDetails((current) => !current)}
+                      className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
+                    >
+                      {showBatchAuditDetails ? 'Hide' : 'Show'}
+                    </button>
+                    {showBatchAuditDetails ? (
+                      <button
+                        type="button"
+                        onClick={() => void loadBatchPayrollManifests()}
+                        className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
+                      >
+                        Refresh
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  {batchPayrollManifests.length === 0 ? (
-                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#a1a1aa]">
-                      No batch manifests are stored for this payroll run yet.
-                    </div>
-                  ) : (
-                    batchPayrollManifests.slice(0, 6).map((manifest) => (
-                      <div key={manifest.id} className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#c9c9d0]">
-                        <p className="font-semibold text-white">{manifest.roleLabel}</p>
-                        <p className="mt-1 font-mono text-xs text-white/55">{manifest.employee}</p>
-                        <p className="mt-2 text-xs text-white/45">Payment {formatBytes32Preview(manifest.paymentId)}</p>
-                        <p className="mt-1 text-xs text-emerald-300">Tx {shortHash(manifest.txHash)}</p>
+                {showBatchAuditDetails ? (
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    {batchPayrollManifests.length === 0 ? (
+                      <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#a1a1aa]">
+                        No batch manifests are stored for this payroll run yet.
                       </div>
-                    ))
-                  )}
-                </div>
+                    ) : (
+                      batchPayrollManifests.slice(0, 6).map((manifest) => (
+                        <div key={manifest.id} className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-[#c9c9d0]">
+                          <p className="font-semibold text-white">{manifest.roleLabel}</p>
+                          <p className="mt-1 font-mono text-xs text-white/55">{manifest.employee}</p>
+                          <p className="mt-2 text-xs text-white/45">Payment {formatBytes32Preview(manifest.paymentId)}</p>
+                          <p className="mt-1 text-xs text-emerald-300">Tx {shortHash(manifest.txHash)}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                ) : null}
               </div>
             </GlassCard>
           </div>
@@ -4456,43 +4655,43 @@ export default function AdminPage() {
                     {
                       step: "01",
                       title: "Connect the admin wallet on Arbitrum Sepolia",
-                      desc: "Start with the intended operator wallet and confirm the network is correct before reading the workspace state.",
+                      desc: "Start by connecting your admin wallet and confirming the network is correct before loading the workspace.",
                       icon: Wallet
                     },
                     {
                       step: "02",
-                      title: "Initialize CoFHE before encrypted actions",
-                      desc: "Turn on privacy mode before encrypted budget funding, decrypted summary reads, or any flow that depends on local handle processing.",
+                       title: "Turn on secure view before private actions",
+                       desc: "Turn on secure view before adding private budget, viewing summary details, or any flow that depends on encrypted data.",
                       icon: KeyRound
                     },
                     {
                       step: "03",
-                      title: "Create the workspace and treasury route",
-                      desc: "Register the organization, attach the intended treasury path, and refresh until the workspace metadata and operator role look correct.",
+                       title: "Create the workspace and payout route",
+                       desc: "Register the workspace, set up the payout route, and refresh until the workspace details and admin role look correct.",
                       icon: Building2
                     },
                     {
                       step: "04",
-                      title: "Bootstrap governance before sensitive actions",
-                      desc: "If this workspace is moving to M-of-N approval, initialize governance, add the remaining signer, and link the payroll executor before treasury-route changes or payroll issuance depend on quorum.",
+                       title: "Set up multi-admin before sensitive actions",
+                       desc: "If this workspace needs multi-admin approval, set it up, add the remaining admins, and link payroll before treasury changes or payroll issuance require approvals.",
                       icon: ShieldCheck
                     },
                     {
                       step: "05",
-                      title: "Fund encrypted budget and confirm summary refresh",
-                      desc: "Deposit payroll funds into the treasury-backed route, then refresh the admin dashboard so available budget and committed state align with the chain.",
+                       title: "Add budget and confirm summary refresh",
+                       desc: "Deposit payroll funds into the treasury, then refresh the dashboard so the available budget and committed amounts are up to date.",
                       icon: FolderCog
                     },
                     {
                       step: "06",
-                      title: "Create a run, fund it, activate it, then issue allocations",
-                      desc: "CipherRoll uses an explicit run lifecycle. Reserve the funds first, activate claimability, and only then issue confidential payroll to employees.",
+                       title: "Create a payroll cycle, issue payments, then fund and activate",
+                       desc: "Import the CSV first for batch payroll, create the cycle, add private payments, reserve funds, and then open employee claims.",
                       icon: ShieldCheck
                     },
                     {
                       step: "07",
-                      title: "Use backend reporting and auditor sharing for review",
-                      desc: "Refresh the workflow feed, export reports when needed, and move into auditor sharing only after the payroll surface itself is in the state you want to evidence.",
+                       title: "Use reporting and auditor access for review",
+                       desc: "Refresh the workflow feed, export reports when needed, and set up auditor access only after the payroll is in the state you want to share.",
                       icon: FileKey2
                     }
                   ].map((item) => (

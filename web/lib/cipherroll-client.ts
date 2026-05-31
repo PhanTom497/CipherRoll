@@ -245,10 +245,15 @@ export function getCipherRollContract(runner: BrowserProvider | JsonRpcSigner) {
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
 
-    async depositBudget(orgId: string, encryptedAmount: CipherRollEncryptedInput) {
+    async depositBudget(orgId: string, encryptedAmount: CipherRollEncryptedInput, cleartextFundingLimit: bigint) {
       if (!(runner instanceof JsonRpcSigner)) throw new Error("Signer required.");
       const contract = await getEthersContract();
-      const tx = await contract.depositBudget(orgId, encryptedAmount, await getFreshTransactionOverrides(ethersProvider));
+      const tx = await contract.depositBudget(
+        orgId,
+        encryptedAmount,
+        cleartextFundingLimit,
+        await getFreshTransactionOverrides(ethersProvider)
+      );
       return { hash: tx.hash as string, wait: () => tx.wait() };
     },
 

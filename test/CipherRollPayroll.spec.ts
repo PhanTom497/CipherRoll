@@ -115,8 +115,8 @@ describe("CipherRollPayroll", function () {
 
     await payroll.connect(admin).createOrganization(orgId, metadataHash, 3, 2);
 
-    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, firstDeposit));
-    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, secondDeposit));
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, firstDeposit), firstDeposit);
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, secondDeposit), secondDeposit);
     await payroll.connect(admin).issueConfidentialPayroll(
       orgId,
       employee.address,
@@ -154,7 +154,7 @@ describe("CipherRollPayroll", function () {
     await payroll.connect(admin).createOrganization(orgId, metadataHash, 3, 2);
     await payroll
       .connect(admin)
-      .depositBudget(orgId, await encryptUint128(adminClient, depositAmount));
+      .depositBudget(orgId, await encryptUint128(adminClient, depositAmount), depositAmount);
 
     await payroll.connect(admin).issueConfidentialPayroll(
       orgId,
@@ -200,7 +200,7 @@ describe("CipherRollPayroll", function () {
     await payroll.connect(admin).createOrganization(orgId, metadataHash, 3, 2);
     await payroll
       .connect(admin)
-      .depositBudget(orgId, await encryptUint128(adminClient, 5n));
+      .depositBudget(orgId, await encryptUint128(adminClient, 5n), 5n);
 
     await payroll.connect(admin).issueConfidentialPayroll(
       orgId,
@@ -229,7 +229,7 @@ describe("CipherRollPayroll", function () {
     await payroll.connect(admin).createOrganization(orgId, metadataHash, 3, 2);
     await payroll
       .connect(admin)
-      .depositBudget(orgId, await encryptUint128(adminClient, 14n));
+      .depositBudget(orgId, await encryptUint128(adminClient, 14n), 14n);
 
     const [budgetHandle] = await payroll.connect(admin).getAdminBudgetHandles(orgId);
     const explicitPermit = await adminClient.permits.getOrCreateSelfPermit();
@@ -257,7 +257,7 @@ describe("CipherRollPayroll", function () {
     await payroll.connect(admin).createOrganization(orgId, metadataHash, 3, 2);
     await payroll
       .connect(admin)
-      .depositBudget(orgId, await encryptUint128(adminClient, 12n));
+      .depositBudget(orgId, await encryptUint128(adminClient, 12n), 12n);
 
     await payroll.connect(admin).issueVestingAllocation(
       orgId,
@@ -298,7 +298,7 @@ describe("CipherRollPayroll", function () {
     await payroll.connect(admin).createOrganization(orgId, metadataHash, 3, 2);
     await payroll
       .connect(admin)
-      .depositBudget(orgId, await encryptUint128(adminClient, 20n));
+      .depositBudget(orgId, await encryptUint128(adminClient, 20n), 20n);
 
     await payroll.connect(admin).issueVestingAllocation(
       orgId,
@@ -332,7 +332,7 @@ describe("CipherRollPayroll", function () {
     const latestBlock = await time.latest();
 
     await payroll.connect(admin).createOrganization(orgId, metadataHash, 3, 2);
-    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, 25n));
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, 25n), 25n);
 
     await payroll.connect(admin).issueConfidentialPayroll(
       orgId,
@@ -385,7 +385,7 @@ describe("CipherRollPayroll", function () {
       await settlementAdapter.getAddress(),
       ethers.id("route:auditor-summary")
     );
-    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, 20n));
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, 20n), 20n);
 
     await payroll.connect(admin).createPayrollRun(
       orgId,
@@ -506,7 +506,7 @@ describe("CipherRollPayroll", function () {
     const metadataHash = ethers.id("meta:auditor-evidence");
 
     await payroll.connect(admin).createOrganization(orgId, metadataHash, 3, 2);
-    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, 30n));
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, 30n), 30n);
     await payroll.connect(admin).issueConfidentialPayroll(
       orgId,
       employee.address,
@@ -572,7 +572,7 @@ describe("CipherRollPayroll", function () {
     const metadataHash = ethers.id("meta:auditor-batch");
 
     await payroll.connect(admin).createOrganization(orgId, metadataHash, 3, 2);
-    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, 40n));
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, 40n), 40n);
     await payroll.connect(admin).issueConfidentialPayroll(
       orgId,
       employee.address,
@@ -659,7 +659,7 @@ describe("CipherRollPayroll", function () {
     const latestBlock = await time.latest();
 
     await payroll.connect(admin).createOrganization(orgId, metadataHash, 3, 2);
-    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, 20n));
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, 20n), 20n);
     await payroll.connect(admin).createPayrollRun(
       orgId,
       payrollRunId,
@@ -725,7 +725,7 @@ describe("CipherRollPayroll", function () {
       await settlementAdapter.getAddress(),
       ethers.id("route:settlement")
     );
-    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, settlementAmount));
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, settlementAmount), settlementAmount);
     await payroll.connect(admin).createPayrollRun(
       orgId,
       payrollRunId,
@@ -780,6 +780,56 @@ describe("CipherRollPayroll", function () {
     expect(await settlementAdapter.reservedPayrollFunds(orgId)).to.equal(0n);
   });
 
+  it("blocks treasury-backed run funding above the deposited private budget limit", async function () {
+    const orgId = ethers.id("org:treasury-budget-cap");
+    const metadataHash = ethers.id("meta:treasury-budget-cap");
+    const payrollRunId = ethers.id("run:treasury-budget-cap");
+    const paymentId = ethers.id("payment:treasury-budget-cap");
+    const memoHash = ethers.id("memo:treasury-budget-cap");
+    const latestBlock = await time.latest();
+    const depositedBudget = ethers.parseEther("3.5");
+    const requestedFunding = ethers.parseEther("8");
+
+    await payroll.connect(admin).createOrganization(orgId, metadataHash, 3, 2);
+    await payroll.connect(admin).configureTreasury(
+      orgId,
+      await settlementAdapter.getAddress(),
+      ethers.id("route:treasury-budget-cap")
+    );
+    await payroll.connect(admin).depositBudget(
+      orgId,
+      await encryptUint128(adminClient, depositedBudget),
+      depositedBudget
+    );
+    await payroll.connect(admin).createPayrollRun(
+      orgId,
+      payrollRunId,
+      ethers.id("asset:treasury-budget-cap"),
+      latestBlock + 1000,
+      1
+    );
+    await payroll.connect(admin).issueConfidentialPayrollToRun(
+      orgId,
+      payrollRunId,
+      employee.address,
+      await encryptUint128(adminClient, requestedFunding),
+      paymentId,
+      memoHash
+    );
+
+    await settlementToken.connect(admin).approve(await settlementAdapter.getAddress(), requestedFunding);
+    await settlementAdapter.connect(admin).depositPayrollFunds(orgId, requestedFunding);
+
+    await expect(
+      payroll.connect(admin).fundPayrollRunFromTreasury(orgId, payrollRunId, requestedFunding)
+    ).to.be.revertedWithoutReason();
+
+    const payrollRun = await payroll.connect(admin).getPayrollRun(payrollRunId);
+    expect(Number(payrollRun.status)).to.equal(0);
+    expect(await settlementAdapter.availablePayrollFunds(orgId)).to.equal(requestedFunding);
+    expect(await settlementAdapter.reservedPayrollFunds(orgId)).to.equal(0n);
+  });
+
   it("uses the official FHERC20 wrapper path for request and finalize payroll settlement", async function () {
     const orgId = ethers.id("org:fherc20-settlement");
     const metadataHash = ethers.id("meta:fherc20-settlement");
@@ -795,7 +845,7 @@ describe("CipherRollPayroll", function () {
       await confidentialSettlementAdapter.getAddress(),
       ethers.id("route:fherc20-settlement")
     );
-    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, settlementAmount));
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, settlementAmount), settlementAmount);
     await payroll.connect(admin).createPayrollRun(
       orgId,
       payrollRunId,
@@ -882,7 +932,7 @@ describe("CipherRollPayroll", function () {
       await confidentialSettlementAdapter.getAddress(),
       ethers.id("route:fherc20-route-pin")
     );
-    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, settlementAmount));
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, settlementAmount), settlementAmount);
     await payroll.connect(admin).createPayrollRun(
       orgId,
       payrollRunId,
@@ -966,7 +1016,7 @@ describe("CipherRollPayroll", function () {
       await confidentialSettlementAdapter.getAddress(),
       ethers.id("route:fherc20-fractional-settlement")
     );
-    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, settlementAmount));
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, settlementAmount), settlementAmount);
     await payroll.connect(admin).createPayrollRun(
       orgId,
       payrollRunId,
@@ -1040,7 +1090,7 @@ describe("CipherRollPayroll", function () {
       await confidentialSettlementAdapter.getAddress(),
       ethers.id("route:fherc20-wrong-plaintext")
     );
-    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, settlementAmount));
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, settlementAmount), settlementAmount);
     await payroll.connect(admin).createPayrollRun(
       orgId,
       payrollRunId,
@@ -1115,7 +1165,7 @@ describe("CipherRollPayroll", function () {
       await confidentialSettlementAdapter.getAddress(),
       ethers.id("route:fherc20-mismatched-request")
     );
-    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, totalFunding));
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, totalFunding), totalFunding);
     await payroll.connect(admin).createPayrollRun(
       orgId,
       payrollRunId,
@@ -1210,7 +1260,7 @@ describe("CipherRollPayroll", function () {
       await confidentialSettlementAdapter.getAddress(),
       ethers.id("route:fherc20-replayed-finalize")
     );
-    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, settlementAmount));
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, settlementAmount), settlementAmount);
     await payroll.connect(admin).createPayrollRun(
       orgId,
       payrollRunId,
@@ -1287,7 +1337,7 @@ describe("CipherRollPayroll", function () {
       await confidentialSettlementAdapter.getAddress(),
       ethers.id("route:fherc20-no-pending-request")
     );
-    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, settlementAmount));
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, settlementAmount), settlementAmount);
     await payroll.connect(admin).createPayrollRun(
       orgId,
       payrollRunId,
@@ -1341,7 +1391,7 @@ describe("CipherRollPayroll", function () {
     ).to.be.revertedWith("CipherRoll: org exists");
 
     await expect(
-      payroll.connect(outsider).depositBudget(orgId, await encryptUint128(outsiderClient, 4n))
+      payroll.connect(outsider).depositBudget(orgId, await encryptUint128(outsiderClient, 4n), 4n)
     ).to.be.revertedWith("CipherRoll: not admin");
 
     await expect(
@@ -1422,7 +1472,7 @@ describe("CipherRollPayroll", function () {
       .connect(admin)
       .configureOrganizationGovernanceExecutor(orgId, await governance.getAddress());
 
-    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, 20n));
+    await payroll.connect(admin).depositBudget(orgId, await encryptUint128(adminClient, 20n), 20n);
 
     await expect(
       payroll.connect(admin).configureTreasury(orgId, await settlementAdapter.getAddress(), routeId)
@@ -1540,7 +1590,7 @@ describe("CipherRollPayroll", function () {
     await payroll.connect(admin).createOrganization(orgId, metadataHash, 3, 2);
     await payroll
       .connect(admin)
-      .depositBudget(orgId, await encryptUint128(adminClient, 11n));
+      .depositBudget(orgId, await encryptUint128(adminClient, 11n), 11n);
 
     await expect(payroll.connect(employee).claimPayroll(orgId, paymentId)).to.be.revertedWith(
       "CipherRoll: payment missing"
