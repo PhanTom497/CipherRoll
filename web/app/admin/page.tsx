@@ -407,6 +407,7 @@ export default function AdminPage() {
   const [workspaceName, setWorkspaceName] = useState('CipherRoll Core')
   const [budgetAmount, setBudgetAmount] = useState('25.5')
   const [employeeAddress, setEmployeeAddress] = useState('')
+  const [payrollWorkflow, setPayrollWorkflow] = useState<'single' | 'batch'>('single')
   const [payrollMode, setPayrollMode] = useState<'instant' | 'vesting'>('instant')
   const [paymentAmount, setPaymentAmount] = useState('3.5')
   const [paymentMemo, setPaymentMemo] = useState('')
@@ -631,7 +632,7 @@ export default function AdminPage() {
   const payrollFundingAmountInWei = useMemo(() => parseDecimalAmountToWei(payrollFundingAmount), [payrollFundingAmount])
   const treasuryDepositAmountInWei = useMemo(() => parseDecimalAmountToWei(treasuryDepositAmount), [treasuryDepositAmount])
   const selectedPayrollRunId = useMemo(() => toBytes32Label(selectedPayrollRunInput), [selectedPayrollRunInput])
-  const plannedHeadcountForCreate = Math.max(1, batchPayrollRows.length)
+  const plannedHeadcountForCreate = payrollWorkflow === 'batch' ? Math.max(1, batchPayrollRows.length) : 1
   const treasuryRouteId = useMemo(() => toBytes32Label(treasuryRouteLabel), [treasuryRouteLabel])
   const auditorRecipientSafeAddress = useMemo(() => safeAddress(auditorRecipientAddress) ?? '', [auditorRecipientAddress])
   const selectedTreasuryAdapterAddress = useMemo(
@@ -4000,6 +4001,40 @@ export default function AdminPage() {
               </div>
             </GlassCard>
 
+            <GlassCard className="p-5 border-white/5 bg-[#0a0a0a] rounded-3xl">
+              <div className="grid gap-3 md:grid-cols-2">
+                {[
+                  {
+                    id: 'single',
+                    title: 'Pay One Employee',
+                    detail: 'One wallet, one encrypted allocation, then fund and activate.'
+                  },
+                  {
+                    id: 'batch',
+                    title: 'Pay Multiple Employees',
+                    detail: 'Import CSV, create an auto-sized run, seal rows, then submit the batch.'
+                  }
+                ].map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setPayrollWorkflow(option.id as 'single' | 'batch')}
+                    className={`rounded-2xl border px-5 py-4 text-left transition-colors ${
+                      payrollWorkflow === option.id
+                        ? 'border-white/30 bg-white text-black'
+                        : 'border-white/10 bg-white/5 text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <span className="block text-sm font-bold">{option.title}</span>
+                    <span className={`mt-1 block text-xs leading-5 ${payrollWorkflow === option.id ? 'text-black/65' : 'text-white/55'}`}>
+                      {option.detail}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </GlassCard>
+
+            {payrollWorkflow === 'single' ? (
             <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
               <div className="flex items-center gap-3 mb-6">
                 <KeyRound className="w-5 h-5 text-cyan-300" />
@@ -4010,7 +4045,7 @@ export default function AdminPage() {
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-3">
                   <p className="text-sm font-semibold text-white">Step 1: Create the payroll run</p>
                   <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-xs leading-5 text-[#a1a1aa]">
-                    Run size is auto-set to {plannedHeadcountForCreate} employee{plannedHeadcountForCreate === 1 ? '' : 's'}. Import a CSV first when paying a batch.
+                    Run size is auto-set to 1 employee for this single-payment flow.
                   </div>
                   <button
                     type="button"
@@ -4255,7 +4290,9 @@ export default function AdminPage() {
                 </div>
               )}
             </GlassCard>
+            ) : null}
 
+            {payrollWorkflow === 'batch' ? (
             <GlassCard className="p-8 border-white/5 bg-[#0a0a0a] rounded-3xl">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
@@ -4277,6 +4314,128 @@ export default function AdminPage() {
                   Batch payroll is paused for governed workspaces because each encrypted issuance requires quorum approval. Use the one-employee governed flow for now.
                 </div>
               ) : null}
+
+              <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-white">Batch run sequence</p>
+                    <p className="mt-1 text-xs leading-5 text-[#a1a1aa]">
+                      Import rows first, then create a run sized to {plannedHeadcountForCreate} employee{plannedHeadcountForCreate === 1 ? '' : 's'}. After sealing and submitting rows, fund and activate this same run.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvancedRunSettings((current) => !current)}
+                    className="w-fit rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
+                  >
+                    {showAdvancedRunSettings ? 'Hide advanced run settings' : 'Advanced run settings'}
+                  </button>
+                </div>
+
+                {showAdvancedRunSettings ? (
+                  <div className="mt-4 grid gap-3 lg:grid-cols-[1fr,1fr]">
+                    <label className="space-y-2 text-sm block">
+                      <span className="text-white/70">Payroll run label</span>
+                      <input
+                        value={selectedPayrollRunInput}
+                        onChange={(event) => setSelectedPayrollRunInput(event.target.value)}
+                        className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                        placeholder="may-2026-payroll"
+                      />
+                    </label>
+                    <label className="space-y-2 text-sm block">
+                      <span className="text-white/70">Funding deadline</span>
+                      <input
+                        type="datetime-local"
+                        value={payrollFundingDeadlineInput}
+                        onChange={(event) => setPayrollFundingDeadlineInput(event.target.value)}
+                        className="cipherroll-date-input w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white"
+                      />
+                    </label>
+                    <div className="lg:col-span-2 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-xs text-[#a1a1aa]">
+                      <p>Advanced privacy note: readable run labels are easier to guess. Use a safer run ID when that matters.</p>
+                      <button
+                        type="button"
+                        onClick={assignHighEntropyPayrollRunLabel}
+                        className="shrink-0 rounded-full border border-white/15 px-3 py-1.5 text-white transition-colors hover:bg-white/10"
+                      >
+                        Use safer run ID
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="mt-4 grid gap-3 xl:grid-cols-4">
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Step 1</p>
+                    <p className="mt-2 text-sm font-semibold text-white">Import CSV rows</p>
+                    <p className="mt-2 text-xs leading-5 text-[#a1a1aa]">Use the CSV import below, or add rows manually.</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Step 2</p>
+                    <p className="text-sm font-semibold text-white">Create payroll run</p>
+                    <button
+                      onClick={createPayrollRun}
+                      disabled={!canSubmitTransactions || isBusy || !organization.exists || plannedHeadcountForCreate > 500}
+                      className="w-full rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
+                    >
+                      Create Run
+                    </button>
+                  </div>
+                  {hasTreasuryRoute ? (
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Step 6</p>
+                      <p className="text-sm font-semibold text-white">Fund treasury</p>
+                      <div className="space-y-3">
+                        <input
+                          value={treasuryDepositAmount}
+                          onChange={(event) => setTreasuryDepositAmount(event.target.value)}
+                          className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                          placeholder={suggestedPayrollAmountDisplay ?? 'Treasury deposit amount'}
+                        />
+                        <button
+                          onClick={depositTreasuryFunds}
+                          disabled={!canSubmitTransactions || isBusy || treasuryDepositAmountInWei === null}
+                          className="w-full rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold hover:bg-gray-200 disabled:opacity-50"
+                        >
+                          Fund Treasury
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">
+                      {hasTreasuryRoute ? 'Step 7 / 8' : 'Step 6 / 7'}
+                    </p>
+                    <p className="text-sm font-semibold text-white">{hasTreasuryRoute ? 'Reserve and activate' : 'Fund and activate'}</p>
+                    <input
+                      value={payrollFundingAmount}
+                      onChange={(event) => setPayrollFundingAmount(event.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/35"
+                      placeholder={suggestedPayrollAmountDisplay ?? 'Funding amount'}
+                    />
+                    <button
+                      onClick={fundPayrollRun}
+                      disabled={
+                        !(hasTreasuryRoute ? canSubmitTransactions : canEncryptInputs) ||
+                        isBusy ||
+                        !payrollRunExists ||
+                        payrollFundingAmountInWei === null
+                      }
+                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
+                    >
+                      {hasTreasuryRoute ? 'Reserve Treasury Funds' : 'Fund Run'}
+                    </button>
+                    <button
+                      onClick={activatePayrollRun}
+                      disabled={!canSubmitTransactions || isBusy || !payrollRunExists || payrollRun.status !== 1}
+                      className="w-full rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-50 hover:bg-cyan-400/15 disabled:opacity-50"
+                    >
+                      Activate Claim Window
+                    </button>
+                  </div>
+                </div>
+              </div>
 
               <div className="mt-6 grid gap-4 lg:grid-cols-[0.9fr,1.1fr]">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
@@ -4548,7 +4707,7 @@ export default function AdminPage() {
                   disabled={governanceActive || isBusy || batchPayrollRows.length === 0}
                   className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-50"
                 >
-                  Review Batch
+                  Step 3: Review Batch
                 </button>
                 <button
                   type="button"
@@ -4556,7 +4715,7 @@ export default function AdminPage() {
                   disabled={governanceActive || isBatchPayrollSealing || batchPayrollStage !== 'review' || !canEncryptInputs}
                   className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-gray-200 disabled:opacity-50"
                 >
-                  {isBatchPayrollSealing ? 'Sealing...' : 'Seal Encrypted Salaries'}
+                  {isBatchPayrollSealing ? 'Sealing...' : 'Step 4: Seal Salaries'}
                 </button>
                 <button
                   type="button"
@@ -4564,7 +4723,7 @@ export default function AdminPage() {
                   disabled={governanceActive || isBatchPayrollSubmitting || batchPayrollStage !== 'sealed' || !payrollRunOpenForAllocations || payrollRunRemainingAllocationSlots <= 0 || batchPayrollSubmittableRows.length === 0 || batchPayrollSubmittableRows.length > payrollRunRemainingAllocationSlots}
                   className="rounded-2xl border border-violet-400/20 bg-violet-400/10 px-4 py-3 text-sm font-semibold text-violet-50 hover:bg-violet-400/15 disabled:opacity-50"
                 >
-                  {isBatchPayrollSubmitting ? 'Submitting...' : 'Submit Batch'}
+                  {isBatchPayrollSubmitting ? 'Submitting...' : 'Step 5: Submit Batch'}
                 </button>
               </div>
 
@@ -4619,6 +4778,7 @@ export default function AdminPage() {
                 ) : null}
               </div>
             </GlassCard>
+            ) : null}
           </div>
         )}
 
