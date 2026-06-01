@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Shield, Users, Eye, Wallet, Lock, ArrowRight, ArrowUpRight, Play, Landmark } from "lucide-react";
+import { Shield, Users, Eye, Wallet, Lock, ArrowUpRight, Play, Landmark, Github, Send, MessageCircle, ExternalLink, Mail } from "lucide-react";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 import FeaturesScroll from "@/components/FeaturesScroll";
 import ProblemMarquee from "@/components/ProblemMarquee";
@@ -47,6 +47,21 @@ const portals = [
     icon: Landmark,
     url: "/tax-authority"
   }
+];
+
+const footerLinks = [
+  { label: "Docs", href: "/docs" },
+  { label: "FAQ", href: "https://cipher-roll.vercel.app/docs?tab=troubleshooting&section=ts-faq", external: true },
+  { label: "Fhenix Docs", href: "https://cofhe-docs.fhenix.zone/", external: true },
+  { label: "Backend Health", href: "https://cipherroll.onrender.com/api/health", external: true },
+  { label: "Demo", href: "https://youtu.be/yeKGeHdbBsA", external: true }
+];
+
+const socialLinks = [
+  { label: "Email", href: "mailto:lakshaypanchal21@gmail.com", icon: Mail },
+  { label: "GitHub", href: "https://github.com/PhanTom497/CipherRoll", icon: Github },
+  { label: "Twitter / X", href: "https://x.com/lakshay_p007", icon: MessageCircle },
+  { label: "Telegram", href: "https://t.me/Lakshay7847", icon: Send }
 ];
 
 export default function Home() {
@@ -175,13 +190,13 @@ export default function Home() {
           <div className="flex flex-col mb-20 gap-8">
             <div className="max-w-4xl text-left">
               <div className="text-[12px] font-semibold tracking-[0.18em] text-[#A1A1AA] uppercase mb-5">
-                Portals
+                Product Portals
               </div>
               <h2 className="max-w-4xl text-[42px] md:text-[58px] lg:text-[76px] font-black tracking-[-0.04em] text-white leading-[0.98]">
-                Final Product Surfaces
+                Four Portals. One Flow.
               </h2>
               <p className="text-[18px] md:text-[20px] text-[#b4b4bc] mt-6 max-w-2xl font-normal leading-[1.65]">
-                {`CipherRoll's final Wave 5 surface combines encrypted payroll state on ${TARGET_CHAIN_NAME} with governed execution, retryable batch issuance, treasury exposure reporting, aggregate evidence, compliance exports, and a read-only product copilot.`}
+                {`CipherRoll brings confidential payroll operations into one coordinated interface: encrypted Fhenix payroll state on ${TARGET_CHAIN_NAME}, governed sensitive execution, browser-local batch issuance, treasury-backed settlement, aggregate audit evidence, compliance exports, and read-only in-product guidance.`}
               </p>
             </div>
           </div>
@@ -215,20 +230,63 @@ export default function Home() {
 
       <SectionDivider />
 
-      <footer className="py-20 px-6 border-t border-white/10 relative z-10 bg-[#000] w-full">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-16 md:gap-8">
-          <div className="flex flex-col items-start pr-8 md:w-1/3">
-            <Link href="/" className="text-[20px] font-bold tracking-tight text-white mb-6">
-              {title}.
-            </Link>
-            <p className="text-[#A1A1AA] text-lg font-medium leading-relaxed mb-8">
-              {tagline}
-              <br />
-              Final Wave 5 confidential payroll infrastructure for {TARGET_CHAIN_NAME}.
-            </p>
-            <Link href="/docs" className="inline-flex items-center gap-2.5 bg-white text-black px-5 py-2.5 rounded-full text-sm font-semibold hover:bg-white/90 transition-colors mb-20 md:mb-28">
-              Explore docs <ArrowRight className="w-4 h-4" />
-            </Link>
+      <footer className="px-6 py-20 md:py-24 border-t border-white/10 relative z-10 bg-[#000] w-full overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/30 to-transparent" />
+        <div className="absolute -top-32 right-0 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl" />
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-12 lg:gap-20 items-start">
+            <div>
+              <Link href="/" className="inline-flex items-center gap-3 text-[22px] font-bold tracking-tight text-white mb-5">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/[0.04]">
+                  <Lock className="h-5 w-5 text-cyan-200" />
+                </span>
+                {title}.
+              </Link>
+              <p className="text-[#d4d4d8] text-xl md:text-2xl font-semibold leading-tight mb-3 max-w-xl">
+                Confidential payroll without the ceremony.
+              </p>
+              <p className="text-[#A1A1AA] text-base leading-relaxed max-w-xl">
+                A compact final-wave build for private compensation workflows, accountable approvals, and evidence-ready reporting on public EVM rails.
+              </p>
+            </div>
+
+            <div className="lg:justify-self-end lg:text-right">
+              <h3 className="text-white text-sm font-semibold uppercase tracking-[0.18em] mb-5">
+                Useful Links
+              </h3>
+              <div className="flex flex-wrap lg:justify-end gap-x-5 gap-y-3 max-w-xl">
+                {footerLinks.map((item) => (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    target={item.external ? "_blank" : undefined}
+                    rel={item.external ? "noopener noreferrer" : undefined}
+                    className="group inline-flex items-center gap-2 text-sm text-[#A1A1AA] hover:text-white transition-colors"
+                  >
+                    {item.label}
+                    {item.external ? <ExternalLink className="h-3.5 w-3.5 opacity-50 group-hover:opacity-100" /> : null}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-12 pt-8 border-t border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <p className="text-xs text-[#71717a]">© 2026 CipherRoll. Confidential payroll infrastructure for public EVM rails.</p>
+            <div className="flex flex-wrap items-center gap-3">
+              {socialLinks.map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={item.label}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-white/80 hover:bg-white hover:text-black transition-colors"
+                >
+                  <item.icon className="h-4.5 w-4.5" />
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       </footer>
