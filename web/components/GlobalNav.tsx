@@ -12,7 +12,8 @@ export default function GlobalNav() {
         { name: 'Employee', path: '/employee' },
         { name: 'Auditor', path: '/auditor' },
         { name: 'Compliance', path: '/tax-authority' },
-        { name: 'Docs', path: '/docs' }
+        { name: 'Docs', path: '/docs' },
+        { name: 'Whitepaper', path: '/whitepaper' }
     ];
 
     return (

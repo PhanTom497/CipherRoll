@@ -1,0 +1,1900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="CipherRoll technical whitepaper for confidential payroll infrastructure built on Fhenix CoFHE and Arbitrum Sepolia.">
+<meta name="theme-color" content="#080a0d">
+<meta name="color-scheme" content="light">
+<title>CipherRoll — Technical Whitepaper</title>
+<base href="/whitepaper/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Core palette derived from the logo: deep black, off-whites, silver-champagne accents */
+    --void: #080a0d;
+    --ink: #0d0f12;
+    --ink-mid: #13161c;
+    --ink-light: #1c2028;
+    --paper: #f0ede8;
+    --paper-warm: #e8e4dd;
+    --paper-soft: #faf8f5;
+    --rule: #2a2e38;
+    --rule-light: #1f2229;
+    --silver: #c4c0ba;
+    --silver-bright: #dedad4;
+    --silver-dim: #8a8680;
+    --champagne: #d4c9b0;
+    --champagne-bright: #e8dfc8;
+    --champagne-dim: #9a9080;
+    --white: #f0ede8;
+    --white-60: rgba(240,237,232,0.6);
+    --white-30: rgba(240,237,232,0.3);
+    --white-12: rgba(240,237,232,0.12);
+    --white-06: rgba(240,237,232,0.06);
+    --green-ok: #2a6b3a;
+    --red-warn: #6b2a2a;
+    --mono: 'Space Mono', monospace;
+    --serif: 'Cormorant Garamond', Georgia, serif;
+    --sans: 'DM Sans', system-ui, sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-weight: 400;
+    line-height: 1.75;
+    font-size: 15px;
+  }
+
+  ::selection {
+    background: rgba(212, 201, 176, 0.45);
+    color: var(--ink);
+  }
+
+  @media print {
+    .cover-page { page-break-after: always; }
+    .toc-page { page-break-after: always; }
+    section { page-break-inside: avoid; }
+    h2 { page-break-before: always; }
+    .sticky-nav { display: none; }
+    body.embed-preview .sticky-nav { display: none; }
+  }
+
+  /* ══ COVER PAGE ══ */
+  .cover-page {
+    position: relative;
+    min-height: 100vh;
+    background: var(--void);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .cover-bg-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(240,237,232,.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(240,237,232,.025) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+
+  /* Radial glow behind logo area */
+  .cover-bg-radial {
+    position: absolute;
+    top: -10%;
+    right: -5%;
+    width: 55vw;
+    height: 55vw;
+    max-width: 700px;
+    max-height: 700px;
+    background: radial-gradient(circle, rgba(196,192,186,.04) 0%, transparent 65%);
+    pointer-events: none;
+  }
+
+  .cover-accent-bar {
+    position: relative;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, var(--silver) 30%, var(--champagne-bright) 60%, transparent 100%);
+  }
+
+  .cover-inner {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 80px 120px 60px;
+    max-width: 1040px;
+  }
+
+  /* Logo badge top-right on cover */
+  .cover-logo-badge {
+    position: absolute;
+    top: 56px;
+    right: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    opacity: 0.85;
+  }
+
+  .cover-logo-badge img {
+    width: 72px;
+    height: 72px;
+    border-radius: 18px;
+    display: block;
+  }
+
+  .cover-logo-badge span {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--silver-dim);
+  }
+
+  .cover-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .25em;
+    text-transform: uppercase;
+    color: var(--champagne);
+    margin-bottom: 32px;
+    opacity: .7;
+  }
+
+  .cover-title-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    margin-bottom: 6px;
+  }
+
+  .cover-title {
+    font-family: var(--serif);
+    font-size: 88px;
+    line-height: .98;
+    color: var(--white);
+    letter-spacing: -.03em;
+    font-weight: 300;
+  }
+
+  .cover-title em {
+    font-style: italic;
+    color: var(--champagne-bright);
+  }
+
+  .cover-subtitle {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--silver-dim);
+    letter-spacing: .22em;
+    margin-bottom: 52px;
+    text-transform: uppercase;
+  }
+
+  .cover-desc {
+    font-size: 16px;
+    color: var(--white-60);
+    max-width: 560px;
+    line-height: 1.75;
+    margin-bottom: 56px;
+    font-weight: 300;
+  }
+
+  .cover-tag-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 56px;
+  }
+
+  .cover-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--white-12);
+    padding: 5px 14px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--white-60);
+    letter-spacing: .1em;
+    background: var(--white-06);
+  }
+
+  .cover-tag::before {
+    content: '';
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--champagne);
+    opacity: .7;
+    flex-shrink: 0;
+  }
+
+  .cover-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    gap: 40px;
+    border-top: 1px solid var(--white-12);
+    padding-top: 32px;
+    width: fit-content;
+  }
+
+  .cover-meta-item label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--champagne-dim);
+    margin-bottom: 5px;
+  }
+
+  .cover-meta-item span {
+    font-size: 13px;
+    color: var(--white-60);
+    font-weight: 300;
+    letter-spacing: .02em;
+  }
+
+  .cover-footer {
+    position: relative;
+    padding: 24px 120px;
+    border-top: 1px solid var(--white-06);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .cover-footer-left {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: rgba(240,237,232,.2);
+    letter-spacing: .12em;
+  }
+
+  .cover-footer-right {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: rgba(240,237,232,.2);
+    letter-spacing: .06em;
+  }
+
+  /* ══ DOCUMENT WRAPPER ══ */
+  .document {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 80px 60px;
+    background: var(--paper);
+  }
+
+  /* ══ TOC ══ */
+  .toc-page {
+    padding: 80px 60px;
+    max-width: 860px;
+    margin: 0 auto;
+    border-bottom: 1px solid #d4d0ca;
+    background: var(--paper);
+  }
+
+  .toc-heading {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--champagne-dim);
+    margin-bottom: 36px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #ccc;
+  }
+
+  .toc-list { list-style: none; }
+
+  .toc-list > li { border-bottom: 1px solid #dedad4; }
+
+  .toc-list > li > a {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    text-decoration: none;
+    color: var(--ink);
+    font-size: 13.5px;
+    font-weight: 500;
+    letter-spacing: .01em;
+    transition: color .15s;
+  }
+
+  .toc-list > li > a:hover { color: #555; }
+
+  .toc-list > li > a .toc-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--silver-dim);
+    margin-right: 16px;
+    min-width: 28px;
+  }
+
+  .toc-list > li > a .toc-title { flex: 1; }
+
+  .toc-list > li > a .toc-dots {
+    flex: 1;
+    border-bottom: 1px dotted #ccc;
+    margin: 0 12px;
+    height: 1px;
+    align-self: flex-end;
+    margin-bottom: 5px;
+  }
+
+  .toc-list > li > a .toc-page-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #aaa;
+    min-width: 24px;
+    text-align: right;
+  }
+
+  /* ══ SECTION HEADINGS ══ */
+  .section-divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 80px 0 36px;
+  }
+
+  .section-divider .sec-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--silver-dim);
+    letter-spacing: .12em;
+    white-space: nowrap;
+  }
+
+  .section-divider .sec-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, #d0ccc6 0%, transparent 100%);
+  }
+
+  h2 {
+    font-family: var(--serif);
+    font-size: 42px;
+    color: var(--ink);
+    line-height: 1.15;
+    margin-bottom: 24px;
+    letter-spacing: -.025em;
+    font-weight: 300;
+  }
+
+  h3 {
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+    margin: 40px 0 14px;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+  }
+
+  h4 {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--silver-dim);
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    margin: 28px 0 10px;
+  }
+
+  p {
+    margin-bottom: 18px;
+    color: #2e2c2a;
+    line-height: 1.8;
+    font-size: 14.5px;
+  }
+
+  /* ══ ABSTRACT / CALLOUT BLOCKS ══ */
+  .abstract-box {
+    background: var(--void);
+    color: var(--white-60);
+    padding: 40px 48px;
+    margin: 0 0 56px;
+    border-left: 2px solid var(--champagne);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .abstract-box::before {
+    content: 'ABSTRACT';
+    position: absolute;
+    top: 18px;
+    right: 24px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .22em;
+    color: rgba(240,237,232,.12);
+  }
+
+  .abstract-box p {
+    color: var(--white-60);
+    font-size: 15px;
+    line-height: 1.8;
+    margin-bottom: 0;
+  }
+
+  .abstract-box code {
+    background: rgba(240,237,232,.08);
+    color: var(--champagne-bright);
+    border: none;
+  }
+
+  .callout {
+    border-left: 2px solid var(--silver);
+    background: #ebe7e0;
+    padding: 18px 22px;
+    margin: 24px 0;
+  }
+
+  .callout p { margin: 0; font-size: 13.5px; color: #3a3835; }
+
+  .callout-warn {
+    border-left-color: var(--champagne-dim);
+    background: #ede8de;
+  }
+
+  /* ══ TABLES ══ */
+  .table-wrap {
+    margin: 28px 0 32px;
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead tr {
+    background: var(--ink);
+    color: var(--white);
+  }
+
+  thead th {
+    padding: 12px 16px;
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .12em;
+    font-weight: 700;
+    white-space: nowrap;
+    color: var(--silver-bright);
+  }
+
+  tbody tr { border-bottom: 1px solid #dedad4; }
+  tbody tr:nth-child(even) { background: #f5f2ed; }
+  tbody tr:hover { background: #ede9e2; }
+
+  tbody td {
+    padding: 11px 16px;
+    color: #2e2c2a;
+    vertical-align: top;
+    line-height: 1.55;
+  }
+
+  tbody td:first-child {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: #3a3835;
+    white-space: nowrap;
+  }
+
+  /* ══ CODE ══ */
+  code {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    background: #e2ddd6;
+    padding: 2px 7px;
+    color: #2a2825;
+  }
+
+  .code-block {
+    background: var(--void);
+    color: #b8b4ae;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.7;
+    padding: 24px 28px;
+    margin: 24px 0;
+    overflow-x: auto;
+    border-left: 2px solid var(--silver-dim);
+  }
+
+  .code-block .cm { color: #4a4845; }
+  .code-block .ck { color: var(--silver-bright); }
+  .code-block .cs { color: var(--champagne-bright); }
+  .code-block .cn { color: var(--silver); }
+
+  /* ══ FEATURE GRID ══ */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 32px 0;
+  }
+
+  .feature-card {
+    border: 1px solid #d4d0ca;
+    padding: 22px;
+    background: var(--paper-soft);
+    position: relative;
+  }
+
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 2px;
+    height: 100%;
+    background: var(--ink-light);
+  }
+
+  .feature-card .fc-icon { font-size: 20px; margin-bottom: 10px; }
+
+  .feature-card .fc-title {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 13.5px;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+
+  .feature-card .fc-body {
+    font-size: 12.5px;
+    color: #5a5855;
+    line-height: 1.65;
+    margin: 0;
+  }
+
+  .feature-card code {
+    background: #dedad4;
+    font-size: 11px;
+  }
+
+  /* ══ PRIVACY GRID ══ */
+  .privacy-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 32px 0;
+  }
+
+  .privacy-card {
+    border: 1px solid #d4d0ca;
+    padding: 22px;
+    background: var(--paper-soft);
+  }
+
+  .privacy-card.locked {
+    border-color: #2a6b3a;
+    background: #f0f7f2;
+  }
+
+  .privacy-card.public {
+    border-color: #6b2a2a;
+    background: #f7f0f0;
+  }
+
+  .privacy-card .pc-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(0,0,0,.1);
+    font-size: 12px;
+    color: #4a4845;
+  }
+
+  .privacy-card .pc-badge {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .14em;
+    font-weight: 700;
+    padding: 3px 10px;
+  }
+
+  .privacy-card.locked .pc-badge { background: var(--ink); color: var(--champagne-bright); }
+  .privacy-card.public .pc-badge { background: #6b2a2a; color: #f0ede8; }
+
+  .privacy-card ul { list-style: none; padding: 0; }
+
+  .privacy-card ul li {
+    padding: 6px 0;
+    font-size: 12.5px;
+    border-bottom: 1px solid rgba(0,0,0,.05);
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    line-height: 1.5;
+    color: #3a3835;
+  }
+
+  .privacy-card ul li:last-child { border-bottom: none; }
+  .privacy-card.locked ul li::before { content: '🔒'; font-size: 11px; }
+  .privacy-card.public ul li::before { content: '🔓'; font-size: 11px; }
+
+  /* ══ LIFECYCLE ══ */
+  .lifecycle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin: 36px 0;
+    flex-wrap: wrap;
+  }
+
+  .lc-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 110px;
+  }
+
+  .lc-bubble {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-align: center;
+    line-height: 1.3;
+    color: var(--white);
+    border: 1px solid rgba(240,237,232,.2);
+  }
+
+  .lc-step:nth-child(1) .lc-bubble { background: #2a2e38; }
+  .lc-step:nth-child(3) .lc-bubble { background: #383830; }
+  .lc-step:nth-child(5) .lc-bubble { background: var(--green-ok); }
+  .lc-step:nth-child(7) .lc-bubble { background: #1e1e20; border-color: var(--champagne); }
+
+  .lc-arrow {
+    font-family: var(--mono);
+    font-size: 18px;
+    color: #c4c0ba;
+    margin: 0 4px;
+    padding-bottom: 28px;
+  }
+
+  .lc-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: #8a8680;
+    letter-spacing: .06em;
+    text-align: center;
+  }
+
+  /* ══ GOVERNANCE FLOW ══ */
+  .gov-flow {
+    border: 1px solid var(--rule);
+    background: var(--void);
+    padding: 30px;
+    margin: 28px 0;
+  }
+
+  .gov-flow .gf-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 18px;
+    color: var(--white-60);
+    font-size: 12.5px;
+  }
+
+  .gov-flow .gf-actor {
+    font-family: var(--mono);
+    font-size: 10px;
+    background: var(--white-06);
+    border: 1px solid var(--white-12);
+    padding: 6px 12px;
+    color: var(--silver-bright);
+    white-space: nowrap;
+    min-width: 136px;
+    text-align: center;
+  }
+
+  .gov-flow .gf-arrow {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--white-30);
+    font-size: 12px;
+  }
+
+  .gov-flow .gf-arrow::before {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--white-12);
+  }
+
+  .gov-flow .gf-arrow::after {
+    content: '→';
+    color: var(--champagne);
+  }
+
+  .gov-flow .gf-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: rgba(240,237,232,.3);
+    letter-spacing: .08em;
+    margin-left: 152px;
+    margin-bottom: 14px;
+  }
+
+  /* ══ TIMELINE ══ */
+  .timeline {
+    position: relative;
+    padding-left: 40px;
+    margin: 32px 0;
+  }
+
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 14px;
+    top: 8px;
+    bottom: 8px;
+    width: 1px;
+    background: #d4d0ca;
+  }
+
+  .tl-item {
+    position: relative;
+    margin-bottom: 32px;
+  }
+
+  .tl-item::before {
+    content: '';
+    position: absolute;
+    left: -32px;
+    top: 7px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: 2px solid var(--paper);
+    box-shadow: 0 0 0 1px var(--ink);
+  }
+
+  .tl-wave {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--champagne-dim);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+
+  .tl-title {
+    font-weight: 600;
+    color: var(--ink);
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+
+  .tl-desc {
+    font-size: 13px;
+    color: #5a5855;
+    line-height: 1.65;
+    margin: 0;
+  }
+
+  /* ══ TAG PILLS ══ */
+  .tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .1em;
+    padding: 3px 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .tag-gov { background: #e8e4dc; color: #3a3835; border: 1px solid #c4c0ba; }
+  .tag-ops { background: #e4ede6; color: #2a4a2e; border: 1px solid #aacaae; }
+  .tag-emp { background: #e4e8ed; color: #2a3a4a; border: 1px solid #aabaca; }
+
+  /* ══ CONTRACT ADDRESS ══ */
+  .addr {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #3a3835;
+    background: #e2ddd6;
+    padding: 2px 8px;
+    white-space: nowrap;
+    display: inline-block;
+  }
+
+  /* ══ FOOTER ══ */
+  .doc-footer {
+    border-top: 1px solid #d4d0ca;
+    padding: 48px 0 32px;
+    margin-top: 80px;
+  }
+
+  .doc-footer p {
+    font-size: 12px;
+    color: #8a8680;
+    line-height: 1.7;
+    margin-bottom: 10px;
+  }
+
+  .doc-footer .footer-brand {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink);
+    font-weight: 700;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .doc-footer .footer-brand img {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    opacity: .75;
+  }
+
+  /* ══ STICKY NAV ══ */
+  @media screen {
+    .sticky-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: rgba(8,10,13,.96);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(240,237,232,.06);
+      padding: 10px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--champagne);
+      font-weight: 700;
+      letter-spacing: .1em;
+    }
+
+    .nav-brand img {
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 22px;
+    }
+
+    .nav-links a {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: rgba(240,237,232,.35);
+      text-decoration: none;
+      transition: color .15s;
+    }
+
+    .nav-links a:hover { color: var(--champagne); }
+  }
+
+  body.embed-preview .sticky-nav {
+    display: none;
+  }
+
+  body.embed-preview .cover-page {
+    min-height: auto;
+  }
+
+  body.embed-preview .cover-inner {
+    padding-top: 56px;
+  }
+
+  @media (max-width: 700px) {
+    .cover-inner { padding: 60px 32px 40px; }
+    .cover-title { font-size: 52px; }
+    .cover-footer { padding: 24px 32px; }
+    .cover-meta-grid { grid-template-columns: 1fr 1fr; gap: 24px; }
+    .cover-logo-badge { right: 32px; top: 20px; }
+    .cover-logo-badge img { width: 52px; height: 52px; }
+    .document { padding: 48px 24px; }
+    .toc-page { padding: 48px 24px; }
+    .feature-grid { grid-template-columns: 1fr; }
+    .privacy-grid { grid-template-columns: 1fr; }
+    .sticky-nav { display: none; }
+  }
+
+  [id] { scroll-margin-top: 58px; }
+  strong { color: var(--ink); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- STICKY NAV -->
+<nav class="sticky-nav" aria-label="Document navigation">
+  <span class="nav-brand">
+    <img src="data:image/jpeg;base64,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" alt="CipherRoll logo">
+    CipherRoll // WHITEPAPER
+  </span>
+  <div class="nav-links">
+    <a href="#abstract">Abstract</a>
+    <a href="#problem">Problem</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#privacy">Privacy</a>
+    <a href="#governance">Governance</a>
+    <a href="#compliance">Compliance</a>
+    <a href="#deployment">Deployment</a>
+  </div>
+</nav>
+
+<!-- COVER PAGE -->
+<div class="cover-page">
+  <div class="cover-bg-grid"></div>
+  <div class="cover-bg-radial"></div>
+  <div class="cover-accent-bar"></div>
+
+  <!-- Logo badge top-right -->
+  <div class="cover-logo-badge">
+    <img src="data:image/jpeg;base64,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" alt="CipherRoll">
+    <span>CipherRoll</span>
+  </div>
+
+  <div class="cover-inner">
+    <div class="cover-label">Technical Whitepaper · Wave 5 Final Submission</div>
+
+    <div class="cover-title-row">
+      <div class="cover-title">Cipher<em>Roll</em></div>
+    </div>
+    <div class="cover-subtitle">Private Payroll &nbsp;·&nbsp; Blind Execution</div>
+
+    <div class="cover-tag-group">
+      <span class="cover-tag">Fhenix CoFHE</span>
+      <span class="cover-tag">Arbitrum Sepolia</span>
+      <span class="cover-tag">Fully Homomorphic Encryption</span>
+      <span class="cover-tag">M-of-N Governance</span>
+      <span class="cover-tag">EVM-Native</span>
+    </div>
+
+    <p class="cover-desc">
+      A full-stack confidential payroll infrastructure system combining encrypted on-chain state,
+      real treasury-backed settlement, multi-party governance, aggregate-only audit disclosure,
+      and Tier A compliance exports — built on the Fhenix CoFHE coprocessor.
+    </p>
+
+    <div class="cover-meta-grid">
+      <div class="cover-meta-item">
+        <label>Version</label>
+        <span>Wave 5 · v1.0</span>
+      </div>
+      <div class="cover-meta-item">
+        <label>Network</label>
+        <span>Arbitrum Sepolia</span>
+      </div>
+      <div class="cover-meta-item">
+        <label>Date</label>
+        <span>June 2026</span>
+      </div>
+      <div class="cover-meta-item">
+        <label>Privacy Layer</label>
+        <span>Fhenix CoFHE</span>
+      </div>
+      <div class="cover-meta-item">
+        <label>Repository</label>
+        <span>github.com/PhanTom497/CipherRoll</span>
+      </div>
+      <div class="cover-meta-item">
+        <label>Live Application</label>
+        <span>cipher-roll.vercel.app</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="cover-footer">
+    <span class="cover-footer-left">CONFIDENTIAL PAYROLL INFRASTRUCTURE — BLOCKCHAIN-NATIVE</span>
+    <span class="cover-footer-right">© 2026 CipherRoll · All rights reserved</span>
+  </div>
+</div>
+
+
+<!-- TABLE OF CONTENTS -->
+<div class="toc-page">
+  <div class="toc-heading">Table of Contents</div>
+  <ol class="toc-list">
+    <li><a href="#abstract"><span class="toc-num">01</span><span class="toc-title">Abstract</span><span class="toc-dots"></span><span class="toc-page-num">—</span></a></li>
+    <li><a href="#problem"><span class="toc-num">02</span><span class="toc-title">The Problem: On-Chain Payroll Transparency</span><span class="toc-dots"></span><span class="toc-page-num">—</span></a></li>
+    <li><a href="#solution"><span class="toc-num">03</span><span class="toc-title">Solution Overview</span><span class="toc-dots"></span><span class="toc-page-num">—</span></a></li>
+    <li><a href="#architecture"><span class="toc-num">04</span><span class="toc-title">System Architecture</span><span class="toc-dots"></span><span class="toc-page-num">—</span></a></li>
+    <li><a href="#contracts"><span class="toc-num">05</span><span class="toc-title">Core Smart Contract Surfaces</span><span class="toc-dots"></span><span class="toc-page-num">—</span></a></li>
+    <li><a href="#lifecycle"><span class="toc-num">06</span><span class="toc-title">Payroll Lifecycle &amp; Settlement</span><span class="toc-dots"></span><span class="toc-page-num">—</span></a></li>
+    <li><a href="#privacy"><span class="toc-num">07</span><span class="toc-title">Privacy Model &amp; Boundary Analysis</span><span class="toc-dots"></span><span class="toc-page-num">—</span></a></li>
+    <li><a href="#governance"><span class="toc-num">08</span><span class="toc-title">M-of-N Governance Framework</span><span class="toc-dots"></span><span class="toc-page-num">—</span></a></li>
+    <li><a href="#auditor"><span class="toc-num">09</span><span class="toc-title">Auditor Architecture</span><span class="toc-dots"></span><span class="toc-page-num">—</span></a></li>
+    <li><a href="#batch"><span class="toc-num">10</span><span class="toc-title">Batch Payroll &amp; Browser-Local Sealing</span><span class="toc-dots"></span><span class="toc-page-num">—</span></a></li>
+    <li><a href="#compliance"><span class="toc-num">11</span><span class="toc-title">Compliance &amp; Tax Framework</span><span class="toc-dots"></span><span class="toc-page-num">—</span></a></li>
+    <li><a href="#backend"><span class="toc-num">12</span><span class="toc-title">Backend Platform &amp; SDK</span><span class="toc-dots"></span><span class="toc-page-num">—</span></a></li>
+    <li><a href="#deployment"><span class="toc-num">13</span><span class="toc-title">Deployment &amp; Contract Addresses</span><span class="toc-dots"></span><span class="toc-page-num">—</span></a></li>
+    <li><a href="#testing"><span class="toc-num">14</span><span class="toc-title">Testing &amp; Quality Assurance</span><span class="toc-dots"></span><span class="toc-page-num">—</span></a></li>
+    <li><a href="#roadmap"><span class="toc-num">15</span><span class="toc-title">Roadmap &amp; Scope Boundaries</span><span class="toc-dots"></span><span class="toc-page-num">—</span></a></li>
+    <li><a href="#conclusion"><span class="toc-num">16</span><span class="toc-title">Conclusion</span><span class="toc-dots"></span><span class="toc-page-num">—</span></a></li>
+  </ol>
+</div>
+
+
+<!-- DOCUMENT BODY -->
+<div class="document">
+
+  <!-- 01. ABSTRACT -->
+  <section id="abstract">
+    <div class="section-divider"><span class="sec-num">01 ·</span><div class="sec-line"></div></div>
+    <h2>Abstract</h2>
+
+    <div class="abstract-box">
+      <p>
+        CipherRoll is a full-stack confidential payroll system deployed on Arbitrum Sepolia, powered
+        by the Fhenix Coprocessor for Fully Homomorphic Encryption (CoFHE). It enables organizations
+        to execute complete payroll workflows — from workspace creation through treasury-backed employee
+        payout and verifiable audit evidence — without exposing salary amounts, budget reserves, or
+        aggregate treasury posture to the public ledger. Core financial values are stored and computed
+        as encrypted <code>euint128</code> ciphertext handles, with arithmetic performed directly over
+        encrypted state via CoFHE coprocessor instructions. This document describes the system's
+        cryptographic model, contract architecture, governance framework, privacy boundary, compliance
+        design, and full-stack deployment.
+      </p>
+    </div>
+
+    <p>
+      CipherRoll does not claim to hide all on-chain activity. It makes a narrower and more useful
+      claim: <strong>the financially sensitive core — salary amounts, budget state, committed payroll,
+      and runway — remains encrypted at all times</strong>, while the product remains transparent about
+      the public metadata that any EVM-native system necessarily emits.
+    </p>
+  </section>
+
+
+  <!-- 02. PROBLEM -->
+  <section id="problem">
+    <div class="section-divider"><span class="sec-num">02 ·</span><div class="sec-line"></div></div>
+    <h2>The Problem: On-Chain Payroll Transparency</h2>
+
+    <p>
+      Blockchain-native payroll is a natural evolution for organizations operating in Web3 — it
+      enables programmable compensation, transparent vesting schedules, cross-border settlement
+      without intermediaries, and on-chain audit trails. But deploying payroll to a transparent
+      ledger introduces a fundamental tension: the properties that make a public chain trustworthy
+      also make it a surveillance surface for compensation data.
+    </p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="fc-icon">💸</div>
+        <div class="fc-title">Salary Amounts Become Inferable</div>
+        <p class="fc-body">Anyone observing the chain can reconstruct compensation patterns by correlating deposit sizes, transfer events, and payout timing across wallet addresses.</p>
+      </div>
+      <div class="feature-card">
+        <div class="fc-icon">🏦</div>
+        <div class="fc-title">Treasury Posture Is Visible by Default</div>
+        <p class="fc-body">Funding timing, reserve levels, and drawdown cadence are all public. Competitors, employees, and adversaries can infer organizational financial health at any time.</p>
+      </div>
+      <div class="feature-card">
+        <div class="fc-icon">🔗</div>
+        <div class="fc-title">Payout Events Are Linkable</div>
+        <p class="fc-body">Employee claim and settlement transactions are on-chain, creating a permanent, linkable record of individual payout amounts and timing.</p>
+      </div>
+      <div class="feature-card">
+        <div class="fc-icon">📋</div>
+        <div class="fc-title">Audit Workflows Over-Disclose</div>
+        <p class="fc-body">Traditional on-chain audit review surfaces reveal far more than the compliance objective requires, often exposing employee-level data to external reviewers.</p>
+      </div>
+    </div>
+
+    <p>
+      Prior approaches have addressed this through off-chain payroll with on-chain settlement — but
+      this defeats the programmability and auditability benefits of a blockchain-native system.
+      CipherRoll's approach is to use Fully Homomorphic Encryption at the contract level, keeping
+      sensitive values encrypted throughout their entire lifecycle while preserving composability
+      and supporting a complete, production-grade payroll workflow.
+    </p>
+  </section>
+
+
+  <!-- 03. SOLUTION -->
+  <section id="solution">
+    <div class="section-divider"><span class="sec-num">03 ·</span><div class="sec-line"></div></div>
+    <h2>Solution Overview</h2>
+
+    <p>
+      CipherRoll combines five core capabilities into a unified, full-stack system deployable on any
+      EVM chain with access to the Fhenix CoFHE coprocessor network.
+    </p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="fc-icon">🔐</div>
+        <div class="fc-title">Encrypted Payroll Core</div>
+        <p class="fc-body">Salary amounts, budget state, committed payroll, and runway are stored and computed as <code>euint128</code> CoFHE handles. Arithmetic is performed over ciphertext — no plaintext ever reaches the host chain or contract operators.</p>
+      </div>
+      <div class="feature-card">
+        <div class="fc-icon">💸</div>
+        <div class="fc-title">Real Treasury-Backed Settlement</div>
+        <p class="fc-body">Payroll runs reserve real treasury inventory and settle via live payout adapters — direct ERC20 transfer or a two-phase FHERC20-style wrapper-backed unshield flow that preserves confidentiality until finalization.</p>
+      </div>
+      <div class="feature-card">
+        <div class="fc-icon">🛡️</div>
+        <div class="fc-title">M-of-N Governed Execution</div>
+        <p class="fc-body">Sensitive operations — payroll issuance, vesting, treasury configuration — require multi-party proposal approval before execution. Day-to-day operations remain single-admin for operational fluidity.</p>
+      </div>
+      <div class="feature-card">
+        <div class="fc-icon">📦</div>
+        <div class="fc-title">Browser-Local Batch Payroll</div>
+        <p class="fc-body">CSV import, review before encryption, browser-side salary sealing, and retryable one-transaction-per-row submission. Salary plaintext never leaves the operator's device.</p>
+      </div>
+      <div class="feature-card">
+        <div class="fc-icon">🧾</div>
+        <div class="fc-title">Aggregate-Only Audit Disclosure</div>
+        <p class="fc-body">Auditors see organization-level aggregates only — budget, runway, run counts, treasury status — via shared permit-backed decryption. Individual employee salary rows are structurally inaccessible.</p>
+      </div>
+      <div class="feature-card">
+        <div class="fc-icon">📊</div>
+        <div class="fc-title">Tier A Compliance Exports</div>
+        <p class="fc-body">Aggregate compliance packages with explicit tax reserve basis-point policy, treasury posture, and on-chain receipt evidence — exportable as JSON or CSV without exposing employee salary data.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- 04. ARCHITECTURE -->
+  <section id="architecture">
+    <div class="section-divider"><span class="sec-num">04 ·</span><div class="sec-line"></div></div>
+    <h2>System Architecture</h2>
+
+    <p>
+      CipherRoll is organized across four distinct layers. Each layer has a well-defined responsibility
+      boundary, and sensitive financial computation is explicitly isolated to the contract layer with
+      FHE coprocessor backing.
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Layer</th><th>Technology</th><th>Responsibility</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Contracts</td>
+            <td>Solidity · Fhenix CoFHE</td>
+            <td>Confidential payroll state, M-of-N governance, aggregate-only auditor disclosure, and treasury settlement coordination</td>
+          </tr>
+          <tr>
+            <td>Frontend</td>
+            <td>Next.js · @cofhe/sdk</td>
+            <td>Admin, employee, auditor, and compliance portals with wallet-local permit-backed decryption</td>
+          </tr>
+          <tr>
+            <td>Backend</td>
+            <td>Node.js · Supabase Postgres</td>
+            <td>Chain indexer, read models, reporting APIs, treasury exposure, compliance packages, notifications, and exports</td>
+          </tr>
+          <tr>
+            <td>Shared SDK</td>
+            <td>TypeScript monorepo package</td>
+            <td>Runtime config, backend client, shared types, compliance helpers, and CipherBot knowledge base</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>FHE Cryptographic Foundation</h3>
+    <p>
+      CipherRoll's privacy guarantees are grounded in the Fhenix CoFHE coprocessor — a system that
+      executes FHE operations on behalf of smart contracts without requiring the host chain to
+      implement FHE natively. This coprocessor model allows Solidity contracts to call FHE operations
+      (<code>FHE.add</code>, <code>FHE.sub</code>, <code>FHE.gte</code>, <code>FHE.select</code>,
+      <code>FHE.asEuint128</code>) and receive encrypted <code>bytes32</code> ciphertext handles
+      that can be stored and forwarded without any party learning the underlying value.
+    </p>
+
+    <div class="code-block">
+<span class="cm">// Conceptual encrypted budget arithmetic — actual values remain ciphertext</span>
+<span class="ck">euint128</span> newBudget = FHE.<span class="cs">add</span>(_encryptedBudget[orgId], encryptedAmount);
+FHE.<span class="cs">allowThis</span>(newBudget);  <span class="cm">// permit future contract operations</span>
+FHE.<span class="cs">allow</span>(newBudget, adminAddr);  <span class="cm">// permit admin decryptForView</span>
+_encryptedBudget[orgId] = newBudget;  <span class="cm">// store handle, not plaintext</span>
+    </div>
+
+    <p>
+      Decryption follows two paths: <strong>decryptForView</strong> (browser-local permit-backed
+      plaintext reveal, never touching the host chain) and <strong>decryptForTx</strong>
+      (on-chain proof submission for settlement finalization, which makes the decrypted value
+      public as an explicit, auditable disclosure event).
+    </p>
+
+    <h3>Product Surfaces</h3>
+    <p>CipherRoll ships six user-facing routes across its hosted deployment:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Portal</th><th>Route</th><th>Primary Audience</th><th>Key Functions</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>🏠 Landing</td><td><code>/</code></td><td>All users</td><td>Product story, portal navigation</td></tr>
+          <tr><td>🛡️ Admin Portal</td><td><code>/admin</code></td><td>Payroll operators</td><td>Workspace, budget, runs, governance, batch payroll, treasury, exports</td></tr>
+          <tr><td>👤 Employee Portal</td><td><code>/employee</code></td><td>Payroll recipients</td><td>Local decrypt, allocation review, claim, wrapper finalization</td></tr>
+          <tr><td>🔍 Auditor Portal</td><td><code>/auditor</code></td><td>Financial auditors</td><td>Shared permit import, aggregate review, on-chain receipts</td></tr>
+          <tr><td>📄 Docs</td><td><code>/docs</code></td><td>Developers</td><td>Architecture, API reference, privacy matrix, troubleshooting</td></tr>
+          <tr><td>🏛️ Compliance</td><td><code>/tax-authority</code></td><td>Compliance officers</td><td>Tier A aggregate package, tax reserve, JSON/CSV export</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+
+  <!-- 05. CONTRACTS -->
+  <section id="contracts">
+    <div class="section-divider"><span class="sec-num">05 ·</span><div class="sec-line"></div></div>
+    <h2>Core Smart Contract Surfaces</h2>
+
+    <h3>CipherRollPayroll</h3>
+    <p>
+      The primary contract orchestrates the complete confidential payroll lifecycle. All salary
+      allocations, budget balances, committed payroll, and available runway are stored as
+      <code>euint128</code> CoFHE handles — the contract never holds or exposes plaintext
+      financial values.
+    </p>
+
+    <h4>Encrypted State</h4>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>State Variable</th><th>Storage Key</th><th>Decrypt Access</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>_encryptedBudget</td><td><code>orgId</code></td><td>Admin only (via permit)</td></tr>
+          <tr><td>_encryptedCommitted</td><td><code>orgId</code></td><td>Admin only (via permit)</td></tr>
+          <tr><td>_encryptedAvailable</td><td><code>orgId</code></td><td>Admin only (via permit)</td></tr>
+          <tr><td>_allocationAmounts</td><td><code>paymentId</code></td><td>Employee only (via permit)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>Write Operations &amp; Access Control</h4>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Function</th><th>Access</th><th>Governance Required</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>createOrganization</td><td>Any wallet</td><td>No</td></tr>
+          <tr><td>depositBudget</td><td>Admin</td><td>No</td></tr>
+          <tr><td>createPayrollRun</td><td>Operational admin</td><td>No</td></tr>
+          <tr><td>fundPayrollRun</td><td>Admin</td><td>No</td></tr>
+          <tr><td>fundPayrollRunFromTreasury</td><td>Operational admin</td><td>No</td></tr>
+          <tr><td>activatePayrollRun</td><td>Operational admin</td><td>No</td></tr>
+          <tr><td>configureTreasury</td><td>Admin</td><td><strong>Yes — direct execution</strong></td></tr>
+          <tr><td>issueConfidentialPayroll</td><td>Admin</td><td><strong>Yes — wallet execution</strong></td></tr>
+          <tr><td>issueConfidentialPayrollToRun</td><td>Admin</td><td><strong>Yes — wallet execution</strong></td></tr>
+          <tr><td>issueVestingAllocation</td><td>Admin</td><td><strong>Yes — wallet execution</strong></td></tr>
+          <tr><td>issueVestingAllocationToRun</td><td>Admin</td><td><strong>Yes — wallet execution</strong></td></tr>
+          <tr><td>claimPayroll</td><td>Employee</td><td>No</td></tr>
+          <tr><td>claimPayrollWithSettlement</td><td>Employee</td><td>No</td></tr>
+          <tr><td>requestPayrollSettlement</td><td>Employee</td><td>No</td></tr>
+          <tr><td>finalizePayrollSettlement</td><td>Employee</td><td>No</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>CipherRollAuditorDisclosure</h3>
+    <p>
+      A dedicated contract that structurally prevents auditors from accessing individual employee data.
+      It exposes only organization-level aggregates — by design, not by convention.
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Function</th><th>Returns</th><th>Disclosure Level</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>getAuditorOrganizationSummary</td><td>Treasury status, run counts, item counts, timestamps</td><td>Aggregate plaintext</td></tr>
+          <tr><td>getAuditorEncryptedSummaryHandles</td><td>Budget, committed, available handles</td><td>Encrypted — permit-backed view only</td></tr>
+          <tr><td>verifyAuditorAggregateDisclosure</td><td>On-chain receipt (published: false)</td><td>FHE.verifyDecryptResult</td></tr>
+          <tr><td>publishAuditorAggregateDisclosure</td><td>On-chain receipt (published: true)</td><td>FHE.publishDecryptResult</td></tr>
+          <tr><td>verifyAuditorAggregateDisclosureBatch</td><td>Multiple verify receipts in one tx</td><td>FHE.verifyDecryptResult × N</td></tr>
+          <tr><td>publishAuditorAggregateDisclosureBatch</td><td>Multiple publish receipts in one tx</td><td>FHE.publishDecryptResult × N</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>CipherRollGovernance</h3>
+    <p>
+      Implements dual-mode M-of-N governance for sensitive administrative actions. Each proposal carries:
+      proposer auto-approval, multi-admin approval tracking, revocation support, an <code>expiresAt</code>
+      timestamp, and cancellation rights for the proposer or primary admin.
+    </p>
+  </section>
+
+
+  <!-- 06. LIFECYCLE -->
+  <section id="lifecycle">
+    <div class="section-divider"><span class="sec-num">06 ·</span><div class="sec-line"></div></div>
+    <h2>Payroll Lifecycle &amp; Settlement</h2>
+
+    <h3>State Machine</h3>
+    <p>
+      CipherRoll models each payroll run as an explicit four-state machine. Claimability is
+      gated on successful treasury funding and activation.
+    </p>
+
+    <div class="lifecycle">
+      <div class="lc-step">
+        <div class="lc-bubble">DRAFT</div>
+        <div class="lc-label">createPayrollRun<br>+ issue allocations</div>
+      </div>
+      <div class="lc-arrow">→</div>
+      <div class="lc-step">
+        <div class="lc-bubble">FUNDED</div>
+        <div class="lc-label">Treasury reserves<br>locked</div>
+      </div>
+      <div class="lc-arrow">→</div>
+      <div class="lc-step">
+        <div class="lc-bubble">ACTIVE</div>
+        <div class="lc-label">Employee claims<br>enabled</div>
+      </div>
+      <div class="lc-arrow">→</div>
+      <div class="lc-step">
+        <div class="lc-bubble">FINAL&shy;IZED</div>
+        <div class="lc-label">All allocations<br>claimed</div>
+      </div>
+    </div>
+
+    <h3>Treasury Settlement Paths</h3>
+
+    <h4>Direct Settlement</h4>
+    <p>Upon a verified employee claim, the <code>DirectSettlementAdapter</code> executes an immediate ERC20 token transfer to the employee wallet.</p>
+
+    <h4>Wrapper-Backed Settlement</h4>
+    <p>The <code>WrapperSettlementAdapter</code> shields ERC20 tokens into a <code>ConfidentialPayrollToken</code> (FHERC20-style) at funding time.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Phase</th><th>Function</th><th>Effect</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Phase 1 — Request</td>
+            <td><code>requestPayrollSettlement</code></td>
+            <td>Creates a pending unshield request stored on-chain. Confidential balance remains encrypted.</td>
+          </tr>
+          <tr>
+            <td>Phase 2 — Finalize</td>
+            <td><code>finalizePayrollSettlement</code></td>
+            <td>Employee submits a <code>decryptForTx</code> proof. Adapter calls <code>claimUnshielded</code>; underlying ERC20 is released. Amount becomes public — explicit disclosure event.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-warn">
+      <p><strong>Route-Pinning Safety:</strong> Wrapper settlement requests are pinned to the adapter that created them. If the organization's treasury route is changed between phases, the finalize transaction reverts with <code>"CipherRoll: settlement route changed"</code>.</p>
+    </div>
+  </section>
+
+
+  <!-- 07. PRIVACY -->
+  <section id="privacy">
+    <div class="section-divider"><span class="sec-num">07 ·</span><div class="sec-line"></div></div>
+    <h2>Privacy Model &amp; Boundary Analysis</h2>
+
+    <p>
+      CipherRoll's privacy model is deliberately precise. Rather than overstating what is hidden,
+      the system provides a formal boundary between what remains encrypted and what is public.
+    </p>
+
+    <div class="privacy-grid">
+      <div class="privacy-card locked">
+        <div class="pc-header">
+          <span class="pc-badge">ENCRYPTED</span>
+          Kept private on-chain as <code>euint128</code>
+        </div>
+        <ul>
+          <li>Organization budget (permit-backed admin decrypt only)</li>
+          <li>Committed payroll aggregate (permit-backed admin decrypt only)</li>
+          <li>Available runway (permit-backed admin decrypt only)</li>
+          <li>Individual employee salary allocations (employee-only decrypt)</li>
+          <li>Auditor aggregate handles (shared permit decrypt only)</li>
+          <li>Wrapper-backed confidential balances (until finalize proof)</li>
+        </ul>
+      </div>
+      <div class="privacy-card public">
+        <div class="pc-header">
+          <span class="pc-badge">PUBLIC</span>
+          Visible by EVM design or explicit emission
+        </div>
+        <ul>
+          <li>Transaction sender, recipient, nonce, gas, block, timestamp</li>
+          <li>Contract calldata for all write functions</li>
+          <li>Event logs and indexed topics</li>
+          <li>ERC20 transfer events and payout balances</li>
+          <li>orgId, admin address, treasury adapter, route id</li>
+          <li>paymentId, employee address, memo hash, vesting flags</li>
+          <li>Run status, funding deadline, allocation and claimed counts</li>
+          <li>Wrapper settlement amount after <code>decryptForTx</code> finalization</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Identifier Leakage Mitigation</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Identifier</th><th>Risk</th><th>Mitigation</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Workspace / org ids</td><td>Mnemonic labels are guessable</td><td>High-entropy label generator available; mnemonic use is operator choice</td></tr>
+          <tr><td>Treasury route ids</td><td>Readable labels expose adapter intent</td><td>High-entropy alternatives provided</td></tr>
+          <tr><td>Payment ids</td><td>Sequential ids allow enumeration</td><td>Now generated with high-entropy helpers (Wave 3 hardening)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <p><strong>Design principle:</strong> CipherRoll's value is not "hide everything." Its value is "keep the financially sensitive core encrypted while staying honest about the public edges." This framing makes the system's guarantees verifiable rather than aspirational.</p>
+    </div>
+  </section>
+
+
+  <!-- 08. GOVERNANCE -->
+  <section id="governance">
+    <div class="section-divider"><span class="sec-num">08 ·</span><div class="sec-line"></div></div>
+    <h2>M-of-N Governance Framework</h2>
+
+    <p>
+      CipherRoll implements dual-mode M-of-N governance — requiring multi-party proposal approval
+      for sensitive administrative actions, while keeping day-to-day operational functions
+      single-admin to maintain workflow efficiency.
+    </p>
+
+    <h3>Governed vs. Operational Actions</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Category</th><th>Action</th><th>Execution Mode</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="tag tag-gov">Governed</span></td><td>configureTreasury</td><td>Direct — governance contract executes on payroll</td></tr>
+          <tr><td><span class="tag tag-gov">Governed</span></td><td>issueConfidentialPayroll</td><td>Wallet — admin calls payroll; payroll verifies approval</td></tr>
+          <tr><td><span class="tag tag-gov">Governed</span></td><td>issueConfidentialPayrollToRun</td><td>Wallet — admin calls payroll; payroll verifies approval</td></tr>
+          <tr><td><span class="tag tag-gov">Governed</span></td><td>issueVestingAllocation</td><td>Wallet — admin calls payroll; payroll verifies approval</td></tr>
+          <tr><td><span class="tag tag-gov">Governed</span></td><td>issueVestingAllocationToRun</td><td>Wallet — admin calls payroll; payroll verifies approval</td></tr>
+          <tr><td><span class="tag tag-ops">Operational</span></td><td>createOrganization, depositBudget</td><td>Single admin — no governance required</td></tr>
+          <tr><td><span class="tag tag-ops">Operational</span></td><td>createPayrollRun, fundPayrollRun, activatePayrollRun</td><td>Single admin — no governance required</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Proposal Lifecycle</h3>
+    <div class="gov-flow">
+      <div class="gf-row">
+        <span class="gf-actor">Admin 1 (Proposer)</span>
+        <span class="gf-arrow">proposeGovernanceAction(orgId, actionType, payload, expiresAt)</span>
+        <span class="gf-actor">CipherRollGovernance</span>
+      </div>
+      <div class="gf-label">→ Proposer auto-approved. Proposal stored with expiresAt timestamp.</div>
+      <div class="gf-row">
+        <span class="gf-actor">Admin 2 (Approver)</span>
+        <span class="gf-arrow">approveGovernanceProposal(proposalId)</span>
+        <span class="gf-actor">CipherRollGovernance</span>
+      </div>
+      <div class="gf-label">→ approvalCount increments. Revocation available before execution.</div>
+      <div class="gf-row">
+        <span class="gf-actor">Admin 1 or Contract</span>
+        <span class="gf-arrow">execute when approvalCount ≥ quorum</span>
+        <span class="gf-actor">CipherRollPayroll</span>
+      </div>
+    </div>
+
+    <h3>Proposal Safety Properties</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Property</th><th>Mechanism</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Expiration</td><td>Each proposal carries an <code>expiresAt</code> timestamp; expired proposals cannot be executed</td></tr>
+          <tr><td>Revocation</td><td>Any approver can revoke their approval before execution; approval count decrements</td></tr>
+          <tr><td>Cancellation</td><td>Proposer or primary admin can cancel a pending proposal at any time</td></tr>
+          <tr><td>Quorum enforcement</td><td>Execution reverts if <code>approvalCount &lt; quorum</code> at call time</td></tr>
+          <tr><td>Action binding</td><td>Proposals are bound to a specific <code>actionType</code> and payload; cannot be repurposed</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+
+  <!-- 09. AUDITOR -->
+  <section id="auditor">
+    <div class="section-divider"><span class="sec-num">09 ·</span><div class="sec-line"></div></div>
+    <h2>Auditor Architecture</h2>
+
+    <p>
+      CipherRoll's auditor model is structurally narrow by design. The <code>CipherRollAuditorDisclosure</code>
+      contract exposes only organization-level aggregates — it is architecturally impossible for
+      auditors to access individual employee allocation handles or salary amounts through this surface.
+    </p>
+
+    <h3>Evidence Modes</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Mode</th><th>Function</th><th>On-Chain Effect</th><th>Use Case</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>View-only</td><td><code>decryptForView</code></td><td>None — plaintext stays in browser</td><td>Internal review, no external evidence needed</td></tr>
+          <tr><td>Verify receipt</td><td><code>verifyAuditorAggregateDisclosure</code></td><td><code>FHE.verifyDecryptResult</code> — emits receipt with <code>published: false</code></td><td>Compliance verification without full publication</td></tr>
+          <tr><td>Publish receipt</td><td><code>publishAuditorAggregateDisclosure</code></td><td><code>FHE.publishDecryptResult</code> — emits receipt with <code>published: true</code></td><td>Permanent on-chain audit evidence</td></tr>
+          <tr><td>Batch verify</td><td><code>verifyAuditorAggregateDisclosureBatch</code></td><td>Multiple verify receipts in one transaction</td><td>Efficient multi-metric verification</td></tr>
+          <tr><td>Batch publish</td><td><code>publishAuditorAggregateDisclosureBatch</code></td><td>Multiple publish receipts in one transaction</td><td>Efficient multi-metric publication</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Permit Sharing Flow</h3>
+    <p>
+      Auditor access is mediated by a shared permit payload generated by the admin portal.
+      The permit grants access only to the three aggregate handles (budget, committed, available) —
+      not to any employee allocation handle.
+    </p>
+  </section>
+
+
+  <!-- 10. BATCH -->
+  <section id="batch">
+    <div class="section-divider"><span class="sec-num">10 ·</span><div class="sec-line"></div></div>
+    <h2>Batch Payroll &amp; Browser-Local Sealing</h2>
+
+    <p>
+      CipherRoll's batch payroll system enables operators to issue payroll for multiple employees
+      from a CSV file without salary plaintext ever leaving the operator's device or reaching
+      the backend.
+    </p>
+
+    <h3>Processing Pipeline</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Step</th><th>Location</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1. CSV Import</td><td>Browser</td><td>Parse with encoding detection (UTF-8, UTF-16 LE/BE, BOM); column auto-detection</td></tr>
+          <tr><td>2. Row Validation</td><td>Browser</td><td>Employee address checks, role assignment, base salary mapping</td></tr>
+          <tr><td>3. Review Gate</td><td>Browser</td><td>Operator sees all rows in plaintext before any encryption begins</td></tr>
+          <tr><td>4. Salary Sealing</td><td>Browser</td><td><code>encryptUint128</code> per row; plaintext removed from visible state immediately after</td></tr>
+          <tr><td>5. Submission</td><td>Browser → Chain</td><td>One wallet transaction per employee row; confirmed rows skipped on retry</td></tr>
+          <tr><td>6. Manifest Storage</td><td>Backend</td><td>org id, run id, employee address, role slug, payment id, tx hash — never salary amounts</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-warn">
+      <p><strong>Scope Constraint:</strong> Batch payroll v1 is available in non-governed batch workspaces only. Governed workspaces display an explicit warning and cannot seal or submit batch rows.</p>
+    </div>
+  </section>
+
+
+  <!-- 11. COMPLIANCE -->
+  <section id="compliance">
+    <div class="section-divider"><span class="sec-num">11 ·</span><div class="sec-line"></div></div>
+    <h2>Compliance &amp; Tax Framework</h2>
+
+    <p>
+      CipherRoll provides Tier A aggregate compliance packages through the <code>/tax-authority</code>
+      portal. These packages are explicitly scoped to aggregate data — no employee salary rows are ever included.
+    </p>
+
+    <h3>Package Contents</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Component</th><th>Contents</th><th>Included</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Policy Summary</td><td>Organization id, reserve basis points, generated timestamp</td><td>✅ Always</td></tr>
+          <tr><td>Tax Provision</td><td>Estimated aggregate reserve: <code>reservedTreasuryFunds × reserveBps / 10000</code></td><td>✅ Always</td></tr>
+          <tr><td>Treasury Posture</td><td>Route health, available/reserved inventory, pending claim count</td><td>✅ Always</td></tr>
+          <tr><td>Evidence Summary</td><td>Audit receipt counts, published status</td><td>✅ Always</td></tr>
+          <tr><td>Safety Notes</td><td>Operational warnings, scope disclaimers</td><td>✅ Always</td></tr>
+          <tr><td>Employee Salary Rows</td><td>Individual payout details</td><td>❌ Never (<code>employeeRowsIncluded: false</code>)</td></tr>
+          <tr><td>Tax Filing Instructions</td><td>Authority-specific guidance</td><td>❌ Out of scope</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <p><strong>Scope Disclaimer:</strong> CipherRoll's compliance exports are not tax filings, do not integrate with tax authorities, and are not legal tax advice. They are aggregate operational summaries suitable for internal compliance review and auditor reference.</p>
+    </div>
+  </section>
+
+
+  <!-- 12. BACKEND -->
+  <section id="backend">
+    <div class="section-divider"><span class="sec-num">12 ·</span><div class="sec-line"></div></div>
+    <h2>Backend Platform &amp; SDK</h2>
+
+    <h3>Backend Layer Design</h3>
+    <p>
+      The backend is explicitly a read-model and operator-support layer. It does not participate
+      in encryption or decryption workflows, does not store employee salary plaintext, and does
+      not replicate any of the browser-local confidential compute paths.
+    </p>
+
+    <h3>Shared SDK</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Module</th><th>Contents</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>runtime</td><td>Chain config, environment runtime config, label generation, address validation</td></tr>
+          <tr><td>frontend-types</td><td>18 types for contract views, permits, auditor summaries, runs, settlement requests</td></tr>
+          <tr><td>backend-types</td><td>18 types for indexer records, report summaries, treasury exposure, compliance packages, notifications</td></tr>
+          <tr><td>contract-views</td><td>Mappers from raw contract return values to typed frontend views</td></tr>
+          <tr><td>backend-client</td><td><code>CipherRollBackendClient</code> with 20 methods for all API routes</td></tr>
+          <tr><td>cipherbot</td><td>Knowledge base with 24 entries, relevance scoring, scope-aware starter questions</td></tr>
+          <tr><td>compliance</td><td>Tax reserve BPS normalization, aggregate reserve calculation, policy label formatting</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+
+  <!-- 13. DEPLOYMENT -->
+  <section id="deployment">
+    <div class="section-divider"><span class="sec-num">13 ·</span><div class="sec-line"></div></div>
+    <h2>Deployment &amp; Contract Addresses</h2>
+
+    <h3>Hosted Stack</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Layer</th><th>Technology</th><th>Role</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Frontend</td><td>Vercel</td><td>Next.js app — all six user-facing portals</td></tr>
+          <tr><td>Backend</td><td>Render</td><td>Node.js API — indexer, reporting, compliance, CipherBot</td></tr>
+          <tr><td>Database</td><td>Supabase Postgres</td><td>Indexed payroll state, receipts, manifests, notifications</td></tr>
+          <tr><td>Chain</td><td>Arbitrum Sepolia</td><td>EVM host chain for all contract state</td></tr>
+          <tr><td>Privacy execution</td><td>Fhenix CoFHE</td><td>FHE coprocessor for all encrypted operations</td></tr>
+          <tr><td>Browser decrypt</td><td>@cofhe/sdk</td><td>Client-side permit-backed decryptForView</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Contract Addresses — Arbitrum Sepolia</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Contract</th><th>Address</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>CipherRollPayroll</td><td><span class="addr">0x65EAd53436C9cA1e04F2ba87E8e155f2D13b9bd1</span></td></tr>
+          <tr><td>CipherRollGovernance</td><td><span class="addr">0x6D0F888dB3568A2fEa59d581b521Bb51836268C8</span></td></tr>
+          <tr><td>CipherRollAuditorDisclosure</td><td><span class="addr">0x1473A16f08e157d055599E3A223c50e2c4793369</span></td></tr>
+          <tr><td>DirectSettlementAdapter</td><td><span class="addr">0xBcF43888A0A1B80777356bBca13425449Aad142c</span></td></tr>
+          <tr><td>WrapperSettlementAdapter</td><td><span class="addr">0x51C95fBE788e1AE6f82196692f648910256a9793</span></td></tr>
+          <tr><td>ConfidentialPayrollToken</td><td><span class="addr">0x917CAD297690E5408bcda9b44Cc65F962403F200</span></td></tr>
+          <tr><td>SettlementToken</td><td><span class="addr">0x137Ea684F332e50BE9DD91269604022FB724CddA</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <p>Full deployment metadata is available at <code>outputs/arb-sepolia-deployment.json</code> in the repository and on Arbitrum Sepolia block explorer at <strong>sepolia.arbiscan.io</strong>.</p>
+    </div>
+  </section>
+
+
+  <!-- 14. TESTING -->
+  <section id="testing">
+    <div class="section-divider"><span class="sec-num">14 ·</span><div class="sec-line"></div></div>
+    <h2>Testing &amp; Quality Assurance</h2>
+
+    <p>
+      CipherRoll maintains four test suites covering contract integration, AI assistant quality,
+      compliance logic, and admin portal utility functions.
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Test File</th><th>Lines</th><th>Coverage Areas</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>CipherRollPayroll.spec.ts</td>
+            <td>1,621</td>
+            <td>Encrypted budget math, payroll issuance, employee-only decrypt, zero-allocation on budget exceed, permit-backed decrypt, vesting enforcement, auditor aggregate summaries, shared-permit decrypt, verify/publish receipts, batched receipts, payroll run lifecycle, direct settlement, wrapper settlement, route pinning, M-of-N governance, quorum enforcement, claim failures</td>
+          </tr>
+          <tr>
+            <td>cipherbot.spec.ts</td>
+            <td>69</td>
+            <td>Knowledge base: pending-claim troubleshooting, governance vs permit boundary, compliance package descriptions</td>
+          </tr>
+          <tr>
+            <td>compliance.spec.ts</td>
+            <td>29</td>
+            <td>Tax reserve BPS normalization, aggregate reserve calculation, policy label formatting</td>
+          </tr>
+          <tr>
+            <td>adminPortalUtils.spec.ts</td>
+            <td>38</td>
+            <td>Decimal-to-wei parsing, malformed amount rejection, contract error message mapping, tx hash formatting</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+
+  <!-- 15. ROADMAP -->
+  <section id="roadmap">
+    <div class="section-divider"><span class="sec-num">15 ·</span><div class="sec-line"></div></div>
+    <h2>Roadmap &amp; Scope Boundaries</h2>
+
+    <h3>Development Wave Progression</h3>
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-wave">Wave 1 · Protocol Core</div>
+        <div class="tl-title">Encrypted Payroll State &amp; Client-Side Decrypt</div>
+        <p class="tl-desc">Established the FHE payroll contract with encrypted budget arithmetic, homomorphic budgeting, wallet auth, and client-side decryptForView. Proved that a complete payroll workflow could be built over encrypted ciphertext handles without any plaintext exposure.</p>
+      </div>
+      <div class="tl-item">
+        <div class="tl-wave">Wave 2 · Settlement + Auditor</div>
+        <div class="tl-title">Real Treasury-Backed Payout &amp; Selective Disclosure</div>
+        <p class="tl-desc">Added CoFHE SDK protocol alignment, real treasury-backed settlement adapters (direct and wrapper-backed), auditor selective disclosure architecture, and verifiable on-chain audit receipts with verify/publish modes.</p>
+      </div>
+      <div class="tl-item">
+        <div class="tl-wave">Wave 3 · Submission Hardening</div>
+        <div class="tl-title">Proof Verification &amp; Privacy Framing</div>
+        <p class="tl-desc">Hardened proof verification, introduced truthful privacy boundary documentation, reduced identifier leakage with high-entropy payment id helpers, and shipped CipherBot v1 as a retrieval-backed product assistant.</p>
+      </div>
+      <div class="tl-item">
+        <div class="tl-wave">Wave 4 · Backend Platform</div>
+        <div class="tl-title">Indexed Read Models &amp; Shared SDK</div>
+        <p class="tl-desc">Built the full backend with indexed chain data, a shared TypeScript SDK preventing frontend-backend drift, reporting and analytics APIs, notification generation, export formats, and an upgraded retrieval-backed CipherBot.</p>
+      </div>
+      <div class="tl-item">
+        <div class="tl-wave">Wave 5 · Governance + Compliance</div>
+        <div class="tl-title">M-of-N Governance, Batch Payroll &amp; Tier A Compliance</div>
+        <p class="tl-desc">Implemented dual-mode M-of-N governance, browser-local batch payroll with sealed salaries, treasury exposure reporting with route health and payout backlog, and Tier A aggregate compliance packages with JSON/CSV export.</p>
+      </div>
+    </div>
+
+    <h3>Intentionally Deferred</h3>
+    <p>
+      The following capabilities are acknowledged and intentionally out of scope for this submission:
+      full tax automation and real authority integrations; multi-jurisdiction tax modeling;
+      multi-network rollout beyond Arbitrum Sepolia; enterprise auth and role server model;
+      and action-taking AI assistants.
+    </p>
+  </section>
+
+
+  <!-- 16. CONCLUSION -->
+  <section id="conclusion">
+    <div class="section-divider"><span class="sec-num">16 ·</span><div class="sec-line"></div></div>
+    <h2>Conclusion</h2>
+
+    <p>
+      CipherRoll demonstrates that production-grade confidential payroll is achievable on a public
+      EVM chain today. By grounding privacy in Fully Homomorphic Encryption at the contract level —
+      rather than in off-chain compute, trusted execution environments, or zero-knowledge proving
+      systems that require separate circuits — CipherRoll achieves a tight and verifiable privacy
+      boundary: sensitive financial values stay encrypted throughout their lifecycle, while the
+      system remains composable, auditable, and honest about the metadata that any EVM-native
+      system necessarily makes public.
+    </p>
+
+    <p>
+      The five-wave build progression — from core FHE payroll state through settlement adapters,
+      auditor disclosure, governance, batch payroll, and compliance exports — demonstrates that
+      this architecture can support a full enterprise payroll workflow without sacrificing privacy
+      guarantees at any stage.
+    </p>
+
+    <p>
+      The principal contribution of CipherRoll is not any single cryptographic primitive. It is
+      the demonstration that FHE-encrypted state, real treasury settlement, multi-party governance,
+      aggregate-only audit disclosure, and compliance reporting can be composed into a coherent,
+      deployable, full-stack system with a truthful and formally documented privacy boundary.
+    </p>
+
+    <div class="abstract-box" style="margin-top:40px;">
+      <p>
+        <strong style="color:var(--champagne-bright);">CipherRoll — Private Payroll. Blind Execution.</strong><br><br>
+        Final Wave 5 submission · Confidential payroll infrastructure for Arbitrum Sepolia ·
+        Built on Fhenix CoFHE<br><br>
+        Live Application: <strong style="color:var(--silver-bright);">cipher-roll.vercel.app</strong> &nbsp;·&nbsp;
+        Repository: <strong style="color:var(--silver-bright);">github.com/PhanTom497/CipherRoll</strong>
+      </p>
+    </div>
+  </section>
+
+
+  <!-- FOOTER -->
+  <div class="doc-footer">
+    <span class="footer-brand">
+      <img src="data:image/jpeg;base64,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" alt="CipherRoll">
+      CIPHERROLL // TECHNICAL WHITEPAPER
+    </span>
+    <p>
+      This document is a technical whitepaper for the CipherRoll confidential payroll system,
+      deployed on Arbitrum Sepolia using the Fhenix CoFHE coprocessor. All contract addresses
+      are testnet deployments. This document does not constitute legal, financial, or tax advice.
+    </p>
+    <p>
+      All code and architectural specifications described herein reflect the Wave 5 final submission
+      state. The system is under active development; specifications may change in subsequent releases.
+      For the canonical source of truth, refer to the repository at
+      <strong>github.com/PhanTom497/CipherRoll</strong> and the live deployment at
+      <strong>cipher-roll.vercel.app</strong>.
+    </p>
+    <p style="margin-top:24px;">
+      © 2026 CipherRoll · Wave 5 Final Submission · Built on Fhenix CoFHE · Deployed on Arbitrum Sepolia
+    </p>
+  </div>
+
+</div><!-- end .document -->
+
+<script>
+  (function () {
+    try {
+      if (window.self !== window.top) {
+        document.body.classList.add('embed-preview');
+      }
+    } catch (error) {
+      document.body.classList.add('embed-preview');
+    }
+  })();
+</script>
+</body>
+</html>

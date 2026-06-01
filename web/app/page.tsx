@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Shield, Users, Eye, Wallet, Lock, ArrowUpRight, Play, Landmark, Github, Send, MessageCircle, ExternalLink, Mail } from "lucide-react";
+import { Shield, Users, Eye, Wallet, Lock, ArrowUpRight, Play, Landmark, Github, Send, MessageCircle, ExternalLink, Mail, FileText, Download, BookOpenCheck } from "lucide-react";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 import FeaturesScroll from "@/components/FeaturesScroll";
 import ProblemMarquee from "@/components/ProblemMarquee";
@@ -51,6 +51,7 @@ const portals = [
 
 const footerLinks = [
   { label: "Docs", href: "/docs" },
+  { label: "Whitepaper", href: "/whitepaper" },
   { label: "FAQ", href: "https://cipher-roll.vercel.app/docs?tab=troubleshooting&section=ts-faq", external: true },
   { label: "Fhenix Docs", href: "https://cofhe-docs.fhenix.zone/", external: true },
   { label: "Backend Health", href: "https://cipherroll.onrender.com/api/health", external: true },
@@ -160,6 +161,17 @@ export default function Home() {
                   Watch Demo
                 </Link>
               </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.7, duration: 0.8, ease: "easeOut" }}
+              >
+                <Link href="/whitepaper" className="flex items-center gap-2.5 bg-transparent text-[#e4e4e5] px-6 py-2.5 rounded-full font-medium border border-cyan-200/20 hover:bg-cyan-200/10 transition-colors text-sm">
+                  <FileText className="w-4 h-4 text-cyan-100 flex-shrink-0" />
+                  Read Whitepaper
+                </Link>
+              </motion.div>
             </div>
           </div>
         </div>
@@ -182,6 +194,67 @@ export default function Home() {
       <div className="relative z-10">
         <FeaturesScroll />
       </div>
+
+      <SectionDivider />
+
+      <section className="relative z-10 overflow-hidden bg-black px-6 py-28">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(103,232,249,0.14),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.08),transparent_28%)]" />
+        <div className="relative mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/70">
+              <BookOpenCheck className="h-3.5 w-3.5 text-cyan-200" />
+              Research Layer
+            </div>
+            <h2 className="mt-6 max-w-4xl text-[40px] font-semibold tracking-[-0.04em] text-white md:text-[54px] lg:text-[64px] leading-[0.98]">
+              The product demo gets attention.
+              <br />
+              The whitepaper closes conviction.
+            </h2>
+            <p className="mt-6 max-w-2xl text-[17px] leading-[1.85] text-[#b4b4bc]">
+              CipherRoll now has a dedicated whitepaper surface for teams evaluating architecture,
+              privacy boundaries, governance, settlement design, and audit posture. When your final
+              files land in <span className="font-medium text-white">`/web/public/whitepaper`</span>,
+              the experience is ready to open, preview, and download.
+            </p>
+
+            <div className="mt-10 flex flex-wrap items-center gap-4">
+              <Link href="/whitepaper" className="flex items-center gap-3 rounded-full bg-white px-5 py-2 text-sm font-medium text-black transition-colors hover:bg-white/90">
+                Open Whitepaper Hub
+                <div className="rounded-full bg-black p-2 text-white">
+                  <ArrowUpRight className="h-3.5 w-3.5 stroke-[2.5]" />
+                </div>
+              </Link>
+
+              <Link href="/whitepaper/live" className="flex items-center gap-2.5 rounded-full border border-white/15 px-6 py-3 text-sm font-medium text-[#e4e4e5] transition-colors hover:bg-white/10">
+                <FileText className="h-4 w-4" />
+                Preview HTML Shell
+              </Link>
+
+              <Link href="/whitepaper/whitepaper.pdf" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 rounded-full border border-cyan-200/20 px-6 py-3 text-sm font-medium text-cyan-50 transition-colors hover:bg-cyan-200/10">
+                <Download className="h-4 w-4" />
+                Download PDF
+              </Link>
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-7 backdrop-blur-xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-200/80">
+              Why it matters
+            </p>
+            <div className="mt-6 space-y-4">
+              {[
+                "Gives investors, judges, and technical reviewers a single narrative instead of forcing them to reconstruct the system from portal screens.",
+                "Turns the docs surface into a trust journey: watch demo, inspect product, read whitepaper, verify implementation details.",
+                "Makes the project feel deliberate and serious instead of hackathon-only, especially for payroll, compliance, and privacy claims.",
+              ].map((point) => (
+                <div key={point} className="rounded-2xl border border-white/8 bg-black/30 px-4 py-4 text-sm leading-7 text-[#d4d4d8]">
+                  {point}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
 
       <SectionDivider />
 

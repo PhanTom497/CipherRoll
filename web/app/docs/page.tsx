@@ -14,6 +14,7 @@ import {
   Copy,
   Cpu,
   FileCode2,
+  FileText,
   FileKey2,
   Lock,
   Rocket,
@@ -2758,6 +2759,42 @@ export default function DocsPage() {
               roadmap, and troubleshooting for the current CipherRoll product.
             </p>
           </div>
+
+          <GlassCard className="mt-8 rounded-[2rem] border border-cyan-200/15 bg-[linear-gradient(135deg,rgba(10,10,10,0.88),rgba(14,25,30,0.72))] p-6 md:p-7">
+            <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+              <div className="max-w-3xl">
+                <div className="inline-flex items-center gap-2 rounded-full border border-cyan-200/15 bg-cyan-200/8 px-3 py-1 text-[11px] font-black uppercase tracking-[0.2em] text-cyan-100/80">
+                  <FileText className="h-3.5 w-3.5" />
+                  Whitepaper
+                </div>
+                <h2 className="mt-4 text-2xl font-bold tracking-tight text-white md:text-3xl">
+                  Start with the full system narrative.
+                </h2>
+                <p className="mt-3 text-sm leading-7 text-gray-300 md:text-base">
+                  The docs explain each subsystem in detail. The whitepaper gives reviewers the
+                  bigger story: why confidential payroll matters, how CipherRoll is structured, and
+                  what the privacy, governance, settlement, and audit model looks like end to end.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <a
+                  href="/whitepaper"
+                  className="inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-white/90"
+                >
+                  Open whitepaper hub
+                </a>
+                <a
+                  href="/whitepaper/whitepaper.pdf"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center rounded-full border border-white/12 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.05]"
+                >
+                  Download PDF
+                </a>
+              </div>
+            </div>
+          </GlassCard>
 
           <div className="mt-8 flex justify-center">
             <div className="flex w-full max-w-6xl flex-wrap items-center justify-center gap-2 rounded-full border border-white/[0.08] bg-[#0b0b0c]/90 px-3 py-3 backdrop-blur-xl">
