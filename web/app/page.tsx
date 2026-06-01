@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Shield, Users, Eye, Wallet, Lock, ArrowUpRight, Play, Landmark, Github, Send, MessageCircle, ExternalLink, Mail, FileText, Download, BookOpenCheck } from "lucide-react";
+import { Shield, Users, Eye, Wallet, Lock, ArrowUpRight, Play, Landmark, Github, Send, MessageCircle, ExternalLink, Mail, FileText, BookOpenCheck } from "lucide-react";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 import FeaturesScroll from "@/components/FeaturesScroll";
 import ProblemMarquee from "@/components/ProblemMarquee";
@@ -206,15 +206,15 @@ export default function Home() {
               Research Layer
             </div>
             <h2 className="mt-6 max-w-4xl text-[40px] font-semibold tracking-[-0.04em] text-white md:text-[54px] lg:text-[64px] leading-[0.98]">
-              The product demo gets attention.
+              The product demonstrates capability.
               <br />
-              The whitepaper closes conviction.
+              The whitepaper establishes technical credibility.
             </h2>
             <p className="mt-6 max-w-2xl text-[17px] leading-[1.85] text-[#b4b4bc]">
-              CipherRoll now has a dedicated whitepaper surface for teams evaluating architecture,
-              privacy boundaries, governance, settlement design, and audit posture. When your final
-              files land in <span className="font-medium text-white">`/web/public/whitepaper`</span>,
-              the experience is ready to open, preview, and download.
+              CipherRoll now includes a dedicated whitepaper surface for teams assessing system
+              architecture, privacy boundaries, governance controls, settlement design, and audit
+              posture. It gives reviewers a focused reading experience that complements the live
+              product and technical documentation.
             </p>
 
             <div className="mt-10 flex flex-wrap items-center gap-4">
@@ -229,11 +229,6 @@ export default function Home() {
                 <FileText className="h-4 w-4" />
                 Preview HTML Shell
               </Link>
-
-              <Link href="/whitepaper/whitepaper.pdf" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 rounded-full border border-cyan-200/20 px-6 py-3 text-sm font-medium text-cyan-50 transition-colors hover:bg-cyan-200/10">
-                <Download className="h-4 w-4" />
-                Download PDF
-              </Link>
             </div>
           </div>
 
@@ -243,9 +238,9 @@ export default function Home() {
             </p>
             <div className="mt-6 space-y-4">
               {[
-                "Gives investors, judges, and technical reviewers a single narrative instead of forcing them to reconstruct the system from portal screens.",
-                "Turns the docs surface into a trust journey: watch demo, inspect product, read whitepaper, verify implementation details.",
-                "Makes the project feel deliberate and serious instead of hackathon-only, especially for payroll, compliance, and privacy claims.",
+                "Creates a single technical narrative for evaluators who need to understand the system before reviewing individual product surfaces.",
+                "Connects architecture, privacy, governance, and operational design in one document instead of scattering those claims across portals and documentation pages.",
+                "Strengthens diligence, partnership, and review workflows by presenting CipherRoll as a defined infrastructure product rather than a demo alone.",
               ].map((point) => (
                 <div key={point} className="rounded-2xl border border-white/8 bg-black/30 px-4 py-4 text-sm leading-7 text-[#d4d4d8]">
                   {point}

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowLeft, Download, ExternalLink, FileText } from 'lucide-react'
+import { ArrowLeft, ExternalLink, FileText } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'CipherRoll Whitepaper Preview',
@@ -33,10 +33,6 @@ export default function WhitepaperLivePage() {
             <Link href="/whitepaper/index.html" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/12 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/[0.05]">
               <ExternalLink className="h-4 w-4" />
               Open HTML
-            </Link>
-            <Link href="/whitepaper/whitepaper.pdf" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-cyan-200/20 px-4 py-2.5 text-sm font-semibold text-cyan-50 transition hover:bg-cyan-200/10">
-              <Download className="h-4 w-4" />
-              PDF
             </Link>
           </div>
         </div>

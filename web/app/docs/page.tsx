@@ -2784,14 +2784,6 @@ export default function DocsPage() {
                 >
                   Open whitepaper hub
                 </a>
-                <a
-                  href="/whitepaper/whitepaper.pdf"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center rounded-full border border-white/12 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.05]"
-                >
-                  Download PDF
-                </a>
               </div>
             </div>
           </GlassCard>

@@ -59,10 +59,84 @@
   }
 
   @media print {
-    .cover-page { page-break-after: always; }
-    .toc-page { page-break-after: always; }
-    section { page-break-inside: avoid; }
-    h2 { page-break-before: always; }
+    @page {
+      size: A4;
+      margin: 16mm 14mm 18mm;
+    }
+
+    html, body {
+      background: var(--paper);
+    }
+
+    body {
+      font-size: 11pt;
+      line-height: 1.62;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .cover-page {
+      min-height: 262mm;
+      page-break-after: always;
+      break-after: page;
+    }
+
+    .toc-page {
+      page-break-after: always;
+      break-after: page;
+      border-bottom: none;
+    }
+
+    .document,
+    .toc-page {
+      max-width: none;
+      margin: 0;
+      padding-left: 0;
+      padding-right: 0;
+    }
+
+    section {
+      page-break-inside: auto;
+      break-inside: auto;
+      margin-bottom: 0;
+    }
+
+    .section-divider,
+    h2 {
+      page-break-after: avoid;
+      break-after: avoid;
+    }
+
+    h2 {
+      page-break-before: auto;
+      break-before: auto;
+      margin-top: 0;
+    }
+
+    h3, h4, p, ul, ol, table, .callout, .abstract-box, .code-block,
+    .feature-card, .privacy-card, .gov-flow, .tl-item, .table-wrap, .lifecycle {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    thead {
+      display: table-header-group;
+    }
+
+    tr, td, th {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .feature-grid,
+    .privacy-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .sticky-nav { display: none; }
+    .cover-bg-radial { opacity: 1; }
+    .doc-footer { margin-top: 48px; }
+    [id] { scroll-margin-top: 0; }
     .sticky-nav { display: none; }
     body.embed-preview .sticky-nav { display: none; }
   }

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowUpRight, Download, Eye, FileText, ShieldCheck } from 'lucide-react'
+import { ArrowUpRight, Eye, FileText, ShieldCheck } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'CipherRoll Whitepaper',
@@ -50,10 +50,6 @@ export default function WhitepaperPage() {
                   Open HTML
                 </Link>
 
-                <Link href="/whitepaper/whitepaper.pdf" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2.5 rounded-full border border-cyan-200/20 px-5 py-3 text-sm font-semibold text-cyan-50 transition hover:bg-cyan-200/10">
-                  <Download className="h-4 w-4" />
-                  Download PDF
-                </Link>
               </div>
             </div>
 
@@ -124,7 +120,7 @@ export default function WhitepaperPage() {
               </h2>
               <p className="mt-4 text-sm leading-7 text-[#a1a1aa] md:text-base">
                 Use the embedded preview for quick evaluation, open the standalone HTML for a
-                distraction-free reading experience, or download the PDF for distribution and formal review.
+                distraction-free reading experience, and keep the review flow consistent across the product surface.
               </p>
             </div>
 
@@ -136,10 +132,6 @@ export default function WhitepaperPage() {
               <Link href="/whitepaper/index.html" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/12 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/[0.05]">
                 <FileText className="h-4 w-4" />
                 HTML
-              </Link>
-              <Link href="/whitepaper/whitepaper.pdf" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-cyan-200/20 px-4 py-2.5 text-sm font-semibold text-cyan-50 transition hover:bg-cyan-200/10">
-                <Download className="h-4 w-4" />
-                PDF
               </Link>
             </div>
           </div>
