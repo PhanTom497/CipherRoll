@@ -10,7 +10,7 @@ It combines **encrypted on-chain payroll state**, **real treasury-backed settlem
 
 [![Live App](https://img.shields.io/badge/Live_App-cipher--roll.vercel.app-18181b?style=flat-square&logo=vercel&logoColor=white)](https://cipher-roll.vercel.app/)
 [![Docs](https://img.shields.io/badge/Docs-cipher--roll.vercel.app/docs-18181b?style=flat-square&logo=bookstack&logoColor=white)](https://cipher-roll.vercel.app/docs)
-[![Demo Video](https://img.shields.io/badge/Demo-YouTube-18181b?style=flat-square&logo=youtube&logoColor=white)](https://youtu.be/uBAilNYfFIw)
+[![Demo Video](https://img.shields.io/badge/Demo-YouTube-18181b?style=flat-square&logo=youtube&logoColor=white)](https://youtu.be/yeKGeHdbBsA)
 [![Chain](https://img.shields.io/badge/Chain-Arbitrum_Sepolia-28a0f0?style=flat-square&logo=arbitrum&logoColor=white)](https://sepolia-rollup.arbitrum.io/)
 [![Privacy](https://img.shields.io/badge/FHE-CoFHE_Coprocessor-6366f1?style=flat-square)](https://fhenix.io)
 
